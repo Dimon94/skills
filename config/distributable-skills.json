@@ -26,6 +26,7 @@
     "cc-act",
     "cc-archive",
     "cc-simplify",
+    "wayfinder-implement-orchestrator",
     "cc-research",
     "do-not-repeat-yourself",
     "postmortem",

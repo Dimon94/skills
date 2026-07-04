@@ -7,7 +7,8 @@ Keep the output compact; the point is a falsifiable chain, not a diagram.
 
 - `UDE`: observable undesirable effect. Logs, wrong output, latency, failed gate.
 - `CRT`: Current Reality Tree. Current facts linked as sufficient causes.
-- `ECE`: Effect-Cause-Effect. Start from an effect, propose a cause, then predict another independent effect.
+- `Abductive ECE`: effect -> suspected cause -> independent effect. Use when the first thing known is an observed effect.
+- `Cause-forward ECE`: cause -> effect A + effect B + effect C. Use when the cause is already known and decisions need consequence prediction.
 - `Conflict Cloud`: one objective, two necessary needs, two opposing wants, one assumption to break.
 - `Injection`: smallest change that breaks a bad causal edge or cloud assumption.
 - `FRT`: Future Reality Tree. Predicted desirable effects after the injection.
@@ -21,7 +22,9 @@ Keep the output compact; the point is a falsifiable chain, not a diagram.
 TOC:
 - UDEs:
 - CRT: <root fact> -> <intermediate fact> -> <observed UDE>
-- ECE: <observed effect> <= <suspected cause> => <independent predicted effect>
+- ECE mode: abductive | cause-forward
+- Abductive ECE: <observed effect> <= <suspected cause> => <independent predicted effect>
+- Cause-forward ECE: <known cause> => <predicted effect A>; <predicted effect B>; <predicted risk>
 - Disconfirm first: <kill prediction>; <probe>; <kill condition>
 - Confirm after survival: <independent support>; <why it is not circular>
 - Conflict: <objective>; <need A -> want X>; <need B -> want not-X>; assumption to break
@@ -36,7 +39,8 @@ Omit `Conflict` only when no real tradeoff is driving the bad state. Omit
 ## Debugging Pattern
 
 1. List UDEs as observations only. Do not smuggle causes into symptoms.
-2. Build each hypothesis as ECE: effect -> suspected cause -> second effect.
+2. Build unknown-cause hypotheses as Abductive ECE: observed effect ->
+   suspected cause -> independent predicted effect.
 3. Write the disconfirming probe before any confirming search. Name the exact
    observation that would kill the hypothesis or force a rewrite.
 4. Run the disconfirming probe first. A hypothesis that fails it is killed, not
@@ -50,6 +54,17 @@ Omit `Conflict` only when no real tradeoff is driving the bad state. Omit
 9. Run FRT/NBR before closing: name the desired effect, the likely negative branch,
    and the cheapest check that catches it.
 
+## ECE Mode Gate
+
+- Use Abductive ECE for root-cause discovery: effect first, cause second,
+  independent effect third.
+- Use Cause-forward ECE for consequence prediction: known cause first, multiple
+  expected effects next.
+- Do not use Cause-forward ECE to prove a root cause. It can forecast impact,
+  but it cannot replace an Abductive ECE kill probe.
+- Do not use Abductive ECE for planning after the cause is proven. Switch to
+  Cause-forward ECE, FRT, NBR, PRT, or TRT.
+
 ## Confirmation Bias Gate
 
 - Do not mark a hypothesis `confirmed` from supporting evidence alone.
@@ -62,9 +77,12 @@ Omit `Conflict` only when no real tradeoff is driving the bad state. Omit
 ## Orchestration Pattern
 
 - Discovery child issue: answer one missing CRT edge, kill probe, cloud assumption, injection proof, PRT obstacle, or NBR risk.
-- PRD gate: state what to change, what to change to, and how to cause the change.
-- Issue split gate: each implementation issue is one Injection, prerequisite, or transition step.
-- Integration gate: run FRT/NBR across merged child commits before summary PR/MR.
+- PRD gate: use Cause-forward ECE to state what to change, what to change to,
+  what effects should follow, and how to cause the change.
+- Issue split gate: each implementation issue is one Injection, prerequisite,
+  transition step, or predicted-effect check.
+- Integration gate: run Cause-forward ECE plus FRT/NBR across merged child
+  commits before summary PR/MR.
 
 ## CLR Check
 

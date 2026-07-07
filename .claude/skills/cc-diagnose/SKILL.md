@@ -1,10 +1,11 @@
 ---
 name: cc-diagnose
-version: 1.1.0
+version: 1.2.0
 description: >-
   TOC diagnosis for hard bugs and performance regressions: build a tight red
-  loop, minimise the repro, rank kill-probe hypotheses, instrument one variable,
-  fix with an Injection, and prove the regression is gone.
+  loop, minimise the repro, run a trust ladder on competing hypotheses,
+  instrument one variable, fix with an Injection, and prove the regression is
+  gone.
 skill_class: user-entry
 route_family: bug
 triggers:
@@ -39,6 +40,8 @@ writes: []
 - 第三方库、API、平台行为或旧研究 freshness 阻塞根因判断时，才用 `../cc-research/SKILL.md`；研究只能补 Evidence Gap，不能替代复现。
 
 进入 Phase 3 前加载 `references/toc-thinking-processes.md`。从 Phase 3 到 Phase 6，用 TOC 约束根因记录：UDE 只能是观察；未知根因先写 Abductive ECE 和 kill probe；存活假设再收敛成 CRT；修复必须是 Injection；收尾必须有 FRT/NBR 检查。
+
+反幻觉策略是 **Hypothesis board + trust ladder**：所有候选原因同时可见，每个原因只能处于 `conjectured`、`standing`、`corroborated`、`confirmed` 或 `refuted`；只有通过 removal test 或 action test 的原因才能叫 confirmed root cause。证据不足时报告当前 rung 和下一步检查，不把推测写成结论。
 
 ## Parallel Orchestration Boundary
 
@@ -130,7 +133,9 @@ Phase 1 完成时，必须能写出一个已经亲自运行过的命令（测试
 
 ## Phase 3 - 假设
 
-测试任何假设前，先生成 **3-5 个排序后的假设**。只生成一个假设会把你锚死在第一个看起来合理的解释上。
+测试任何假设前，先生成 **3-5 个排序后的假设**，形成 Hypothesis board。候选来自 U-quadrant scan：known-attended、known-ignored、unknown。至少保留两个互相竞争的候选；只生成一个假设会把你锚死在第一个看起来合理的解释上。
+
+每个假设必须绑定一个 observed result：before-state、after-state、noticed-at，或绑定 Phase 2 捕获的 UDE。静态条件只能作为事实，不能当作需要解释的结果。
 
 每个未知根因假设以 Abductive ECE 起步：
 
@@ -146,7 +151,9 @@ observed UDE <- suspected cause -> independent predicted effect
 
 如果 kill probe 说不清预测，那它不是假设，只是感觉。丢掉或 sharpen。
 
-对关键 ECE/CRT 边使用 CLR 检查；说不清实体、因果或预测的边不能进入 Phase 4。只有 survive kill probe 的假设才收敛成 CRT：
+每个假设从 `conjectured` 开始。通过至少一次严肃 falsification 后才是 `standing`；观察到原始 UDE 之外的 predicted co-effect 后才是 `corroborated`；通过 removal test 或 action test 后才是 `confirmed`。任何 rung 都可以 `refuted`，必须保留 killing fact。
+
+对关键 ECE/CRT 边使用 CLR 检查，顺序是 clarity -> existence -> sufficiency；说不清实体、因果或预测的边不能进入 Phase 4。只有 `standing` 或更高的假设才收敛成 CRT：
 
 ```text
 root fact -> deeper cause -> direct cause -> UDE
@@ -158,7 +165,9 @@ root fact -> deeper cause -> direct cause -> UDE
 
 ## Phase 4 - 打点
 
-每个 probe 都必须对应 Phase 3 的一个具体预测。先跑 kill probe；kill probe 未杀死假设后，再收集独立确认信号。**一次只改一个变量。**
+每个 probe 都必须对应 Phase 3 的一个具体预测。按 trust ladder 运行：先 falsify，未被杀死后再 corroborate，最后用 removal test 或 action test confirm。**一次只改一个变量。**
+
+如果问题无法从代码、配置、历史、日志、已有 task evidence 或便宜安全检查中回答，只问用户一个问题；问题必须说明它会移动哪个假设 rung 或解除哪个 blocker。
 
 工具优先级：
 
@@ -175,6 +184,8 @@ root fact -> deeper cause -> direct cause -> UDE
 先写回归测试，再修复；但前提是存在**正确测试边界**。
 
 修复需要新增 helper、adapter、validator、parser、script、schema 或其它 reusable mechanism 时，先运行 `../do-not-repeat-yourself/SKILL.md`。已有 wheel 能覆盖就复用；不能复用才记录原因并写最小新机制。
+
+进入非平凡修复前，目标原因应为 `confirmed`。如果只达到 `corroborated` 就必须先交代：这是 probable cause，不是 root cause；需要的 confirm test 是什么；为什么现在仍然选择最小风险修复。
 
 把修复写成一个 Injection：它具体打断哪条 CRT 因果边，或废掉哪个 Conflict Cloud
 隐藏假设。非平凡修复先写 FRT/NBR：期望哪个 UDE 变成 DE，最可能新增哪个负分支，

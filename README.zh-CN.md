@@ -87,7 +87,7 @@ flowchart TD
 | `cc-next` | 需要从本地 change 和 issue truth 里选下一个 ready 目标 | 交给 `cc-dev` 的 Goal Packet |
 | `cc-dev` | 已选目标要在当前 worktree 内自动推进到远程 PR | `task.md`、Git commit、PR 或 handoff |
 | `cc-plan` | 新功能或变更需要澄清范围、设计方案、冻结任务 | `task.md#Contract Summary` |
-| `cc-diagnose` | Bug、回归、崩溃、flaky 或性能回退需要快速反馈环和 hotfix 纪律 | 回复证据、聚焦代码 / 测试改动、回归证明 |
+| `cc-diagnose` | Bug、回归、崩溃、flaky 或性能回退需要 tight red-capable 反馈环和 hotfix 纪律 | 回复证据、聚焦代码 / 测试改动、回归证明 |
 | `cc-do` | 已冻结的计划任务需要实现 | 代码、测试、`task.md` 状态、Git commit |
 | `cc-review` | 复杂方案、diff、复杂度报告、优化热点、生产加固风险或极严结构质量 Review 需要在实现前或验证前做可选深度 Review | 计划 finding 写入 `task.md`；执行 finding 和修复选项回到对话 |
 | `cc-pr-review` | 远程 PR 需要单独会话做合并前 Review，相关时包含 PR 范围内复杂度热点审查 | PR review packet、findings 和 landing verdict |
@@ -104,7 +104,7 @@ flowchart TD
 
 ## 计划质量门禁
 
-`cc-plan` 会在 `cc-do` 开始前冻结实现决策。非 trivial 计划需要比较 minimal viable 和 ideal architecture，full-design 需要包含 implementation decision horizon 和 error/rescue map；测试计划要记录测试框架证据、public test seam、behavior assertion、mock boundary、覆盖质量、强制 regression test、refactor candidates、vertical tracer-bullet slices 和 confidence-per-minute 测试策略。它只记录最终 `cc-check` Review 收敛门，不再默认拆出 `cc-review` 子线程。`cc-diagnose` 刻意更轻：先用最锋利的反馈环复现，列出可证伪假设，窄口打点，修复后证明原始复现消失，并清掉 debug probe。
+`cc-plan` 会在 `cc-do` 开始前冻结实现决策。非 trivial 计划需要比较 minimal viable 和 ideal architecture，full-design 需要包含 implementation decision horizon 和 error/rescue map；测试计划要记录测试框架证据、public test seam、behavior assertion、mock boundary、覆盖质量、强制 regression test、refactor candidates、vertical tracer-bullet slices 和 confidence-per-minute 测试策略。它只记录最终 `cc-check` Review 收敛门，不再默认拆出 `cc-review` 子线程。`cc-diagnose` 刻意更轻：先证明 tight red-capable 反馈环，最小化复现，列出 kill-probe 假设，窄口打点，用 Injection 修复，证明原始复现消失，并清掉 debug probe。
 
 大需求需要并行时，`cc-plan` 先在 `task.md#Execution Environments` 冻结 execution environment 依赖图、触点、路由 skill、验证命令和 merge gate；`cc-dev` 再按这张图创建同级 worktree / 子线程，派发 `cc-do`、显式 standalone `cc-review`、`cc-check`、`cc-diagnose` 或有边界的 `cc-act`，并在主控线程串行验收、cherry-pick、跑 phase gate 和最终 `cc-check`。子线程只拥有自己的 environment，不拥有阶段解锁、主分支合并或最终交付裁决。Codex 子线程派发必须使用固定 dispatch packet、真实 thread tool preflight，并在 cherry-pick 前留下只读 integration audit 证据。
 

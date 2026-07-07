@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated `cc-diagnose` to require a tight red-capable loop, minimised repro,
+  TOC kill probes, and Injection/FRT/NBR closeout before diagnosis delivery.
 - Updated `cc-act` to require remote issue closeout state, including verified
   direct closures, auto-close-on-merge refs, related-only refs, and blocked/manual actions.
 - Added remote issue closeout fields to the `cc-act` PR brief template and

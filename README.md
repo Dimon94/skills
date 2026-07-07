@@ -87,7 +87,7 @@ flowchart TD
 | `cc-next` | You need to pick the next ready target from active local changes and issue truth | one Goal Packet for `cc-dev`, including review gate hints |
 | `cc-dev` | A selected objective should be driven in the current worktree to a remote PR | `task.md`, Git commits, and a PR or handoff |
 | `cc-plan` | A feature or change needs scope, design, and task freezing | `task.md#Contract Summary` |
-| `cc-diagnose` | A bug, regression, crash, flaky failure, or performance regression needs a tight feedback loop and hotfix discipline | response evidence, focused code/test changes, and regression proof |
+| `cc-diagnose` | A bug, regression, crash, flaky failure, or performance regression needs a tight red-capable loop and hotfix discipline | response evidence, focused code/test changes, and regression proof |
 | `cc-do` | Frozen planned work needs implementation | code, tests, `task.md` status, Git commit |
 | `cc-review` | Complex plans, diffs, complexity reports, optimization hotspots, hardening risks, or harsh structural quality reviews need optional deep review before implementation or verification | plan findings in `task.md`; implementation findings and repair options in the response |
 | `cc-pr-review` | A remote PR needs an independent review session before landing, including PR-scoped complexity, hardening, and productization review when relevant | PR review packet, findings, facet coverage, and landing verdict |
@@ -104,7 +104,7 @@ Maintenance skills are shipped with the pack:
 
 ## Planning Quality Gates
 
-`cc-plan` freezes implementation decisions before `cc-do` starts. Non-trivial plans compare minimal viable and ideal architecture options, full designs include decision horizon plus error/rescue mapping, and test-first plans record test framework evidence, public test seams, behavior assertions, mock boundaries, coverage quality, mandatory regression tests, refactor candidates, vertical tracer-bullet slices, and confidence-per-minute test strategy when existing behavior changes. It records the expected final `cc-check` review convergence gate instead of spawning default `cc-review` child threads. `cc-diagnose` is deliberately lighter: reproduce with the sharpest loop available, rank falsifiable hypotheses, instrument narrowly, fix, prove the original repro is gone, and keep debug probes out of the final tree.
+`cc-plan` freezes implementation decisions before `cc-do` starts. Non-trivial plans compare minimal viable and ideal architecture options, full designs include decision horizon plus error/rescue mapping, and test-first plans record test framework evidence, public test seams, behavior assertions, mock boundaries, coverage quality, mandatory regression tests, refactor candidates, vertical tracer-bullet slices, and confidence-per-minute test strategy when existing behavior changes. It records the expected final `cc-check` review convergence gate instead of spawning default `cc-review` child threads. `cc-diagnose` is deliberately lighter: prove a tight red-capable loop, minimise the repro, rank kill-probe hypotheses, instrument narrowly, fix with an Injection, prove the original repro is gone, and keep debug probes out of the final tree.
 
 When large work needs parallel execution, `cc-plan` first freezes an execution
 environment graph in `task.md#Execution Environments`: dependencies, touched

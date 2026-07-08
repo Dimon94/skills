@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sharpened `cc-diagnose` so kill probes stay disconfirming, removal/action
+  tests own confirmation, single-candidate boards record why instead of
+  inventing competitors, and EF orchestration rules live behind a branch
+  reference.
 - Updated `cc-diagnose` with a Hypothesis board, TOC trust ladder,
   evidence-first question strategy, and stricter root-cause language.
 - Updated `cc-diagnose` to require a tight red-capable loop, minimised repro,

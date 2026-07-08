@@ -1,6 +1,6 @@
 ---
 name: cc-diagnose
-version: 1.2.0
+version: 1.2.1
 description: >-
   TOC diagnosis for hard bugs and performance regressions: build a tight red
   loop, minimise the repro, run a trust ladder on competing hypotheses,
@@ -21,6 +21,7 @@ triggers:
   - 用 CRT 分析 bug
 reads:
   - references/toc-thinking-processes.md
+  - references/parallel-orchestration-boundary.md
   - references/git-commit-guidelines.md
   - ../do-not-repeat-yourself/SKILL.md
   - ../postmortem/SKILL.md
@@ -39,23 +40,15 @@ writes: []
 - 症状像历史复发、failed verification 或 workflow escape 时，用 `../postmortem/SKILL.md` 做 `recall`；只有用户明确要求或 closeout 需要时才记录新 incident。
 - 第三方库、API、平台行为或旧研究 freshness 阻塞根因判断时，才用 `../cc-research/SKILL.md`；研究只能补 Evidence Gap，不能替代复现。
 
-进入 Phase 3 前加载 `references/toc-thinking-processes.md`。从 Phase 3 到 Phase 6，用 TOC 约束根因记录：UDE 只能是观察；未知根因先写 Abductive ECE 和 kill probe；存活假设再收敛成 CRT；修复必须是 Injection；收尾必须有 FRT/NBR 检查。
+进入 Phase 3 前加载 `references/toc-thinking-processes.md`；它是 Hypothesis board、trust ladder、ECE、CLR、Injection 和 FRT/NBR 的单一真相源。`SKILL.md` 只保留阶段门槛：没有 tight red loop 不建假设；没有 disconfirming probe 不打点；没有 `confirmed` 或显式 `probable cause` 不修复。
 
-反幻觉策略是 **Hypothesis board + trust ladder**：所有候选原因同时可见，每个原因只能处于 `conjectured`、`standing`、`corroborated`、`confirmed` 或 `refuted`；只有通过 removal test 或 action test 的原因才能叫 confirmed root cause。证据不足时报告当前 rung 和下一步检查，不把推测写成结论。
+反幻觉策略是 **evidence-first Hypothesis board**：候选原因必须有证据、当前 rung 和下一步检查；root cause language 只在 TOC reference 的 trust ladder 达到 `confirmed` 后使用。
 
 ## Parallel Orchestration Boundary
 
 当 `cc-dev` 把本 skill 作为 `EF###` diagnosis environment 派发时：
 
-- 只诊断触发该 environment 的失败：child failure、cherry-pick conflict、phase gate failure 或 `cc-check` fail。
-- 在 Codex App 中创建 child thread 时，`projectId` 不能使用任意 worktree path；必须使用已保存项目的 project worktree path 创建子线程，然后在子线程内切到具体起始分支和目标 worktree。不要先拿临时/任务 worktree path 创建线程再等失败后纠正。
-- 如果主控要求“用 Codex App 创建子线程，不用 subagent”，必须创建真实 Codex child thread；不要退回 subagent 或本线程假装并行。
-- 先建立反馈环并复现原始失败；没有反馈环就返回 blocked。
-- 修复必须产出独立 commit，除非诊断结论是不需要改文件。
-- commit 只包含该 failure 的最小修复、回归测试、必要 task evidence 和 debug cleanup。
-- commit 必须遵守 `references/git-commit-guidelines.md` 和 `../do-not-repeat-yourself/SKILL.md`；fix 类提交要写清根因、验证、风险，不能只写症状摘要。
-- 如果发现真实问题超出当前 change scope，返回 route `cc-plan` 或独立 `FIX`，不要偷偷扩大当前需求。
-- 最终报告必须包含 environment、commit、复现 loop、回归命令、dirty state、debug probe 清理和 route recommendation。
+- 这是 branch-specific protocol。先加载 `references/parallel-orchestration-boundary.md`，按其中的 scope、commit 和 final report checklist 执行。
 
 ## Phase 1 - 建立反馈环
 
@@ -133,7 +126,7 @@ Phase 1 完成时，必须能写出一个已经亲自运行过的命令（测试
 
 ## Phase 3 - 假设
 
-测试任何假设前，先生成 **3-5 个排序后的假设**，形成 Hypothesis board。候选来自 U-quadrant scan：known-attended、known-ignored、unknown。至少保留两个互相竞争的候选；只生成一个假设会把你锚死在第一个看起来合理的解释上。
+测试任何假设前，先生成 evidence-backed Hypothesis board。默认生成 **3-5 个排序后的假设**；如果证据只支持一个非伪造候选，记录“为什么没有第二个真实候选”，继续用它推进，不要编造陪跑原因。候选来自 U-quadrant scan：known-attended、known-ignored、unknown。
 
 每个假设必须绑定一个 observed result：before-state、after-state、noticed-at，或绑定 Phase 2 捕获的 UDE。静态条件只能作为事实，不能当作需要解释的结果。
 
@@ -143,17 +136,17 @@ Phase 1 完成时，必须能写出一个已经亲自运行过的命令（测试
 observed UDE <- suspected cause -> independent predicted effect
 ```
 
-每个假设必须有一个优先证伪的 kill probe：
+每个假设必须先写 disconfirming kill probe：
 
 ```text
-如果 X 是原因，那么改变 Y 会让 bug 消失 / 观察 Z 会杀死这个假设。
+如果 X 是原因，我预期看到 Z；如果看到 not-Z / absent-Z，该假设 refuted。
 ```
 
 如果 kill probe 说不清预测，那它不是假设，只是感觉。丢掉或 sharpen。
 
-每个假设从 `conjectured` 开始。通过至少一次严肃 falsification 后才是 `standing`；观察到原始 UDE 之外的 predicted co-effect 后才是 `corroborated`；通过 removal test 或 action test 后才是 `confirmed`。任何 rung 都可以 `refuted`，必须保留 killing fact。
+把 removal test 或 action test 作为 confirm test 单独记录；它验证原因，不能代替 kill probe。
 
-对关键 ECE/CRT 边使用 CLR 检查，顺序是 clarity -> existence -> sufficiency；说不清实体、因果或预测的边不能进入 Phase 4。只有 `standing` 或更高的假设才收敛成 CRT：
+Phase 3 完成标准：每个候选都有 observed result、Abductive ECE、kill probe、confirm test 或缺失原因、当前 rung、下一步检查；refuted 候选保留 killing fact。只有 `standing` 或更高的假设才收敛成 CRT：
 
 ```text
 root fact -> deeper cause -> direct cause -> UDE
@@ -165,7 +158,7 @@ root fact -> deeper cause -> direct cause -> UDE
 
 ## Phase 4 - 打点
 
-每个 probe 都必须对应 Phase 3 的一个具体预测。按 trust ladder 运行：先 falsify，未被杀死后再 corroborate，最后用 removal test 或 action test confirm。**一次只改一个变量。**
+每个 probe 都必须对应 Phase 3 的一个具体预测。按 trust ladder 运行：先用 kill probe 尝试 refute，存活后收集独立 corroboration，最后用 removal test 或 action test confirm。**一次只改一个变量。**
 
 如果问题无法从代码、配置、历史、日志、已有 task evidence 或便宜安全检查中回答，只问用户一个问题；问题必须说明它会移动哪个假设 rung 或解除哪个 blocker。
 
@@ -211,7 +204,7 @@ root fact -> deeper cause -> direct cause -> UDE
 - [ ] 回归测试通过；如果没有正确边界，已经记录原因。
 - [ ] 所有 `[DEBUG-...]` 打点已删除：grep 前缀确认。
 - [ ] 一次性 prototype 已删除，或移动到明确标记的 debug 位置。
-- [ ] 最终 TOC 记录写进 commit / PR message：UDE、确认的 CRT、Injection、FRT/NBR。
+- [ ] 最终 TOC 记录写进 commit / PR message：UDE、confirmed CRT，或带缺失 confirm test 的 probable CRT、Injection、FRT/NBR。
 - [ ] 若这是可复用失败教训，在 active change 中写入 `task.md#Failure Ledger`；独立 postmortem 只在用户明确要求或 closeout 需要时按 `../postmortem/SKILL.md` 执行。
 
 然后问：什么本来可以防止这个 bug？如果答案涉及架构变化，例如没有好测试边界、caller 缠在一起、隐藏耦合，就把具体信息交给架构改进流程。这个建议必须在修复之后提出，不要在修复前空谈；修完后你掌握的信息更多。

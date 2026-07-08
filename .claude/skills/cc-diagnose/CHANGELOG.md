@@ -1,5 +1,12 @@
 # CC-Diagnose Skill Changelog
 
+## v1.2.1 - 2026-07-08
+
+- separate disconfirming kill probes from removal/action confirmation tests
+- allow a single evidence-backed hypothesis when no second real candidate exists, with an explicit anti-fabrication note
+- move `cc-dev` EF### orchestration rules into a branch-specific reference
+- clarify that `confirmed` stops root-cause search only, not Injection/FRT/NBR/regression cleanup
+
 ## v1.2.0 - 2026-07-07
 
 - add Hypothesis board and trust ladder rules so candidate causes stay visible as conjectured, standing, corroborated, confirmed, or refuted

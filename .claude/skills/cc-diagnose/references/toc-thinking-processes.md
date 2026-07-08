@@ -6,11 +6,11 @@ Keep the output compact; the point is a falsifiable chain, not a diagram.
 ## Vocabulary
 
 - `UDE`: observable undesirable effect. Logs, wrong output, latency, failed gate.
-- `Observed result`: a state change with before-state, after-state, and noticed-at.
+- `Observed result`: one selected UDE captured as before-state, after-state, and noticed-at.
 - `CRT`: Current Reality Tree. Current facts linked as sufficient causes.
 - `Abductive ECE`: effect -> suspected cause -> independent effect. Use when the first thing known is an observed effect.
 - `Cause-forward ECE`: cause -> effect A + effect B + effect C. Use when the cause is already known and decisions need consequence prediction.
-- `Hypothesis board`: every active and refuted candidate cause, with rung, next check, and evidence.
+- `Hypothesis board`: every evidence-backed active and refuted candidate cause, with rung, next check, and evidence.
 - `Trust ladder`: conjectured -> standing -> corroborated -> confirmed, with refuted possible at any rung.
 - `Conflict Cloud`: one objective, two necessary needs, two opposing wants, one assumption to break.
 - `Injection`: smallest change that breaks a bad causal edge or cloud assumption.
@@ -31,8 +31,8 @@ TOC:
 - ECE mode: abductive | cause-forward
 - Abductive ECE: <observed effect> <= <suspected cause> => <independent predicted effect>
 - Cause-forward ECE: <known cause> => <predicted effect A>; <predicted effect B>; <predicted risk>
-- Disconfirm first: <kill prediction>; <probe>; <kill condition>
-- Confirm after standing: <independent support>; <why it is not circular>
+- Disconfirm first: expect <signal>; <probe>; refute if <absent/opposite signal>
+- Confirm after corroboration: <removal/action test>; <pass condition>; <risk if skipped>
 - Conflict: <objective>; <need A -> want X>; <need B -> want not-X>; assumption to break
 - Injection:
 - FRT/NBR: <desired effect>; <negative branch>; <prevention/check>
@@ -49,15 +49,16 @@ Omit `Conflict` only when no real tradeoff is driving the bad state. Omit
    - known-attended: causes already suspected in the case
    - known-ignored: recent changes, ignored logs, config, dependencies, history, prior incidents, or decisions already in reach
    - unknown: adjacent causes needing research or user knowledge, only after known candidates are exhausted or refuted
-4. Keep at least two competing hypotheses visible on the Hypothesis board before deep verification.
+4. Keep at least two competing hypotheses visible when evidence supports them. If only one non-fabricated candidate exists, record why.
 5. Build unknown-cause hypotheses as Abductive ECE: observed effect ->
    suspected cause -> independent predicted effect.
-6. Write the disconfirming probe before any confirming search. Name the exact
-   observation that would kill the hypothesis or force a rewrite.
-7. Run the disconfirming probe first. A hypothesis that fails it is killed, not
-   patched with convenient supporting evidence.
-8. Only after a hypothesis reaches `standing`, collect confirming evidence. Confirmation must be
-   independent of the symptom that generated the hypothesis.
+6. Write the disconfirming kill probe before any confirming search. Name the
+   exact observation that would kill the hypothesis or force a rewrite.
+7. Run the disconfirming probe first. A hypothesis whose refute condition
+   appears is killed, not patched with convenient supporting evidence.
+8. Only after a hypothesis survives a serious kill probe, mark it `standing`
+   and collect independent corroboration. Confirmation must be independent of
+   the symptom that generated the hypothesis.
 9. Build only `standing` or stronger hypotheses into a CRT chain from root fact to UDE.
 10. If the bad design persists because two needs fight, write the Conflict Cloud
    and break one hidden assumption instead of choosing a compromise.
@@ -72,7 +73,7 @@ Each hypothesis moves one rung at a time:
 1. `conjectured`: named as a candidate sufficient cause for one observed result.
 2. `standing`: survived at least one serious falsification attempt.
 3. `corroborated`: at least one predicted co-effect beyond the original result was observed. This is tentative, not final.
-4. `confirmed`: a removal test or action test passed. Diagnosis of this branch stops here.
+4. `confirmed`: a removal test or action test passed. Root-cause search for this branch stops here; delivery still needs Injection, FRT/NBR, regression proof, and cleanup.
 5. `refuted`: any rung can fall here; keep the killing fact visible on the board.
 
 Root cause language is reserved for `confirmed`. If only `corroborated`, say
@@ -108,7 +109,7 @@ which hypothesis rung moves, which assumption changes, or which blocker clears.
 - Do not let a hypothesis leave `conjectured` without a falsification attempt.
 - Do not let a hypothesis become `corroborated` from the original UDE; use an independent co-effect.
 - Do not call a `corroborated` hypothesis root cause.
-- One easy match is weak evidence; a failed kill probe is strong evidence.
+- One easy match is weak evidence; surviving a serious kill probe is stronger evidence.
 - Confirmation cannot reuse the same UDE that created the hypothesis.
 - If every available probe only supports the hypothesis, the investigation is
   still `standing`, not `confirmed`.

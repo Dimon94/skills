@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process');
 const {
   buildSkillProvenance,
   validateSkillProvenance
-} = require('../lib/dverity/skill-source');
+} = require('../lib/dverity/install/skill-source');
 const {
   classifyLegacySurface,
   legacyRuntimeViolations
@@ -16,7 +16,7 @@ const {
 const {
   validateCurrentSurface
 } = require('../lib/dverity/docs/current-surface');
-const { isHistoryInputPath } = require('../lib/dverity/skill-source');
+const { isHistoryInputPath } = require('../lib/dverity/install/skill-source');
 
 const ROOT = path.resolve(__dirname, '..');
 const CURRENT_SURFACE_BASE = 'c3ce31c8b08f6480bf18a76dd69ff6f61de55a4f';
@@ -26,20 +26,20 @@ const EXPECTED_FILES = [
   'bin/dverity-cli.js',
   'config/managed-downstreams.json',
   'lib/dverity/downstream-sync/index.js',
-  'lib/dverity/git-source.js',
-  'lib/dverity/host-discovery.js',
-  'lib/dverity/host-projections.js',
-  'lib/dverity/landing.js',
+  'lib/dverity/review/git-source.js',
+  'lib/dverity/install/host-discovery.js',
+  'lib/dverity/install/host-projections.js',
+  'lib/dverity/review/landing.js',
   'lib/dverity/legacy/classifier.js',
-  'lib/dverity/lifecycle.js',
+  'lib/dverity/install/lifecycle.js',
   'lib/dverity/migration/data.js',
   'lib/dverity/migration/transaction-schema.json',
-  'lib/dverity/merge.js',
-  'lib/dverity/package-provenance.json',
-  'lib/dverity/review-item-record.js',
-  'lib/dverity/runtime-config.js',
-  'lib/dverity/skill-source.js',
-  'lib/dverity/submit.js',
+  'lib/dverity/review/merge.js',
+  'lib/dverity/release/package-provenance.json',
+  'lib/dverity/review/review-item-record.js',
+  'lib/dverity/install/runtime-config.js',
+  'lib/dverity/install/skill-source.js',
+  'lib/dverity/review/submit.js',
   'scripts/verify-host-discovery.js',
   'skills/'
 ];

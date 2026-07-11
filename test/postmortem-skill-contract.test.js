@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const matter = require('gray-matter');
 
-const { enumerateSkillSource } = require('../lib/dverity/skill-source');
+const { enumerateSkillSource } = require('../lib/dverity/install/skill-source');
 const {
   decidePostmortem,
   recordPostmortem

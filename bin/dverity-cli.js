@@ -5,7 +5,7 @@ const {
   LIFECYCLE_COMMANDS,
   resolveScope,
   runLifecycle
-} = require('../lib/dverity/lifecycle');
+} = require('../lib/dverity/install/lifecycle');
 
 const HELP = `Usage: dverity <command> (--global | --project <absolute-path>)
 

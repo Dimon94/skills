@@ -16,10 +16,10 @@ to `submit-remote-review`; none may enter landing directly.
 
 ## Independent Review
 
-Use `lib/dverity/merge.js#reviewMergeItem` to read the named item through its
+Use `lib/dverity/review/merge.js#reviewMergeItem` to read the named item through its
 provider adapter and run Independent Review. Both calls are explicitly
 read-only. The returned immutable provider-neutral record reuses
-`lib/dverity/review-item-record.js` and binds provider, repo, item, current head,
+`lib/dverity/review/review-item-record.js` and binds provider, repo, item, current head,
 fresh task session, selected facets, findings, and verdict.
 
 Never expose Independent Review as another Skill. Never accept an approval
@@ -29,7 +29,7 @@ head makes the stored verdict stale and requires a fresh review by default.
 
 ## Semantic no-op carry-forward
 
-Use `lib/dverity/merge.js#carryForwardReview` only when complete structured
+Use `lib/dverity/review/merge.js#carryForwardReview` only when complete structured
 evidence binds the old and new series. The function runs the read-only Git
 commands itself from the named repo and SHAs, invokes a new-head validation
 runner, and refuses caller-supplied equivalence booleans. It proves all of the
@@ -47,7 +47,7 @@ Any missing or material evidence routes to fresh Independent Review.
 
 ## Conflict and product-work reroutes
 
-Use `lib/dverity/merge.js#routeMergeWork`. Invoke
+Use `lib/dverity/review/merge.js#routeMergeWork`. Invoke
 `resolving-merge-conflicts` only for an actual conflict whose product intent is
 proven. Ambiguous intent remains blocked. The function reuses
 `dverity-repair/scripts/repair-contract.js#routeRepairWork`: confirmed defects
@@ -61,7 +61,7 @@ remaining local contract in `DVERITY.md`.
 
 ## Landing and provider parity
 
-Use `lib/dverity/landing.js` only after the current-head review passes and a
+Use `lib/dverity/review/landing.js` only after the current-head review passes and a
 fresh authority names one provider item, target, source, and direct issue set.
 Its GitHub and GitLab adapters map provider fields into the existing neutral
 review-item record; they do not own another lifecycle or review state machine.

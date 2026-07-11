@@ -5,7 +5,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const TARGET = path.join(ROOT, 'lib/dverity/package-provenance.json');
+const TARGET = path.join(ROOT, 'lib/dverity/release/package-provenance.json');
 
 function sourceCommit() {
   if (!fs.existsSync(path.join(ROOT, '.git'))) {

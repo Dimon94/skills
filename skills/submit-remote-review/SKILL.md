@@ -5,9 +5,9 @@ metadata:
   dverity_class: workflow-entry
   reads:
     - ../../DVERITY.md
-    - ../../lib/dverity/git-source.js
-    - ../../lib/dverity/review-item-record.js
-    - ../../lib/dverity/submit.js
+    - ../../lib/dverity/review/git-source.js
+    - ../../lib/dverity/review/review-item-record.js
+    - ../../lib/dverity/review/submit.js
     - ../dverity-simplify/SKILL.md
     - ../git-commit/SKILL.md
     - ../resolving-merge-conflicts/SKILL.md
@@ -24,7 +24,7 @@ Require one named repository, source, live target, and explicit authority for
 push plus create-or-update of at most one review item. Missing source or item
 authority permits read-only discovery only.
 
-Use `../../lib/dverity/git-source.js` to refresh and read the named Git source.
+Use `../../lib/dverity/review/git-source.js` to refresh and read the named Git source.
 Require a fresh handoff with source/base/head/ahead commits, scope source,
 spec and issue links, passing checks, base/head-bound local review, touched
 paths, risks, closeout intent, and `remote_actions_performed: none`.
@@ -49,7 +49,7 @@ incomplete, or moved-target evidence blocks with zero mutation.
 ## Output
 
 Return the sole provider-neutral record from
-`../../lib/dverity/review-item-record.js`, mutation call audit, source proof,
+`../../lib/dverity/review/review-item-record.js`, mutation call audit, source proof,
 and handoff. Submit leaves approvals, discussions, mergeability, CI, queue, and
 current-head review fields unset; Merge owns those truths. A URL without exact
 provider/repo/item/source/target/head/authenticated readback is not Review Ready.

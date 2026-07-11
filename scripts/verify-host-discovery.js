@@ -4,11 +4,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { runHostDiscovery } = require('../lib/dverity/host-discovery');
+const { runHostDiscovery } = require('../lib/dverity/install/host-discovery');
 const {
   inspectFreshHostRoot,
   inspectHostProjections
-} = require('../lib/dverity/host-projections');
+} = require('../lib/dverity/install/host-projections');
 
 const ROOT = path.resolve(__dirname, '..');
 const HOSTS = Object.freeze(['agents', 'claude']);

@@ -7,7 +7,7 @@ const {
   buildSkillProvenance,
   enumerateSkillSource,
   validateSkillProvenance
-} = require('../lib/dverity/skill-source');
+} = require('../lib/dverity/install/skill-source');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -39,15 +39,15 @@ describe('Dverity packed Skill source', () => {
       'bin/dverity-cli.js',
       'config/managed-downstreams.json',
       'lib/dverity/downstream-sync/index.js',
-      'lib/dverity/host-discovery.js',
-      'lib/dverity/host-projections.js',
+      'lib/dverity/install/host-discovery.js',
+      'lib/dverity/install/host-projections.js',
       'lib/dverity/legacy/classifier.js',
-      'lib/dverity/lifecycle.js',
+      'lib/dverity/install/lifecycle.js',
       'lib/dverity/migration/data.js',
       'lib/dverity/migration/transaction-schema.json',
-      'lib/dverity/package-provenance.json',
-      'lib/dverity/runtime-config.js',
-      'lib/dverity/skill-source.js',
+      'lib/dverity/release/package-provenance.json',
+      'lib/dverity/install/runtime-config.js',
+      'lib/dverity/install/skill-source.js',
       'scripts/verify-host-discovery.js'
     ]));
     expect(packedFiles.some((file) => file.includes('cc-devflow'))).toBe(false);
@@ -68,7 +68,7 @@ describe('Dverity packed Skill source', () => {
       path.join(runtimeProject, '.dverity/config.yml'),
       'output:\n  document_language: zh-CN\n'
     );
-    const runtimeModule = path.join(packedRoot, 'lib/dverity/runtime-config.js');
+    const runtimeModule = path.join(packedRoot, 'lib/dverity/install/runtime-config.js');
     const runtimeProbe = spawnSync(process.execPath, ['-e', `
       const { resolveRuntimeConfig } = require(${JSON.stringify(runtimeModule)});
       const reads = [];
@@ -96,6 +96,13 @@ describe('Dverity packed Skill source', () => {
     expect(help.status).toBe(0);
     expect(help.stdout).toContain('dverity <command>');
 
+    const submitLoad = spawnSync(process.execPath, ['-e', "require('./lib/dverity/review/submit')"], {
+      cwd: packedRoot,
+      encoding: 'utf8',
+      env: { ...process.env, NODE_PATH: path.join(ROOT, 'node_modules') }
+    });
+    expect(submitLoad.status).toBe(0);
+
     const installRoot = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), 'dverity-packed-install-'))
     );
@@ -110,7 +117,7 @@ describe('Dverity packed Skill source', () => {
       'utf8'
     ));
     const provenance = JSON.parse(fs.readFileSync(
-      path.join(packedRoot, 'lib/dverity/package-provenance.json'),
+      path.join(packedRoot, 'lib/dverity/release/package-provenance.json'),
       'utf8'
     ));
     expect(manifest.source.commit).toBe(provenance.source_commit);

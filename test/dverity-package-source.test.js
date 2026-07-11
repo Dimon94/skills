@@ -42,6 +42,7 @@ describe('Dverity packed Skill source', () => {
       'lib/dverity/host-discovery.js',
       'lib/dverity/host-projections.js',
       'lib/dverity/lifecycle.js',
+      'lib/dverity/migration/transaction-schema.json',
       'lib/dverity/package-provenance.json',
       'lib/dverity/skill-source.js',
       'scripts/verify-host-discovery.js'

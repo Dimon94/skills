@@ -57,6 +57,7 @@ describe('validate-publish', () => {
       'lib/dverity/host-projections.js',
       'lib/dverity/landing.js',
       'lib/dverity/lifecycle.js',
+      'lib/dverity/migration/transaction-schema.json',
       'lib/dverity/merge.js',
       'lib/dverity/package-provenance.json',
       'lib/dverity/review-item-record.js',

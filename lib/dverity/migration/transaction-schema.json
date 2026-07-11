@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "legacy": {
+    "package": { "name": "cc-devflow", "version": "4.5.48" },
+    "commit": "257af9a5b2c8637bc1c89320c3c3b72bac3569f8",
+    "skills": [
+      "cc-act", "cc-archive", "cc-check", "cc-dev", "cc-diagnose", "cc-do",
+      "cc-next", "cc-plan", "cc-pr-land", "cc-pr-review", "cc-research",
+      "cc-review", "cc-simplify", "do-not-repeat-yourself",
+      "execution-environment-contract", "postmortem", "quality-gate-contract",
+      "task-contract", "workflow-chain-contract"
+    ],
+    "projections": {
+      ".codex/skills": "7edc3161f31400ea4562e347862098def0a1ef98f1c719e00ff59bc7e467ba60",
+      ".claude/skills": "eb407f80b79820cc657c30914bf8c6f77cef725a6e027f2865f860f9e2014989"
+    }
+  },
+  "steps": [
+    { "id": "preflight", "mutationEdges": [] },
+    {
+      "id": "stage",
+      "mutationEdges": [
+        "journal-create", "stage-projections", "stage-unknown", "stage-manifest"
+      ]
+    },
+    { "id": "verify", "mutationEdges": [] },
+    {
+      "id": "commit",
+      "mutationEdges": [
+        "retire-codex", "retire-claude", "publish-agents", "publish-claude",
+        "publish-manifest"
+      ]
+    },
+    { "id": "post-readback", "mutationEdges": [], "commitPoint": true },
+    { "id": "cleanup", "mutationEdges": ["transaction-cleanup"] }
+  ]
+}

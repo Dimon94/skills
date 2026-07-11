@@ -27,27 +27,24 @@ describe('validate-publish', () => {
 
   test('package scripts no longer expose retired artifact validators', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-    const retired = ['verify', 'benchmark'].map((prefix) => `${prefix}:artifacts`);
 
-    expect(pkg.scripts).not.toHaveProperty(retired[0]);
-    expect(pkg.scripts).not.toHaveProperty(retired[1]);
-    expect(pkg.scripts).not.toHaveProperty(['benchmark', 'workflow-context'].join(':'));
+    expect(pkg.scripts).toEqual({
+      prepublishOnly: 'node scripts/validate-publish.js',
+      test: 'jest',
+      verify: 'npm test -- --runInBand && npm run verify:publish',
+      'verify:publish': 'node scripts/validate-publish.js'
+    });
   });
 
-  test('chain contracts are distributable without becoming public', () => {
-    const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'config/distributable-skills.json'), 'utf8'));
+  test('package ships root Skill source without a legacy projection allowlist', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
-    for (const skillName of [
-      'task-contract',
-      'workflow-chain-contract',
-      'quality-gate-contract',
-      'execution-environment-contract'
-    ]) {
-      expect(config.distributedSkills).toContain(skillName);
-      expect(config.publicSkills).not.toContain(skillName);
-      expect(pkg.files).toContain(`.claude/skills/${skillName}/`);
-    }
+    expect(pkg.files).toEqual([
+      'DVERITY.md',
+      'lib/dverity/skill-source.js',
+      'skills/'
+    ]);
+    expect(pkg.files.some((entry) => entry.startsWith('.claude/'))).toBe(false);
   });
 
   test('retired task-contract artifacts remain banned', () => {

@@ -74,12 +74,13 @@ describe('postmortem skill contract', () => {
     }
   });
 
-  test('postmortem is public, distributed, and packaged', () => {
+  test('legacy postmortem remains registered but is not a package inventory owner', () => {
     const config = JSON.parse(read('config/distributable-skills.json'));
     const pkg = JSON.parse(read('package.json'));
 
     expect(config.publicSkills).toContain('postmortem');
     expect(config.distributedSkills).toContain('postmortem');
-    expect(pkg.files).toContain('.claude/skills/postmortem/');
+    expect(pkg.files).not.toContain('.claude/skills/postmortem/');
+    expect(pkg.files).toContain('skills/');
   });
 });

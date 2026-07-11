@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dverity Simplify"
+  short_description: "Simplify verified work before remote submission"
+  default_prompt: "Use $dverity-simplify to simplify this verified change before submission."

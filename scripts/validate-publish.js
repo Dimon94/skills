@@ -6,13 +6,12 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const matter = require('gray-matter');
 const { validateSkillInventory, validateSkillSuiteGraph } = require('../lib/compiler/inventory');
+const {
+  buildSkillProvenance,
+  validateSkillProvenance
+} = require('../lib/dverity/skill-source');
 
 const ROOT = path.resolve(__dirname, '..');
-const DISTRIBUTION_CONFIG = require(path.join(ROOT, 'config', 'distributable-skills.json'));
-const MANAGED_RESOURCE_CONFIG = require(path.join(ROOT, 'config', 'managed-resource-copies.json'));
-const PUBLIC_SKILLS = DISTRIBUTION_CONFIG.publicSkills || [];
-const DISTRIBUTED_SKILLS = DISTRIBUTION_CONFIG.distributedSkills || PUBLIC_SKILLS;
-const INTERNAL_SKILLS = DISTRIBUTION_CONFIG.internalSkills || [];
 const COMMIT_GUIDELINE_REF = 'references/git-commit-guidelines.md';
 
 const RETIRED_PATTERNS = [
@@ -61,57 +60,64 @@ function readTextFrom(root, relPath) {
 
 function validatePackageJson(errors) {
   const pkg = JSON.parse(readText('package.json'));
-  const scripts = pkg.scripts || {};
+  const expectedScripts = {
+    prepublishOnly: 'node scripts/validate-publish.js',
+    test: 'jest',
+    verify: 'npm test -- --runInBand && npm run verify:publish',
+    'verify:publish': 'node scripts/validate-publish.js'
+  };
 
-  if (pkg.main !== 'bin/cc-devflow.js') {
-    errors.push('package.json main must be "bin/cc-devflow.js"');
+  if (pkg.name !== 'dverity' || pkg.version !== '5.0.0') {
+    errors.push('package.json identity must be dverity@5.0.0');
   }
-  if (pkg.bin?.['cc-devflow'] !== 'bin/cc-devflow-cli.js') {
-    errors.push('package.json bin.cc-devflow must be "bin/cc-devflow-cli.js"');
+  if (pkg.main || pkg.bin) {
+    errors.push('package.json must not publish a CLI before its canonical implementation exists');
   }
-  if (scripts.prepublishOnly !== 'node scripts/validate-publish.js') {
-    errors.push('package.json scripts.prepublishOnly must run validate-publish.js');
-  }
-  if (scripts['verify:publish'] !== 'node scripts/validate-publish.js') {
-    errors.push('package.json scripts.verify:publish must run validate-publish.js');
-  }
-  if (scripts['verify:examples'] !== 'bash docs/examples/scripts/check-example-bindings.sh') {
-    errors.push('package.json scripts.verify:examples must run check-example-bindings.sh');
-  }
-  if (scripts['benchmark:skills'] !== 'node scripts/benchmark-skills.js') {
-    errors.push('package.json scripts.benchmark:skills must run benchmark-skills.js');
+  if (JSON.stringify(pkg.scripts) !== JSON.stringify(expectedScripts)) {
+    errors.push('package.json scripts must expose only Dverity verification gates');
   }
 
-  for (const retired of ['verify:artifacts', 'benchmark:artifacts', 'benchmark:workflow-context']) {
-    if (Object.prototype.hasOwnProperty.call(scripts, retired)) {
-      errors.push(`package.json must not expose retired script ${retired}`);
-    }
-  }
-
-  for (const relPath of ['bin/', 'lib/', 'config/', 'docs/assets/']) {
-    if (!pkg.files.includes(relPath)) {
-      errors.push(`package.json files missing: ${relPath}`);
-    }
-  }
-  for (const skillName of DISTRIBUTED_SKILLS) {
-    const relPath = `.claude/skills/${skillName}/`;
-    if (!pkg.files.includes(relPath)) {
-      errors.push(`package.json files missing: ${relPath}`);
-    }
+  const expectedFiles = ['DVERITY.md', 'lib/dverity/skill-source.js', 'skills/'];
+  if (JSON.stringify(pkg.files) !== JSON.stringify(expectedFiles)) {
+    errors.push('package.json files must ship only the Dverity source package seam');
   }
 }
 
+function validateDveritySource(errors) {
+  try {
+    const result = validateSkillProvenance(buildSkillProvenance({ root: ROOT }));
+    if (!result.success) errors.push(result.error);
+  } catch (error) {
+    errors.push(error.message);
+  }
+}
+
+function distributionInventory() {
+  const config = require(path.join(ROOT, 'config', 'distributable-skills.json'));
+  const publicSkills = config.publicSkills || [];
+  return {
+    publicSkills,
+    distributedSkills: config.distributedSkills || publicSkills,
+    internalSkills: config.internalSkills || []
+  };
+}
+
+function managedResourceConfig() {
+  return require(path.join(ROOT, 'config', 'managed-resource-copies.json'));
+}
+
 function validateTemplate(errors) {
+  const { distributedSkills, publicSkills } = distributionInventory();
   ensurePath('.claude/skills', 'dir', errors);
   ensurePath('bin/cc-devflow-cli.js', 'file', errors);
   ensurePath('bin/cc-devflow.js', 'file', errors);
   ensurePath('bin/adapt.js', 'file', errors);
   ensurePath('lib/compiler', 'dir', errors);
 
-  for (const skillName of DISTRIBUTED_SKILLS) {
+  for (const skillName of distributedSkills) {
     ensurePath(`.claude/skills/${skillName}/SKILL.md`, 'file', errors);
   }
-  for (const skillName of PUBLIC_SKILLS) {
+  for (const skillName of publicSkills) {
     ensurePath(`.claude/skills/${skillName}/PLAYBOOK.md`, 'file', errors);
   }
 }
@@ -220,7 +226,8 @@ function validateNoMainBranchAutoSwitch(errors) {
 }
 
 function validateSkillFrontmatter(errors) {
-  for (const skillName of DISTRIBUTED_SKILLS) {
+  const { distributedSkills } = distributionInventory();
+  for (const skillName of distributedSkills) {
     const rel = `.claude/skills/${skillName}/SKILL.md`;
     const parsed = matter(readText(rel));
     if (!parsed.data.name) errors.push(`${rel} missing name`);
@@ -232,7 +239,7 @@ function validateSkillFrontmatter(errors) {
 
 function validateManagedResourceCopies(errors, options = {}) {
   const root = options.root || ROOT;
-  const manifest = options.manifest || MANAGED_RESOURCE_CONFIG;
+  const manifest = options.manifest || managedResourceConfig();
   if (!Array.isArray(manifest?.managedResourceCopies)) {
     errors.push('config/managed-resource-copies.json managedResourceCopies must be an array');
     return;
@@ -278,7 +285,7 @@ function validateManagedResourceCopies(errors, options = {}) {
 
 function validateCommitGuidelineRefs(errors, options = {}) {
   const root = options.root || ROOT;
-  const manifest = options.manifest || MANAGED_RESOURCE_CONFIG;
+  const manifest = options.manifest || managedResourceConfig();
   const groups = Array.isArray(manifest?.managedResourceCopies) ? manifest.managedResourceCopies : [];
   const commitGuidelines = groups.find((group) => group.name === 'git-commit-guidelines');
   if (!commitGuidelines) {
@@ -354,16 +361,17 @@ function validateCliSurface(errors) {
 }
 
 function validateInventoryParity(errors) {
+  const { publicSkills, distributedSkills, internalSkills } = distributionInventory();
   errors.push(...validateSkillInventory({
     root: ROOT,
-    publicSkills: PUBLIC_SKILLS,
-    distributedSkills: DISTRIBUTED_SKILLS,
-    internalSkills: INTERNAL_SKILLS,
-    codexSkills: DISTRIBUTED_SKILLS
+    publicSkills,
+    distributedSkills,
+    internalSkills,
+    codexSkills: distributedSkills
   }));
   errors.push(...validateSkillSuiteGraph({
     root: ROOT,
-    publicSkills: PUBLIC_SKILLS
+    publicSkills
   }));
 }
 
@@ -395,16 +403,7 @@ function validatePackSmoke(errors) {
 function main() {
   const errors = [];
   validatePackageJson(errors);
-  validateTemplate(errors);
-  validateInventoryParity(errors);
-  validateSkillFrontmatter(errors);
-  validateManagedResourceCopies(errors);
-  validateCommitGuidelineRefs(errors);
-  validateNoRetiredFiles(errors);
-  validateNoRetiredText(errors);
-  validateNoMainBranchAutoSwitch(errors);
-  validateCliSurface(errors);
-  validateExampleBindings(errors);
+  validateDveritySource(errors);
   validatePackSmoke(errors);
 
   if (errors.length > 0) {
@@ -423,6 +422,7 @@ if (require.main === module) {
 
 module.exports = {
   validatePackageJson,
+  validateDveritySource,
   validateTemplate,
   validateInventoryParity,
   validateSkillFrontmatter,

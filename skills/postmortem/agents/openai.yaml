@@ -1,0 +1,4 @@
+interface:
+  display_name: "Postmortem"
+  short_description: "Capture confirmed reusable failure lessons"
+  default_prompt: "Use $postmortem to record the confirmed reusable lesson from this failure."

@@ -45,12 +45,13 @@ describe('task-contract Chain Skill contract', () => {
     }
   });
 
-  test('task contract is distributed but not public', () => {
+  test('legacy task contract remains non-public and is absent from the Dverity package', () => {
     const config = require('../config/distributable-skills.json');
     const pkg = require('../package.json');
 
     expect(config.distributedSkills).toContain('task-contract');
     expect(config.publicSkills).not.toContain('task-contract');
-    expect(pkg.files).toContain('.claude/skills/task-contract/');
+    expect(pkg.files).not.toContain('.claude/skills/task-contract/');
+    expect(pkg.files).toContain('skills/');
   });
 });

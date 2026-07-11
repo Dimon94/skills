@@ -95,7 +95,7 @@ describe('cc-research skill contract', () => {
     }
   });
 
-  test('research artifacts are allowed, distributed, and packaged', () => {
+  test('legacy research source remains registered but is not a package inventory owner', () => {
     const artifactContract = read('docs/guides/artifact-contract.md');
     const minimizeArtifacts = read('docs/guides/minimize-artifacts.md');
     const context = read('CONTEXT.md');
@@ -109,6 +109,7 @@ describe('cc-research skill contract', () => {
     expect(context).toContain('devflow/research/');
     expect(config.publicSkills).toContain('cc-research');
     expect(config.distributedSkills).toContain('cc-research');
-    expect(pkg.files).toContain('.claude/skills/cc-research/');
+    expect(pkg.files).not.toContain('.claude/skills/cc-research/');
+    expect(pkg.files).toContain('skills/');
   });
 });

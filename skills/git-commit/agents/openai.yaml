@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Commit"
+  short_description: "Create narrow auditable local commits"
+  default_prompt: "Use $git-commit to create a narrow auditable local commit."

@@ -37,9 +37,12 @@ describe('Dverity packed Skill source', () => {
     expect(packedFiles).toEqual(expect.arrayContaining([
       'bin/dverity.js',
       'bin/dverity-cli.js',
+      'lib/dverity/host-discovery.js',
+      'lib/dverity/host-projections.js',
       'lib/dverity/lifecycle.js',
       'lib/dverity/package-provenance.json',
-      'lib/dverity/skill-source.js'
+      'lib/dverity/skill-source.js',
+      'scripts/verify-host-discovery.js'
     ]));
     expect(packedFiles.some((file) => file.includes('cc-devflow'))).toBe(false);
     expect(packed.package.files.every((file) => packedFiles.includes(file))).toBe(true);

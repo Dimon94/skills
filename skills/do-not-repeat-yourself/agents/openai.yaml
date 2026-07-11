@@ -1,0 +1,4 @@
+interface:
+  display_name: "Do Not Repeat Yourself"
+  short_description: "Reuse existing mechanisms before adding new ones"
+  default_prompt: "Use $do-not-repeat-yourself to find and reuse the nearest existing mechanism."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dverity Research"
+  short_description: "Gather evidence for Dverity repair decisions"
+  default_prompt: "Use $dverity-research to gather evidence for this Dverity decision."

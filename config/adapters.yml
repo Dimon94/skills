@@ -1,5 +1,0 @@
-adapters:
-  preferred: null
-  policies:
-    allow_shell: false
-    allow_network: false

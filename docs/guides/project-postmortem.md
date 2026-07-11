@@ -1,34 +1,16 @@
-# Project Postmortems
+# Dverity Project Postmortems
 
-Postmortems preserve recurring and special-case failures without turning every workflow step into a file. The `postmortem` skill owns recall, interrogation, format, recurrence, and standalone recording rules.
+The `postmortem` Skill owns recall and recording rules. A record is created only
+for a confirmed reusable lesson, a review escape, or an explicit user request.
 
-## Files
+## Required evidence
 
-- `devflow/postmortems/INDEX.md`
-- `devflow/postmortems/incidents/<date>-<change-key-or-manual-slug>.md`
+- exact symptom and affected boundary;
+- commands, provider readback, or files that prove the event;
+- confirmed versus probable root-cause language;
+- the reusable lesson and when it should be recalled;
+- redaction of secrets, customer data, private logs, and local machine paths.
 
-## When To Write One
-
-- closing a `FIX-*`
-- repeated AI, test, release, Git, or architecture failure
-- explicit user request
-
-`cc-act` must make the decision explicit by running:
-
-```bash
-.claude/skills/cc-act/scripts/evaluate-postmortem-trigger.sh --dir devflow/changes/<change-key>
-```
-
-If the trigger only exists in the current session, pass it as `--trigger <short-label>` so the final closeout does not silently drop rework or unusual failure evidence.
-
-Standalone recording is allowed only when the user explicitly asks to save the lesson and the minimum facts exist: symptom, evidence, lesson type, recall condition, and root-cause status.
-
-## Rules
-
-- Use Git evidence, commands, and current files.
-- Search `devflow/postmortems/INDEX.md` and `rg` incidents before writing.
-- Update the existing incident when `recurrence_key` matches.
-- Mark narrow incidents as `lesson_type: special-case` and gate recall through `recall_only_when`.
-- Redact secrets, customer data, private logs, and local machine paths.
-- Do not create a separate principles file.
-- Do not use postmortems as task, review, or release state.
+Search existing records before writing and update the matching recurrence when
+one exists. Do not use postmortems as task state, review state, or a second copy
+of [DVERITY.md](../../DVERITY.md).

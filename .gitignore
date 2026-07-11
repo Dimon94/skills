@@ -1,6 +1,3 @@
-# CC-DevFlow 工作目录
-# 所有需求开发的输出文件都在这个目录中
-
 # Node modules
 node_modules/
 
@@ -15,17 +12,6 @@ build/
 *.swp
 *.swo
 *~
-
-# Agent platform generated artifacts (compiled from .claude/)
-.agent/
-.codex/
-.cursor/
-.qwen/
-.harness/
-devflow/.generated/
-.refresh/
-devflow/
-.cc-devflow/config.local.yml
 
 # OS
 .DS_Store
@@ -44,7 +30,3 @@ coverage/
 .env
 .env.local
 .env.*.local
-
-# Claude Code 缓存
-.claude/tsc-cache/
-.claude/_backup/

@@ -86,6 +86,7 @@ function validatePackageJson(errors) {
     'lib/dverity/git-source.js',
     'lib/dverity/host-discovery.js',
     'lib/dverity/host-projections.js',
+    'lib/dverity/landing.js',
     'lib/dverity/lifecycle.js',
     'lib/dverity/merge.js',
     'lib/dverity/package-provenance.json',

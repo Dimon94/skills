@@ -58,3 +58,27 @@ These decisions are read-only. Merge must not repair product code, implement a
 feature, push, approve, land, or close an issue while establishing review
 freshness. Later landing requires separate named mutation authority and the
 remaining local contract in `DVERITY.md`.
+
+## Landing and provider parity
+
+Use `lib/dverity/landing.js` only after the current-head review passes and a
+fresh authority names one provider item, target, source, and direct issue set.
+Its GitHub and GitLab adapters map provider fields into the existing neutral
+review-item record; they do not own another lifecycle or review state machine.
+
+Queue or merge-train `required` may request the named provider mutation.
+`pending`, `enqueued`, missing, unknown, or failed truth is blocked and never a
+successful landing. After the provider accepts the mutation, read back the
+provider item and merge SHA, remote target, tracking ref, local target, active
+worktree, and post-merge checks independently. A dirty or diverged active
+worktree, non-terminal checks, or any missing or mismatched SHA leaves Merge
+blocked even when the provider says the item is merged.
+
+## Issue closeout
+
+Closeout consumes the exact intent handed through Submit but runs only after
+landing and parity readback. Only issues explicitly classified as `direct` and
+named by fresh close authority may use `close-after-merge`. Parent, sibling,
+blocker, partial, and other related items are read back as `related-only` and
+must never be closed recursively. Read every direct issue before mutation and
+again afterward; missing closed-state readback leaves the result blocked.

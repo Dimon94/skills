@@ -50,6 +50,8 @@ describe('validate-publish', () => {
       'DVERITY.md',
       'bin/dverity.js',
       'bin/dverity-cli.js',
+      'config/managed-downstreams.json',
+      'lib/dverity/downstream-sync/index.js',
       'lib/dverity/git-source.js',
       'lib/dverity/host-discovery.js',
       'lib/dverity/host-projections.js',

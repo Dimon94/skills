@@ -37,6 +37,8 @@ describe('Dverity packed Skill source', () => {
     expect(packedFiles).toEqual(expect.arrayContaining([
       'bin/dverity.js',
       'bin/dverity-cli.js',
+      'config/managed-downstreams.json',
+      'lib/dverity/downstream-sync/index.js',
       'lib/dverity/host-discovery.js',
       'lib/dverity/host-projections.js',
       'lib/dverity/lifecycle.js',

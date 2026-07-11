@@ -42,8 +42,10 @@ describe('Dverity packed Skill source', () => {
       'lib/dverity/host-discovery.js',
       'lib/dverity/host-projections.js',
       'lib/dverity/lifecycle.js',
+      'lib/dverity/migration/data.js',
       'lib/dverity/migration/transaction-schema.json',
       'lib/dverity/package-provenance.json',
+      'lib/dverity/runtime-config.js',
       'lib/dverity/skill-source.js',
       'scripts/verify-host-discovery.js'
     ]));
@@ -52,6 +54,39 @@ describe('Dverity packed Skill source', () => {
     expect(packed.source.source_hash).toBe(source.source_hash);
     expect(packed.source.skills).toEqual(source.skills);
     expect(validateSkillProvenance(packed)).toEqual({ success: true });
+
+    const runtimeHome = path.join(tmp, 'runtime-home');
+    const runtimeProject = path.join(tmp, 'runtime-project');
+    fs.mkdirSync(path.join(runtimeHome, '.cc-devflow'), { recursive: true });
+    fs.mkdirSync(path.join(runtimeProject, '.dverity'), { recursive: true });
+    fs.writeFileSync(
+      path.join(runtimeHome, '.cc-devflow/config.yml'),
+      'output:\n  document_language: en\n'
+    );
+    fs.writeFileSync(
+      path.join(runtimeProject, '.dverity/config.yml'),
+      'output:\n  document_language: zh-CN\n'
+    );
+    const runtimeModule = path.join(packedRoot, 'lib/dverity/runtime-config.js');
+    const runtimeProbe = spawnSync(process.execPath, ['-e', `
+      const { resolveRuntimeConfig } = require(${JSON.stringify(runtimeModule)});
+      const reads = [];
+      const result = resolveRuntimeConfig({
+        homeDir: ${JSON.stringify(runtimeHome)},
+        projectRoot: ${JSON.stringify(runtimeProject)},
+        env: { CC_DEVFLOW_DOCUMENT_LANGUAGE: 'en', DVERITY_DOCUMENT_LANGUAGE: 'zh-CN' },
+        onRead: (entry) => reads.push(entry)
+      });
+      process.stdout.write(JSON.stringify({ config: result.config, reads }));
+    `], {
+      cwd: packedRoot,
+      encoding: 'utf8',
+      env: { ...process.env, NODE_PATH: path.join(ROOT, 'node_modules') }
+    });
+    expect(runtimeProbe.status).toBe(0);
+    const runtimeReadback = JSON.parse(runtimeProbe.stdout);
+    expect(runtimeReadback.config.output.document_language).toBe('zh-CN');
+    expect(JSON.stringify(runtimeReadback.reads)).not.toMatch(/cc-devflow|CC_DEVFLOW/);
 
     const help = spawnSync(process.execPath, ['bin/dverity.js', '--help'], {
       cwd: packedRoot,

@@ -25,10 +25,15 @@
     },
     { "id": "verify", "mutationEdges": [] },
     {
+      "id": "data",
+      "mutationEdges": ["stage-postmortems", "stage-research"]
+    },
+    {
       "id": "commit",
       "mutationEdges": [
-        "retire-codex", "retire-claude", "publish-agents", "publish-claude",
-        "publish-manifest"
+        "retire-codex", "retire-claude", "retire-postmortems", "retire-research",
+        "publish-agents", "publish-claude", "prepare-docs", "publish-postmortems",
+        "publish-research", "publish-manifest"
       ]
     },
     { "id": "post-readback", "mutationEdges": [], "commitPoint": true },

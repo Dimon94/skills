@@ -1,0 +1,46 @@
+name: Publish Dverity with npm provenance
+
+'on':
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.4.1
+          registry-url: https://registry.npmjs.org
+      - name: Pin provenance-capable npm
+        run: npm install --global npm@11.5.1
+      - name: Resolve provider-proven frozen source
+        id: source
+        run: node scripts/publish-dverity.js resolve >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check out provider-proven frozen source
+        run: git checkout --detach "${{ steps.source.outputs.source_commit }}"
+      - name: Install frozen dependencies
+        run: npm ci
+      - name: Verify full local contract
+        run: npm test -- --runInBand
+      - name: Verify publish surface
+        run: npm run verify:publish
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+      - name: Freeze exact artifact
+        run: node scripts/publish-dverity.js freeze
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Publish exact frozen artifact --access public --tag latest --provenance
+        run: node scripts/publish-dverity.js publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -23,6 +23,7 @@ let REPO;
 const TARGET = 'origin/main';
 const INTEGRATION_BRANCH = 'codex/dverity-5-integration';
 const DISPATCH_BASE = 'fd0ece68af69ae032eced3f2b29304577fdfbd7f';
+const ORIGINAL_FROZEN_COMMIT = 'f14c1476158d4999f6a031cecaeb577c76dcdf6c';
 const SOURCE_THREAD = '019f4eac-d73f-7770-9fdb-95244911c96e';
 const WORKTREE = ROOT;
 const INTEGRATED_HISTORY = Object.freeze([
@@ -40,6 +41,10 @@ const INTEGRATED_HISTORY = Object.freeze([
   ['74', '101a95f835d924af3e29f1c7cc26eb31aa926c5c'],
   ['76', 'c3ce31c8b08f6480bf18a76dd69ff6f61de55a4f'],
   ['77', DISPATCH_BASE]
+]);
+const APPROVED_RELEASE_HISTORY = Object.freeze([
+  ...INTEGRATED_HISTORY.map(([, commit]) => commit),
+  ORIGINAL_FROZEN_COMMIT
 ]);
 const COMMENT_IDS = Object.freeze({
   65: 4941223077, 66: 4941642959, 67: 4941831809, 68: 4942075991,
@@ -134,19 +139,46 @@ function writeJson(file, value) {
   return digest(fs.readFileSync(file));
 }
 
-function assertCleanHead() {
-  if (git('status', '--porcelain=v1', '--untracked-files=all')) {
+function assertReleaseFreezeHistory({ dirty, head, targetOnly, headOnly, history, repairLines }) {
+  if (dirty) {
     throw new Error('release freeze requires a clean worktree');
   }
-  const head = git('rev-parse', 'HEAD');
-  const parent = git('rev-parse', 'HEAD^');
-  if (parent !== DISPATCH_BASE) throw new Error('release freeze commit must be directly based on dispatch base');
-  const history = git('rev-list', '--reverse', `${TARGET}..HEAD`).split('\n');
-  const expected = [...INTEGRATED_HISTORY.map(([, commit]) => commit), head];
-  if (JSON.stringify(history) !== JSON.stringify(expected)) {
+  if (targetOnly !== 0 || headOnly !== history.length) {
+    throw new Error('integration head must be ahead of and not behind the frozen target');
+  }
+  if (JSON.stringify(history.slice(0, APPROVED_RELEASE_HISTORY.length))
+    !== JSON.stringify(APPROVED_RELEASE_HISTORY)) {
     throw new Error('integration history does not match the approved dependency order');
   }
+  const repairs = history.slice(APPROVED_RELEASE_HISTORY.length);
+  if (!repairs.length || repairs.at(-1) !== head) {
+    throw new Error('release freeze head must be a repaired descendant of the original freeze');
+  }
+  let parent = ORIGINAL_FROZEN_COMMIT;
+  for (const line of repairLines) {
+    const [commit, ...parents] = line.split(' ');
+    if (parents.length !== 1 || parents[0] !== parent || commit !== repairs.shift()) {
+      throw new Error('review repair commits must be linear descendants of the original freeze');
+    }
+    parent = commit;
+  }
+  if (repairs.length || parent !== head) {
+    throw new Error('review repair history does not bind the current head');
+  }
   return { head, history };
+}
+
+function assertCleanHead() {
+  const [targetOnly, headOnly] = git('rev-list', '--left-right', '--count', `${TARGET}...HEAD`)
+    .split(/\s+/).map(Number);
+  return assertReleaseFreezeHistory({
+    dirty: git('status', '--porcelain=v1', '--untracked-files=all'),
+    head: git('rev-parse', 'HEAD'),
+    targetOnly,
+    headOnly,
+    history: git('rev-list', '--reverse', `${TARGET}..HEAD`).split('\n'),
+    repairLines: git('rev-list', '--reverse', '--parents', `${ORIGINAL_FROZEN_COMMIT}..HEAD`).split('\n')
+  });
 }
 
 function runGate(outputDir, name, command, args) {
@@ -694,4 +726,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { readJsonWithRetry };
+module.exports = { APPROVED_RELEASE_HISTORY, assertReleaseFreezeHistory, readJsonWithRetry };

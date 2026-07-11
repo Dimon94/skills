@@ -1,7 +1,8 @@
-# By Artifact
+# Historical Example Artifacts
 
-This page is now a compatibility shortcut.
+The files under each `changes/` directory are immutable pre-v5 snapshots. They
+exist for historical inspection and are not current installation or workflow
+instructions.
 
-The canonical one-page entry is [START-HERE.md](./START-HERE.md).
-
-If you only know which file you have in hand, jump to the `By Artifact` section inside [START-HERE.md](./START-HERE.md).
+For current behavior, read [DVERITY.md](../../DVERITY.md) and the
+[getting-started guide](../guides/getting-started.md).

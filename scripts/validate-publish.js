@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -12,8 +13,13 @@ const {
   classifyLegacySurface,
   legacyRuntimeViolations
 } = require('../lib/dverity/legacy/classifier');
+const {
+  validateCurrentSurface
+} = require('../lib/dverity/docs/current-surface');
+const { isHistoryInputPath } = require('../lib/dverity/skill-source');
 
 const ROOT = path.resolve(__dirname, '..');
+const CURRENT_SURFACE_BASE = 'c3ce31c8b08f6480bf18a76dd69ff6f61de55a4f';
 const EXPECTED_FILES = [
   'DVERITY.md',
   'bin/dverity.js',
@@ -66,14 +72,53 @@ function validateLegacyRuntime(errors) {
   }
 }
 
+function runGit(args) {
+  const result = spawnSync('git', args, { cwd: ROOT, encoding: null });
+  if (result.status !== 0) {
+    throw new Error(Buffer.concat([result.stdout || Buffer.alloc(0), result.stderr || Buffer.alloc(0)]).toString().trim());
+  }
+  return result.stdout;
+}
+
+function historyAt(ref) {
+  const files = runGit(['ls-tree', '-r', '--name-only', ref]).toString()
+    .split('\n').filter((rel) => rel && isHistoryInputPath(rel));
+  return Object.fromEntries(files.map((rel) => [
+    rel,
+    crypto.createHash('sha256').update(runGit(['show', `${ref}:${rel}`])).digest('hex')
+  ]));
+}
+
+function validateCurrentDocs(errors, packagedFiles) {
+  try {
+    const result = validateCurrentSurface({
+      root: ROOT,
+      history: historyAt(CURRENT_SURFACE_BASE),
+      packagedFiles
+    });
+    errors.push(...result.errors);
+  } catch (error) {
+    errors.push(`Current-surface validation failed: ${error.message}`);
+  }
+}
+
 function validatePackSmoke(errors) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dverity-pack-'));
   try {
-    const result = spawnSync('npm', ['pack', '--pack-destination', root], {
+    const result = spawnSync('npm', ['pack', '--json', '--pack-destination', root], {
       cwd: ROOT,
       encoding: 'utf8'
     });
-    if (result.status !== 0) errors.push(`npm pack failed:\n${result.stdout}${result.stderr}`);
+    if (result.status !== 0) {
+      errors.push(`npm pack failed:\n${result.stdout}${result.stderr}`);
+      return [];
+    }
+    try {
+      return JSON.parse(result.stdout)[0].files.map(({ path: file }) => file);
+    } catch (error) {
+      errors.push(`npm pack inventory unreadable: ${error.message}`);
+      return [];
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -84,7 +129,8 @@ function main() {
   validatePackageJson(errors);
   validateDveritySource(errors);
   validateLegacyRuntime(errors);
-  validatePackSmoke(errors);
+  const packagedFiles = validatePackSmoke(errors);
+  validateCurrentDocs(errors, packagedFiles);
   if (errors.length) {
     for (const error of errors) console.error(`- ${error}`);
     process.exitCode = 1;
@@ -99,5 +145,6 @@ module.exports = {
   validateDveritySource,
   validateLegacyRuntime,
   validatePackageJson,
-  validatePackSmoke
+  validatePackSmoke,
+  validateCurrentDocs
 };

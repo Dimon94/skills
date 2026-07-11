@@ -1,56 +1,30 @@
-# 安全策略
+# Dverity 安全策略
 
 [中文版](./SECURITY.zh-CN.md) | [English](./SECURITY.md)
 
 ## 支持版本
 
-安全修复优先覆盖最新 npm 发布版本和当前 `main` 分支。旧版本只在问题严重且补丁不扩大公开入口时尽力处理。
-
-| 版本 | 是否支持 |
-| --- | --- |
-| 最新 npm 发布版本 | 是 |
-| `main` 分支 | 是 |
-| 旧版本 | 尽力处理 |
+安全修复优先覆盖 Dverity 最新发布版本和当前默认分支；旧版本尽力支持。
 
 ## 报告范围
 
-请报告会影响用户安装或运行 cc-devflow 的安全问题，例如：
+请报告影响以下边界的漏洞：
 
-- `cc-devflow init` 或 `cc-devflow adapt` 存在任意文件写入或路径穿越
-- 命令注入或不安全的子进程执行
-- 项目配置文件处理不安全
-- 打包错误导致 secret、本地缓存或非预期生成文件被发布
-- adapter 输出静默改写了项目自有的无关文件
+- `dverity install`、`migrate`、`verify`、`uninstall` 的路径安全；
+- ownership manifest 验证或 managed projection hash；
+- 任意文件写入、路径穿越、symlink escape 或 cross-root mutation；
+- 命令注入或不安全的子进程执行；
+- 包内容、provenance、secret 或非预期文件；
+- 经过认证的 provider action、review freshness、landing 或 parity readback。
 
-普通 Bug、陈旧文档、缺失样例和功能请求，请走正常 GitHub issue。
+普通 Bug 与文档缺口请提交到
+[GitHub Issues](https://github.com/Dimon94/dverity/issues)。
 
 ## 报告方式
 
-如果仓库启用了 GitHub private vulnerability reporting，请优先使用它。如果不可用，请通过 GitHub profile 或组织页面上列出的最不公开渠道联系维护者。
+优先使用 GitHub private vulnerability reporting；不可用时，通过 GitHub profile
+上最不公开的方式联系维护者。请提供受影响版本或 commit、环境、精确复现、已观察影响和
+披露状态。完成初步分级前，不要公开漏洞利用细节。
 
-报告请包含：
-
-- 受影响版本或 commit
-- 操作系统和 Node.js 版本
-- 触发问题的精确命令或工作流
-- 最小复现项目或文件树
-- 已观察到的影响
-- 问题是否已在其他地方披露
-
-在维护者完成初步分级前，不要在公开 issue 中发布漏洞利用细节。
-
-## 响应预期
-
-维护者目标是：
-
-- 在 7 天内确认有效的私密报告
-- 先确认严重程度和受影响范围，再公开细节
-- 高影响问题先修复到 `main`
-- 当包用户受影响时发布修复后的 npm 版本
-- 在报告者希望且条件合适时给予致谢
-
-这些时间是维护目标，不是付费支持 SLA。
-
-## 范围说明
-
-cc-devflow 会在用户仓库中安装和适配 Agent 工作流文件。因此安全审查重点应放在文件边界、包内容、生成的 adapter 输出和命令执行。下游工具生成的 Agent 行为不在范围内，除非不安全指令或文件修改路径由 cc-devflow 自身创建。
+维护者目标是在七天内确认有效私密报告，公开前核实严重程度，优先修复当前代码，并在包用户
+受影响时发布不可变的修复版本。

@@ -1,7 +1,7 @@
 {
     "name": "dverity",
     "version": "5.0.0",
-    "description": "Truth-to-Main workflow Skills for evidence-first delivery",
+    "description": "Truth before main.",
     "bin": {
         "dverity": "bin/dverity.js"
     },
@@ -30,6 +30,14 @@
     ],
     "publishConfig": {
         "access": "public"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Dimon94/dverity.git"
+    },
+    "homepage": "https://github.com/Dimon94/dverity#readme",
+    "bugs": {
+        "url": "https://github.com/Dimon94/dverity/issues"
     },
     "license": "MIT",
     "scripts": {

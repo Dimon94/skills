@@ -1,21 +1,20 @@
-# Artifact Contract
+# Dverity Artifact Contract
 
-cc-devflow keeps the workflow surface intentionally small.
+The complete workflow contract is [DVERITY.md](../../DVERITY.md). This guide
+only defines filesystem artifact ownership.
 
-## Durable Files
+## Product artifacts
 
-- `devflow/changes/<change-key>/task.md`
-- `devflow/changes/<change-key>/handoff/pr-brief.md` when PR or local handoff needs it
-- `devflow/postmortems/incidents/<date>-<change-key>.md` when a FIX or recurring failure needs a postmortem
-- `devflow/postmortems/INDEX.md` as the postmortem index
-- `devflow/research/index.jsonl` as the cc-research metadata index
-- `devflow/research/entries/<date>-<slug>.md` when cc-research writes reusable project evidence
+- `skills/` — canonical source for exactly nine Skills.
+- `.dverity/managed-skills.json` — one install-root ownership manifest.
+- `.agents/skills` and `.claude/skills` — exact-set managed projections.
+- generated acceptance packet — read-only roll-up derived from the canonical
+  acceptance catalog and current evidence.
 
-## State Source
+## Human evidence
 
-Git records process history. Commit after each completed planned workflow environment/stage.
+- `docs/postmortems/` — confirmed reusable failure lessons when a real trigger exists.
+- `docs/research/` — source-backed research created by `dverity-research`.
 
-## Retired Surface
-
-Do not create process files beyond the durable files above. Research files are
-owned by `cc-research`; other skills must not write them directly.
+Directory names never prove ownership. Unknown, drifted, or manifest-external
+files are preserved and reported rather than adopted or deleted.

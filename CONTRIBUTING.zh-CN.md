@@ -1,229 +1,49 @@
-# 为 cc-devflow 做贡献
+# 为 Dverity 做贡献
 
 [中文版](./CONTRIBUTING.zh-CN.md) | [English](./CONTRIBUTING.md)
 
----
+每个改动都应边界明确、证据充分。唯一完整产品契约由
+[DVERITY.md](./DVERITY.md) 持有；贡献文档只描述仓库工作，不创建另一条生命周期。
 
-请同时阅读 [行为准则](./CODE_OF_CONDUCT.zh-CN.md)。如果你要报告漏洞，请遵循 [安全策略](./SECURITY.zh-CN.md)，不要创建公开 issue。
-
-## 概览
-
-cc-devflow 现在是一个 skills-first 仓库，并且重新带回了可分发的 CLI。
-
-对外可见面只有这些：
-
-- `cc-next`
-- `cc-dev`
-- `cc-plan`
-- `cc-investigate`
-- `cc-do`
-- `cc-review`
-- `cc-pr-review`
-- `cc-pr-land`
-- `cc-check`
-- `cc-act`
-- `cc-devflow init`
-- `cc-devflow adapt`
-- `cc-devflow query`
-- `cc-devflow task-contract`
-- `cc-devflow review`
-
-`lib/skill-runtime/` 可以保留共享运行时支撑，但它已经不是用户要直接理解或运行的工作流入口。
-
-仓库里也可以存在维护类 Skill，例如 `cc-archive`、`cc-simplify` 和 `docs-sync`。其中 `cc-archive` 和 `cc-simplify` 随整包分发为维护类 Skill；`docs-sync` 仍是内部维护 Skill。
-
----
-
-## 开发环境
-
-### 前置条件
-
-- Node.js 18+
-- npm
-- Git
-
-### 安装
+## 本地准备
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/cc-devflow.git
-cd cc-devflow
-npm install
-```
-
-### 本地 CLI 冒烟验证
-
-如果你在源码仓库里开发，请使用仓库内入口：
-
-```bash
-node bin/cc-devflow-cli.js --help
-tmpdir=$(mktemp -d)
-node bin/cc-devflow-cli.js init --dir "$tmpdir"
-node bin/cc-devflow-cli.js adapt --cwd "$tmpdir" --platform codex
-rm -rf "$tmpdir"
-```
-
-如果要验证打包后的行为，运行：
-
-```bash
-npm pack
-node scripts/validate-publish.js
-```
-
----
-
-## 项目结构
-
-```text
-cc-devflow/
-├── .claude/skills/            # 对外分发的 Skill
-├── bin/                       # CLI 入口
-├── config/                    # Adapter 配置
-├── docs/                      # 公开文档
-├── lib/adapters/              # 平台适配层
-├── lib/compiler/              # 多平台编译器
-├── lib/skill-runtime/         # 供 Skill 脚本复用的共享运行时与同目录测试
-├── README.md
-├── README.zh-CN.md
-└── package.json
-```
-
-### 常见贡献区域
-
-- `.claude/skills/`：Skill 行为、资源、引用、脚本
-- `bin/`：可分发 CLI 行为
-- `lib/compiler/`：skills/prompts 解析、转换、emitters、rules 生成
-- `lib/adapters/`：平台 adapter 配置与校验
-- `lib/skill-runtime/`：Skill 脚本复用的共享运行时支撑
-- `docs/`：对外文档
-
----
-
-## 贡献规则
-
-### 1. 保持对外入口极简
-
-不要再把旧 `/flow:*` 或 `harness:*` CLI 写回新的用户文档。
-
-对外故事应该始终保持为：
-
-- 整包安装：`cc-devflow init`
-- 平台产物：`cc-devflow adapt`
-- change 归档：`cc-archive`
-- change 质量清理：`cc-simplify`
-
-### 2. 保持 Skills-First 结构
-
-每个已发布 Skill 都应保持独立目录：
-
-```text
-.claude/skills/<skill>/
-├── SKILL.md
-├── PLAYBOOK.md
-├── assets/
-├── references/
-└── scripts/
-```
-
-如果你改了一个已发布 Skill，要把这些文件当成同一个契约：
-
-- `SKILL.md`
-- 本地 `CHANGELOG.md`
-- 被引用的 `PLAYBOOK.md`、`assets/`、`references/`、`scripts/`
-
-不要只改其中一部分，让其余说明继续过期。
-
-Codex 输出目录 `.codex/skills/` 由 `cc-devflow adapt` 生成。不要手改它。先改 `.claude/skills/<skill>/`，再重新生成镜像：
-
-```bash
-npm run adapt
-npm run adapt -- --check
-```
-
-### 3. 保持 Skill 契约变更完整
-
-如果一个已发布 Skill 的契约变化，请一次性同步这些面：
-
-- `.claude/skills/<skill>/SKILL.md`
-- `.claude/skills/<skill>/CHANGELOG.md`
-- 受影响的 `PLAYBOOK.md`、`assets/`、`references/` 和 `scripts/`
-- 根 `README.md` / `README.zh-CN.md`
-- `docs/` 下受影响的公开文档
-- `docs/examples/example-bindings.json` 和样例 metadata
-
-然后运行相关门禁：
-
-```bash
-npm run verify:examples
+git clone https://github.com/Dimon94/dverity.git
+cd dverity
+npm ci
+npm test -- --runInBand
 npm run verify:publish
-npm run verify:artifacts
-npm run verify
 ```
 
-### 4. 保持分发包干净
+## 仓库责任
 
-不要把瞬态文件放进模板或 tarball。
+- `skills/` 是唯一 canonical Skill source。
+- `.agents/skills` 与 `.claude/skills` 是安装投影，不是 source。
+- `lib/dverity/` 持有生命周期与验证行为。
+- `bin/dverity.js` 是唯一 executable entry。
+- `DVERITY.md` 是唯一完整产品链契约。
+- `docs/` 只放局部指南与不可变历史记录。
 
-典型脏文件包括：
+物理 Skill 集合必须保持为 `skills/` 已有的九个根目录。新增内部 gate、mode、validator
+或 runbook，都不构成创建另一个 Skill 的理由。
 
-- `.claude/tsc-cache/`
-- `.DS_Store`
-- 本地编辑器和操作系统产生的垃圾文件
+## 改动纪律
 
-### 5. 让运行时辅助层保持次要
+1. 从能证明行为的最小公开测试 seam 开始。
+2. 先跑 focused red，只实现足够的 green，再跑完整测试。
+3. 保持 CHANGELOG、ADR、task、postmortem、research、tag 与其他 durable history 原文；
+   除非当前工作明确拥有一条新的 append-only record。
+4. Provider 与 registry mutation 必须有明确、具名的 authority。
+5. 公开命令、Skill 责任、安装契约或安全边界变化时，同步 current docs。
 
-如果你改了 `lib/skill-runtime/`，请保持可测试，但不要再把它写成用户主入口。真正的公开 workflow 仍然属于已发布 Skill。
-
----
-
-## 测试
-
-### 主测试命令
+## 常用检查
 
 ```bash
-npm test
+npm test -- --runInBand
+npm run verify:publish
+npm pack --dry-run
+git diff --check
 ```
 
-### CLI 回归测试
-
-```bash
-npm test -- --runInBand lib/skill-runtime/__tests__/cli-bootstrap.integration.test.js
-```
-
-### 发布校验
-
-```bash
-node scripts/validate-publish.js
-```
-
-它应该保证：
-
-- CLI 必需文件存在
-- 关键 Skill 存在
-- 打包 tarball 干净
-- 瞬态缓存不会被分发
-
----
-
-## 文档规则
-
-- README 和快速开始默认写打包后 CLI 的用法
-- 贡献者文档才写 `node bin/cc-devflow-cli.js ...`
-- `skills.sh` 只作为单 Skill 分发路径来写
-- 不要把 `.claude/commands/` 写成必需结构
-- 不要把内部运行时辅助层写成受支持的公开工作流
-- 如果改了已发布 Skill，在同一个 PR 里同步该 Skill 的 `version`、本地 `CHANGELOG.md` 和受影响的公开文档
-- 不要手改 `.codex/skills`；从 `.claude/skills` 通过 `npm run adapt` 重新生成
-
----
-
-## Pull Request
-
-这个仓库比较好的 PR，通常会干净地只做一类事：
-
-- 改进某个 Skill
-- 修复 CLI 分发行为
-- 修复编译器 / 适配行为
-- 清理陈旧文档
-- 增加有针对性的回归测试
-
-如果改动触碰了公开入口，记得在同一个 PR 里同步文档。
+请在 [Dimon94/dverity](https://github.com/Dimon94/dverity) 提交聚焦的 issue 与 pull
+request。安全问题按 [SECURITY.zh-CN.md](./SECURITY.zh-CN.md) 处理。

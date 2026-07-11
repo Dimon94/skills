@@ -1,49 +1,7 @@
-# Full-Design Blocked Example
+# Historical blocked-design snapshot
 
-## Example Meta
+The linked [task artifact](./changes/REQ-002-bulk-invite-import/task.md) is an
+immutable pre-v5 record. It is preserved for audit and must not be treated as
+current Dverity guidance.
 
-- Example version: `1.0.0`
-- Last reviewed: `2026-04-17`
-- Bound skills: `cc-plan@3.28.0`, `cc-do@1.11.2`, `cc-check@1.18.1`
-
-This example shows a requirement that **looked executable**, but `cc-check` correctly stopped it and sent it back to `cc-plan`.
-
-The shape is intentional:
-
-- design requires `full-design`
-- tasks were executed far enough to produce evidence
-- the verification verdict is still `blocked`
-- reroute is `cc-plan`, not `cc-do`
-
-## Scenario
-
-The fictional product now wants CSV-based bulk invites for workspace admins.
-
-At first glance, it looks like an import feature inside the admin console.
-
-But the real surface is wider:
-
-- invite limit enforcement
-- duplicate email handling
-- billing-seat warnings
-- audit log consistency
-
-The sample shows what happens when implementation moved before the integration design was fully trustworthy.
-
-## What To Look For
-
-1. Why this requirement cannot stay `tiny-design`
-2. Which signals forced `full-design`
-3. Why tests passing is still not enough
-4. Why reroute goes to `cc-plan` instead of `cc-do`
-
-## Artifact Map
-
-- `changes/REQ-002-bulk-invite-import/task.md`
-- `changes/REQ-002-bulk-invite-import/task.md`
-
-## Why There Is No `cc-act` Output
-
-There is no final handoff file here because `cc-check` did **not** return `pass`.
-
-The loop must stop honestly before `cc-act`.
+See [DVERITY.md](../../../DVERITY.md) for the current product contract.

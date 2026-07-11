@@ -1,28 +1,23 @@
-# CLI And Skills
+# Dverity CLI and Skills
 
-CC-DevFlow no longer uses the old `/flow:*` command surface as the primary interface.
-
-Use the repository CLI for whole-pack setup and platform adaptation:
+The CLI owns installation lifecycle only:
 
 ```bash
-npx cc-devflow init --dir /path/to/your/project
-npx cc-devflow adapt --cwd /path/to/your/project --platform codex
+dverity install   --global | --project <absolute-path>
+dverity migrate   --global | --project <absolute-path>
+dverity verify    --global | --project <absolute-path>
+dverity uninstall --global | --project <absolute-path>
+dverity --help
+dverity --version
 ```
 
-Use skills directly for the workflow itself:
+Exactly one scope is mandatory for every lifecycle command. `verify` is
+read-only; invalid or ambiguous scope is a zero-mutation error.
 
-```text
-PDCA: cc-plan -> [cc-review] -> cc-do -> [cc-review] -> cc-check -> cc-act
-Hotfix: cc-diagnose -> focused fix -> regression proof
-```
+Invoke workflow Skills directly:
 
-Use maintenance skills separately when needed:
+- `dverity-repair`
+- `submit-remote-review`
+- `merge-remote-review`
 
-- `cc-archive`: archive, restore, or list completed/shelved changes
-- `cc-simplify`: cleanup pass before ship
-
-Use [skills.sh CLI](https://skills.sh/docs/cli) when you only want one skill:
-
-```bash
-npx skills add https://github.com/Dimon94/cc-devflow --skill cc-plan
-```
+Their complete shared product contract is [DVERITY.md](../../DVERITY.md).

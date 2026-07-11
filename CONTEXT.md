@@ -1,100 +1,55 @@
-# cc-devflow
+# Dverity
 
-cc-devflow is an agent-first workflow system for moving coding work through planning, execution, verification, and delivery with durable evidence.
+Dverity is an evidence-first delivery toolkit whose promise is
+`Truth before main.` The complete product contract is owned only by
+[DVERITY.md](./DVERITY.md).
 
 ## Language
 
-**Runtime Harness**:
-An outer workflow guard that supplies current workflow context and enforces phase gates while an agent works.
-_Avoid_: Hook pack, workflow daemon
+### Truth-to-Main
+The single Dverity product contract. Other files may point to it or define one
+local responsibility, but may not restate the complete chain.
 
-**Runtime Policy Core**:
-The host-neutral decision layer that interprets durable workflow truth and returns context or gate decisions.
-_Avoid_: Codex runtime, Claude runtime
+### Workflow Entry
+A user-invoked Skill that owns one bounded phase. Dverity has exactly three:
+`dverity-repair`, `submit-remote-review`, and `merge-remote-review`.
 
-**Host Adapter**:
-A platform-specific bridge that translates a host's hook lifecycle into runtime policy decisions.
-_Avoid_: Platform core, hook policy
+### Reusable Dependency Skill
+A Skill used by a workflow entry without owning a parallel product lifecycle.
 
-**Durable Truth**:
-Repository-owned workflow facts that outlive a chat turn and remain authoritative across agents and hosts.
-_Avoid_: Runtime state store, generated mirror
+### Verified Local
+A local repair result whose regression evidence is fresh for the named head.
+It grants no remote mutation authority.
 
-**Single Source Of Truth**:
-The rule that workflow authority belongs to durable truth, not to runtime caches or generated summaries.
-_Avoid_: Shadow state, mirrored workflow state
+### Review Ready
+An authenticated provider-native review item bound to the exact source,
+target, and head. Pending, unknown, stale, or anonymous truth is not ready.
 
-**User Entry Skill**:
-A skill that a person invokes to start or resume a workflow phase.
-_Avoid_: Public skill, command skill
+### Verified Remote Main
+A landing result with provider, Git, worktree, checks, and direct issue
+closeout read back independently. Provider `merged` state alone is incomplete.
 
-**Chain Skill**:
-A skill that exists for other skills and agents to reuse inside the workflow chain, rather than as a primary human entry point.
-_Avoid_: Shared reference, helper doc
+### Canonical Skill Source
+The repository root `skills/` tree. It is enumerated once for package,
+installation, and provenance.
 
-**Managed Resource Copy**:
-A bundled resource file copied into one or more skill-local paths from an owner
-resource so host adapters, package consumers, and generated mirrors can resolve
-relative paths without treating each copy as a separate source of truth.
-_Avoid_: Chain Skill, shared reference, generated mirror
+### Managed Projection
+An exact-set, per-file-hash copy of canonical Skill source installed under
+`.agents/skills` or `.claude/skills`. A projection never becomes source.
 
-**Capability Skill**:
-A reusable skill that can be invoked directly and consulted by workflow skills
-without becoming a PDCA stage. `cc-research` is a Capability Skill and owns
-`devflow/research/`.
-_Avoid_: PDCA stage, process file writer
+### Install Root Ownership Manifest
+The single `.dverity/managed-skills.json` file that proves package/source
+provenance and ownership for both managed projections.
 
-**Maintenance Skill**:
-A maintainer-facing skill used to update, sync, release, or audit the cc-devflow
-skill suite itself. It is not part of the user-facing workflow route.
-_Avoid_: Workflow stage, user entry skill, public route
+### Historical Record
+CHANGELOG, ADR, task, postmortem, research, or other durable evidence written
+under an earlier product state. Current documentation may link it as history,
+but runtime, package, and install logic must not consume or rewrite it.
 
-**Route Family**:
-The coarse workflow family a skill belongs to, such as main planned work, bug
-diagnosis, PR review/landing, quality gates, research, or maintenance. It is
-not a per-skill taxonomy and not a runtime transition table.
-_Avoid_: Skill category, package group, implementation tag, runtime route table
+### Current Surface
+README, legal notice, package metadata, badges, install links, policy files,
+and current guides. These must use the canonical Dverity identity.
 
-**Task Contract**:
-The durable agreement that defines the shape and meaning of `task.md` for planning, execution, verification, and delivery.
-_Avoid_: Task template, issue spec, task document
-
-**Quality Gate Packet**:
-A transient evidence bundle assembled by `cc-check` and passed between quality participants to classify the current gate verdict and route without becoming Durable Truth. It carries normalized summaries and evidence references, not raw command or review output. `cc-act` may check freshness and final-commit coverage, but it does not reinterpret the verdict. It does not enter the Failure Ledger; only classified review escapes or confirmed lessons become durable failure evidence.
-_Avoid_: Quality state file, verification database, gate artifact
-
-**Execution Environment Validator**:
-A read-only checker for the Execution Environments portion of `task.md` that reports readiness, blockers, touch conflicts, and child dispatch completeness without turning the whole task contract into a parser input language.
-_Avoid_: Task parser, task.md DSL, workflow router
-
-**Project Hook**:
-A host hook registered for the project as a whole, outside any single skill's lifecycle.
-_Avoid_: Skill-scoped hook, frontmatter hook
-
-**Quiet-By-Default Hook**:
-A hook contract where running is cheap and silent unless durable workflow evidence or the current user prompt proves that the agent needs context or must be blocked.
-_Avoid_: Per-turn reminder, always-on injection
-
-**Actionable Context Slice**:
-A compact hook payload made only of the exact workflow fact, next action, evidence gap, or forbidden transition the agent needs for the current turn.
-_Avoid_: Process reminder, motivational guidance, generic checklist, wrapper label
-
-**Action Field**:
-A context field that directly changes what the agent should read, run, do, avoid, or prove next.
-_Avoid_: Standalone status, decorative metadata
-
-**Recovery Slice**:
-An actionable context slice emitted after compaction or session resume to restore the next workflow move from durable truth.
-_Avoid_: Conversation summary, memory replay
-
-**Skill Registry**:
-A generated read model of the skill suite used for chain indexing, validation,
-documentation, and publish gates. It is not runtime authority and must not own
-workflow state or routing truth.
-_Avoid_: Workflow state store, runtime router, durable truth
-
-**Skill Suite Graph**:
-The relationship graph of User Entry Skills, Chain Skills, Capability Skills,
-maintenance skills, reads, writes, reroutes, and distribution classes as exposed
-through the Skill Registry.
-_Avoid_: Hand-written skill map, runtime route graph
+### External Executor
+The planning or implementation system that hands a named, clean, verified,
+ahead branch to Dverity. It does not become a Dverity workflow entry.

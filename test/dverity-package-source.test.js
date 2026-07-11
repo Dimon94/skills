@@ -41,6 +41,7 @@ describe('Dverity packed Skill source', () => {
       'lib/dverity/downstream-sync/index.js',
       'lib/dverity/host-discovery.js',
       'lib/dverity/host-projections.js',
+      'lib/dverity/legacy/classifier.js',
       'lib/dverity/lifecycle.js',
       'lib/dverity/migration/data.js',
       'lib/dverity/migration/transaction-schema.json',

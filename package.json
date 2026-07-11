@@ -2,8 +2,15 @@
     "name": "dverity",
     "version": "5.0.0",
     "description": "Truth-to-Main workflow Skills for evidence-first delivery",
+    "bin": {
+        "dverity": "bin/dverity.js"
+    },
     "files": [
         "DVERITY.md",
+        "bin/dverity.js",
+        "bin/dverity-cli.js",
+        "lib/dverity/lifecycle.js",
+        "lib/dverity/package-provenance.json",
         "lib/dverity/skill-source.js",
         "skills/"
     ],
@@ -12,6 +19,8 @@
     },
     "license": "MIT",
     "scripts": {
+        "prepack": "node scripts/dverity-provenance.js prepare",
+        "postpack": "node scripts/dverity-provenance.js clean",
         "prepublishOnly": "node scripts/validate-publish.js",
         "test": "jest",
         "verify": "npm test -- --runInBand && npm run verify:publish",

@@ -29,6 +29,8 @@ describe('validate-publish', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
     expect(pkg.scripts).toEqual({
+      prepack: 'node scripts/dverity-provenance.js prepare',
+      postpack: 'node scripts/dverity-provenance.js clean',
       prepublishOnly: 'node scripts/validate-publish.js',
       test: 'jest',
       verify: 'npm test -- --runInBand && npm run verify:publish',
@@ -36,15 +38,25 @@ describe('validate-publish', () => {
     });
   });
 
-  test('package ships root Skill source without a legacy projection allowlist', () => {
+  test('package ships the Dverity lifecycle from the root Skill source', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
+    expect(pkg.bin).toEqual({ dverity: 'bin/dverity.js' });
+    expect(pkg.scripts).toMatchObject({
+      prepack: 'node scripts/dverity-provenance.js prepare',
+      postpack: 'node scripts/dverity-provenance.js clean'
+    });
     expect(pkg.files).toEqual([
       'DVERITY.md',
+      'bin/dverity.js',
+      'bin/dverity-cli.js',
+      'lib/dverity/lifecycle.js',
+      'lib/dverity/package-provenance.json',
       'lib/dverity/skill-source.js',
       'skills/'
     ]);
     expect(pkg.files.some((entry) => entry.startsWith('.claude/'))).toBe(false);
+    expect(pkg.files.some((entry) => entry.includes('cc-devflow'))).toBe(false);
   });
 
   test('retired task-contract artifacts remain banned', () => {

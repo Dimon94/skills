@@ -61,6 +61,8 @@ function readTextFrom(root, relPath) {
 function validatePackageJson(errors) {
   const pkg = JSON.parse(readText('package.json'));
   const expectedScripts = {
+    prepack: 'node scripts/dverity-provenance.js prepare',
+    postpack: 'node scripts/dverity-provenance.js clean',
     prepublishOnly: 'node scripts/validate-publish.js',
     test: 'jest',
     verify: 'npm test -- --runInBand && npm run verify:publish',
@@ -70,16 +72,24 @@ function validatePackageJson(errors) {
   if (pkg.name !== 'dverity' || pkg.version !== '5.0.0') {
     errors.push('package.json identity must be dverity@5.0.0');
   }
-  if (pkg.main || pkg.bin) {
-    errors.push('package.json must not publish a CLI before its canonical implementation exists');
+  if (pkg.main || JSON.stringify(pkg.bin) !== JSON.stringify({ dverity: 'bin/dverity.js' })) {
+    errors.push('package.json must publish only the canonical dverity CLI');
   }
   if (JSON.stringify(pkg.scripts) !== JSON.stringify(expectedScripts)) {
     errors.push('package.json scripts must expose only Dverity verification gates');
   }
 
-  const expectedFiles = ['DVERITY.md', 'lib/dverity/skill-source.js', 'skills/'];
+  const expectedFiles = [
+    'DVERITY.md',
+    'bin/dverity.js',
+    'bin/dverity-cli.js',
+    'lib/dverity/lifecycle.js',
+    'lib/dverity/package-provenance.json',
+    'lib/dverity/skill-source.js',
+    'skills/'
+  ];
   if (JSON.stringify(pkg.files) !== JSON.stringify(expectedFiles)) {
-    errors.push('package.json files must ship only the Dverity source package seam');
+    errors.push('package.json files must ship only the Dverity lifecycle/source seam');
   }
 }
 

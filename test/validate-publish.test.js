@@ -50,9 +50,12 @@ describe('validate-publish', () => {
       'DVERITY.md',
       'bin/dverity.js',
       'bin/dverity-cli.js',
+      'lib/dverity/git-source.js',
       'lib/dverity/lifecycle.js',
       'lib/dverity/package-provenance.json',
+      'lib/dverity/review-item-record.js',
       'lib/dverity/skill-source.js',
+      'lib/dverity/submit.js',
       'skills/'
     ]);
     expect(pkg.files.some((entry) => entry.startsWith('.claude/'))).toBe(false);

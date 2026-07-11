@@ -83,9 +83,12 @@ function validatePackageJson(errors) {
     'DVERITY.md',
     'bin/dverity.js',
     'bin/dverity-cli.js',
+    'lib/dverity/git-source.js',
     'lib/dverity/lifecycle.js',
     'lib/dverity/package-provenance.json',
+    'lib/dverity/review-item-record.js',
     'lib/dverity/skill-source.js',
+    'lib/dverity/submit.js',
     'skills/'
   ];
   if (JSON.stringify(pkg.files) !== JSON.stringify(expectedFiles)) {

@@ -8,5 +8,14 @@ metadata:
 
 # Resolving Merge Conflicts
 
-This source slot owns conflict-resolution guidance. Its detailed behavior is
-outside the Source/Inventory seam.
+Use this dependency only when Git reports an in-progress merge or rebase
+conflict. Confirm the operation, list unmerged paths, and recover both sides'
+product intent from current scope truth before editing.
+
+Resolve the smallest conflict whose intent is proven, stage only that path,
+then continue the existing Git operation and rerun focused checks. If intent is
+ambiguous, abort or stop safely and report the blocker; never invent behavior
+to make the operation finish.
+
+Do not start a merge or rebase merely to invoke this Skill. Do not use it for a
+clean target refresh, ordinary diff overlap, or speculative cleanup.

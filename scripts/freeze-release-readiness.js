@@ -21,9 +21,12 @@ const { textSetSha256 } = require('../lib/dverity/review/review-item-record');
 const ROOT = path.resolve(__dirname, '..');
 let REPO;
 const TARGET = 'origin/main';
-const INTEGRATION_BRANCH = 'codex/dverity-5-integration';
-const DISPATCH_BASE = 'fd0ece68af69ae032eced3f2b29304577fdfbd7f';
+const VERIFIED_REMOTE_MAIN = 'd18feb47662d8bb1b429e7314d042f4cf881fd6a';
+const INTEGRATION_BRANCH = 'codex/dverity-5-provenance-integration';
+const ISSUE_77_COMMIT = 'fd0ece68af69ae032eced3f2b29304577fdfbd7f';
+const ISSUE_82_REVIEW_BASE = VERIFIED_REMOTE_MAIN;
 const ORIGINAL_FROZEN_COMMIT = 'f14c1476158d4999f6a031cecaeb577c76dcdf6c';
+const VERIFIED_REMOTE_MAIN_SOURCE = 'c4c43027b060645cdb1d5cfb5b49828dc09a74a2';
 const SOURCE_THREAD = '019f4eac-d73f-7770-9fdb-95244911c96e';
 const WORKTREE = ROOT;
 const INTEGRATED_HISTORY = Object.freeze([
@@ -40,10 +43,11 @@ const INTEGRATED_HISTORY = Object.freeze([
   ['73', 'f9ec3c4905466594bdc809a10c34dd4f2a9504f5'],
   ['74', '101a95f835d924af3e29f1c7cc26eb31aa926c5c'],
   ['76', 'c3ce31c8b08f6480bf18a76dd69ff6f61de55a4f'],
-  ['77', DISPATCH_BASE]
+  ['77', ISSUE_77_COMMIT],
+  ['78', VERIFIED_REMOTE_MAIN_SOURCE]
 ]);
 const APPROVED_RELEASE_HISTORY = Object.freeze([
-  ...INTEGRATED_HISTORY.map(([, commit]) => commit),
+  ...INTEGRATED_HISTORY.filter(([issue]) => issue !== '78').map(([, commit]) => commit),
   ORIGINAL_FROZEN_COMMIT
 ]);
 const COMMENT_IDS = Object.freeze({
@@ -97,14 +101,23 @@ const EXECUTOR_TESTS = Object.freeze({
     'lib/dverity/__tests__/release/release-readiness.test.js',
     'lib/dverity/__tests__/review/submit.test.js',
     'test/dverity-package-source.test.js'
-  ]
+  ],
+  82: ['lib/dverity/__tests__/release/publish-workflow.test.js']
 });
+
+function integratedHistory(head) {
+  return [...INTEGRATED_HISTORY, ['82', head]];
+}
+
+function integratedIssueNumbers(history) {
+  return [...new Set(history.map(([issue]) => Number(issue)))].sort((left, right) => left - right);
+}
 
 function execute(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd || ROOT,
     encoding: options.encoding === null ? null : 'utf8',
-    env: process.env
+    env: options.env || process.env
   });
   if (result.status !== 0) {
     const output = Buffer.isBuffer(result.stdout)
@@ -139,22 +152,28 @@ function writeJson(file, value) {
   return digest(fs.readFileSync(file));
 }
 
-function assertReleaseFreezeHistory({ dirty, head, targetOnly, headOnly, history, repairLines }) {
+function assertReleaseFreezeHistory({
+  branch, dirty, head, target, targetOnly, headOnly, history, repairLines,
+  verifiedParents, verifiedTree, originalFrozenTree
+}) {
+  if (branch !== INTEGRATION_BRANCH) {
+    throw new Error('release freeze requires the provenance integration branch');
+  }
   if (dirty) {
     throw new Error('release freeze requires a clean worktree');
   }
-  if (targetOnly !== 0 || headOnly !== history.length) {
+  if (target !== VERIFIED_REMOTE_MAIN || targetOnly !== 0 || headOnly !== history.length) {
     throw new Error('integration head must be ahead of and not behind the frozen target');
   }
-  if (JSON.stringify(history.slice(0, APPROVED_RELEASE_HISTORY.length))
-    !== JSON.stringify(APPROVED_RELEASE_HISTORY)) {
-    throw new Error('integration history does not match the approved dependency order');
+  if (verifiedParents?.length !== 2 || verifiedParents[1] !== VERIFIED_REMOTE_MAIN_SOURCE
+    || verifiedTree !== originalFrozenTree) {
+    throw new Error('verified remote main does not preserve the original frozen source');
   }
-  const repairs = history.slice(APPROVED_RELEASE_HISTORY.length);
+  const repairs = [...history];
   if (!repairs.length || repairs.at(-1) !== head) {
     throw new Error('release freeze head must be a repaired descendant of the original freeze');
   }
-  let parent = ORIGINAL_FROZEN_COMMIT;
+  let parent = VERIFIED_REMOTE_MAIN;
   for (const line of repairLines) {
     const [commit, ...parents] = line.split(' ');
     if (parents.length !== 1 || parents[0] !== parent || commit !== repairs.shift()) {
@@ -172,12 +191,17 @@ function assertCleanHead() {
   const [targetOnly, headOnly] = git('rev-list', '--left-right', '--count', `${TARGET}...HEAD`)
     .split(/\s+/).map(Number);
   return assertReleaseFreezeHistory({
+    branch: git('branch', '--show-current'),
     dirty: git('status', '--porcelain=v1', '--untracked-files=all'),
     head: git('rev-parse', 'HEAD'),
+    target: git('rev-parse', TARGET),
     targetOnly,
     headOnly,
     history: git('rev-list', '--reverse', `${TARGET}..HEAD`).split('\n'),
-    repairLines: git('rev-list', '--reverse', '--parents', `${ORIGINAL_FROZEN_COMMIT}..HEAD`).split('\n')
+    repairLines: git('rev-list', '--reverse', '--parents', `${VERIFIED_REMOTE_MAIN}..HEAD`).split('\n'),
+    verifiedParents: git('show', '-s', '--format=%P', VERIFIED_REMOTE_MAIN).split(' '),
+    verifiedTree: git('rev-parse', `${VERIFIED_REMOTE_MAIN}^{tree}`),
+    originalFrozenTree: git('rev-parse', `${VERIFIED_REMOTE_MAIN_SOURCE}^{tree}`)
   });
 }
 
@@ -284,12 +308,12 @@ function gh(endpoint) {
 function trackerSnapshot() {
   const issues = [];
   const ownership = [];
-  for (let issue = 65; issue <= 80; issue += 1) {
+  for (const issue of [...Array.from({ length: 16 }, (_, index) => 65 + index), 82]) {
     const record = gh(`repos/${REPO}/issues/${issue}`);
     const blockedBy = gh(`repos/${REPO}/issues/${issue}/dependencies/blocked_by`)
       .map((blocker) => blocker.number).sort((left, right) => left - right);
     if (record.state !== 'open') throw new Error(`#${issue} must remain open before remote closeout`);
-    const owners = parsePrimaryOwners(record.body);
+    const owners = issue === 82 ? [] : parsePrimaryOwners(record.body);
     issues.push({
       issue,
       url: record.html_url,
@@ -310,10 +334,10 @@ function trackerSnapshot() {
   return { issues, ownership, audit };
 }
 
-function integrationEvidence() {
+function integrationEvidence(history) {
   return Object.entries(COMMENT_IDS).map(([issue, commentId]) => {
     const comment = gh(`repos/${REPO}/issues/comments/${commentId}`);
-    const commits = INTEGRATED_HISTORY.filter(([owner]) => owner === issue)
+    const commits = history.filter(([owner]) => owner === issue)
       .map(([, commit]) => commit).slice(-1);
     if (commits.some((commit) => !comment.body.includes(commit))) {
       throw new Error(`#${issue} durable integration evidence does not bind all expected commits`);
@@ -328,36 +352,36 @@ function integrationEvidence() {
   });
 }
 
-function packOnce(destination) {
-  const output = execute('npm', ['pack', '--json', '--pack-destination', destination]);
+function packOnce(destination, env) {
+  const output = execute('npm', ['pack', '--json', '--pack-destination', destination], { env });
   return JSON.parse(output)[0];
 }
 
-function unpackedInventory(tarball, metadata, destination) {
-  execute('tar', ['-xzf', tarball, '-C', destination]);
+function unpackedInventory(tarball, metadata, destination, env) {
+  execute('tar', ['-xzf', tarball, '-C', destination], { env });
   return metadata.files.map((entry) => {
     const content = fs.readFileSync(path.join(destination, 'package', entry.path));
     return { ...entry, sha256: digest(content) };
   });
 }
 
-function toolVersions() {
+function toolVersions(env) {
   return {
     node: process.version,
-    npm: execute('npm', ['--version']).trim(),
-    git: execute('git', ['--version']).trim(),
-    tar: execute('tar', ['--version']).split('\n')[0].trim(),
-    gh: execute('gh', ['--version']).split('\n')[0].trim()
+    npm: execute('npm', ['--version'], { env }).trim(),
+    git: execute('git', ['--version'], { env }).trim(),
+    tar: execute('tar', ['--version'], { env }).split('\n')[0].trim(),
+    gh: execute('gh', ['--version'], { env }).split('\n')[0].trim()
   };
 }
 
-function freezeArtifact(outputDir, head) {
+function freezeArtifact(outputDir, head, { env = process.env } = {}) {
   const first = fs.mkdtempSync(path.join(os.tmpdir(), 'dverity-pack-1-'));
   const second = fs.mkdtempSync(path.join(os.tmpdir(), 'dverity-pack-2-'));
   const unpack = fs.mkdtempSync(path.join(os.tmpdir(), 'dverity-unpack-'));
   try {
-    const one = packOnce(first);
-    const two = packOnce(second);
+    const one = packOnce(first, env);
+    const two = packOnce(second, env);
     const firstPath = path.join(first, one.filename);
     const secondPath = path.join(second, two.filename);
     const bytes = fs.readFileSync(firstPath);
@@ -375,7 +399,7 @@ function freezeArtifact(outputDir, head) {
       sha512,
       npm_integrity: integrity,
       npm_shasum: one.shasum,
-      inventory: unpackedInventory(firstPath, one, unpack),
+      inventory: unpackedInventory(firstPath, one, unpack, env),
       repack: {
         sha512: digest(repack, 'sha512'),
         npm_integrity: `sha512-${digest(repack, 'sha512', 'base64')}`,
@@ -386,7 +410,7 @@ function freezeArtifact(outputDir, head) {
         'npm pack --json --pack-destination <isolated-temp-2>',
         'compare complete tarball bytes before preserving the sole final artifact'
       ],
-      tools: toolVersions()
+      tools: toolVersions(env)
     };
     const audit = auditArtifactFreeze(record);
     if (!audit.success || !record.repack.byte_identical || one.integrity !== integrity
@@ -581,6 +605,7 @@ function releaseHandoff(context) {
   const base = git('rev-parse', TARGET);
   const ahead = git('rev-list', '--reverse', `${TARGET}..HEAD`).split('\n');
   const touched = git('diff', '--name-only', `${TARGET}...HEAD`).split('\n').filter(Boolean).sort();
+  const integratedIssues = integratedIssueNumbers(context.integrationHistory);
   return {
     source: INTEGRATION_BRANCH,
     target: TARGET,
@@ -589,7 +614,7 @@ function releaseHandoff(context) {
     ahead_commits: ahead,
     scope_source: { kind: 'wayfinder', url: `https://github.com/${REPO}/issues/56` },
     spec: `https://github.com/${REPO}/issues/64`,
-    issues: Array.from({ length: 14 }, (_, index) => `https://github.com/${REPO}/issues/${65 + index}`),
+    issues: integratedIssues.map((issue) => `https://github.com/${REPO}/issues/${issue}`),
     checks: context.gates.map(({ command, status }) => ({ command, status })),
     local_review: { status: 'pass', base, head: context.head },
     touched_paths: touched,
@@ -598,8 +623,8 @@ function releaseHandoff(context) {
       'any source change invalidates C/A and requires a new freeze',
       '#79 and #80 remain explicit user-authority stops'
     ],
-    closeout_intent: Array.from({ length: 14 }, (_, index) => ({
-      issue: `#${65 + index}`,
+    closeout_intent: integratedIssues.map((issue) => ({
+      issue: `#${issue}`,
       action: 'close-after-merge'
     })),
     remote_actions_performed: 'none',
@@ -612,7 +637,7 @@ function releaseHandoff(context) {
       parent_thread: SOURCE_THREAD,
       worktree: WORKTREE,
       source_clean: true,
-      dispatch_base: DISPATCH_BASE,
+      dispatch_base: ISSUE_82_REVIEW_BASE,
       artifact: {
         path: context.artifact.record.artifact_paths[0],
         source_commit: context.head,
@@ -629,7 +654,7 @@ function releaseHandoff(context) {
         touched_paths_sha256: textSetSha256(touched)
       },
       ticket_review: {
-        status: 'pass', base: DISPATCH_BASE, head: context.head, axes: ['Standards', 'Spec']
+        status: 'pass', base: ISSUE_82_REVIEW_BASE, head: context.head, axes: ['Standards', 'Spec']
       },
       readiness_verdict: 'blocked-pending-live',
       next_owner: 'Dverity',
@@ -644,15 +669,16 @@ function main() {
   execute('git', ['fetch', '--prune', 'origin']);
   const fetchedTarget = git('rev-parse', TARGET);
   const { head, history } = assertCleanHead();
+  const currentHistory = integratedHistory(head);
   const outputDir = path.join(ROOT, 'dist', 'release-readiness', head);
   fs.mkdirSync(path.dirname(outputDir), { recursive: true });
   fs.mkdirSync(outputDir);
   const tracker = trackerSnapshot();
-  const dagAudit = auditDependencyOrder(tracker.issues, INTEGRATED_HISTORY, 78);
-  if (!dagAudit.success || dagAudit.edges !== 22) {
+  const dagAudit = auditDependencyOrder(tracker.issues, currentHistory);
+  if (!dagAudit.success || tracker.issues.length !== 17 || dagAudit.edges !== 23) {
     throw new Error(dagAudit.error || `native dependency edge drift: ${dagAudit.edges}`);
   }
-  const integration = integrationEvidence();
+  const integration = integrationEvidence(currentHistory);
   const executorDir = path.join(outputDir, 'executors');
   fs.mkdirSync(executorDir);
   const gateBundle = runGates(outputDir);
@@ -671,27 +697,29 @@ function main() {
   const packetPath = path.join(outputDir, 'dverity-acceptance-packet.json');
   const packetSha256 = writeJson(packetPath, packetResult.packet);
   const handoff = releaseHandoff({
-    head, gates, artifact, packetAudit: packetResult.audit, packetPath, packetSha256
+    head, gates, artifact, packetAudit: packetResult.audit, packetPath, packetSha256,
+    integrationHistory: currentHistory
   });
   const handoffAudit = validateReleaseHandoff({
     handoff,
-    dispatchBase: DISPATCH_BASE,
+    dispatchBase: ISSUE_82_REVIEW_BASE,
     artifact: artifact.record,
-    packetSha256
+    packetSha256,
+    expectedIntegratedIssues: integratedIssueNumbers(currentHistory)
   });
   if (!handoffAudit.success) throw new Error(handoffAudit.error);
   const handoffPath = path.join(outputDir, 'wayfinder-submit-handoff.json');
   const handoffSha256 = writeJson(handoffPath, handoff);
   const manifest = {
     schema_version: 1,
-    issue: `https://github.com/${REPO}/issues/78`,
+    issue: `https://github.com/${REPO}/issues/82`,
     thread: SOURCE_THREAD,
     worktree: WORKTREE,
     branch: INTEGRATION_BRANCH,
     base: git('rev-parse', TARGET),
     head,
     ahead_commits: history,
-    integration_history: INTEGRATED_HISTORY.map(([issue, commit]) => ({ issue: Number(issue), commit })),
+    integration_history: currentHistory.map(([issue, commit]) => ({ issue: Number(issue), commit })),
     remote_readback: { repo: REPO, target: TARGET, head: fetchedTarget, fetched_at: startedAt },
     dag_audit: dagAudit,
     tracker_audit: tracker.audit,
@@ -701,7 +729,7 @@ function main() {
     host_carry_forward: Object.fromEntries(Object.entries(hostCarry).map(([id, value]) => [id, value.proof])),
     checks: gates,
     reviews: {
-      ticket: { base: DISPATCH_BASE, head, axes: ['Standards', 'Spec'], status: 'pass' },
+      ticket: { base: ISSUE_82_REVIEW_BASE, head, axes: ['Standards', 'Spec'], status: 'pass' },
       integration: { base: git('rev-parse', TARGET), head, axes: ['Standards', 'Spec'], status: 'pass' }
     },
     remote_actions_performed: 'none',
@@ -726,4 +754,15 @@ if (require.main === module) {
   }
 }
 
-module.exports = { APPROVED_RELEASE_HISTORY, assertReleaseFreezeHistory, readJsonWithRetry };
+module.exports = {
+  APPROVED_RELEASE_HISTORY,
+  INTEGRATION_BRANCH,
+  ISSUE_82_REVIEW_BASE,
+  VERIFIED_REMOTE_MAIN,
+  VERIFIED_REMOTE_MAIN_SOURCE,
+  assertReleaseFreezeHistory,
+  freezeArtifact,
+  integratedHistory,
+  integratedIssueNumbers,
+  readJsonWithRetry
+};

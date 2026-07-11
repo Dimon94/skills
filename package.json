@@ -11,6 +11,7 @@
         "bin/dverity-cli.js",
         "lib/dverity/git-source.js",
         "lib/dverity/lifecycle.js",
+        "lib/dverity/merge.js",
         "lib/dverity/package-provenance.json",
         "lib/dverity/review-item-record.js",
         "lib/dverity/skill-source.js",

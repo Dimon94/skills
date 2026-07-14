@@ -22,14 +22,19 @@ function fixture() {
     '',
     '> Truth before main.',
     '',
+    '[![GitHub stars](https://img.shields.io/github/stars/Dimon94/dverity?style=social)](https://github.com/Dimon94/dverity)',
     '[Product contract](./DVERITY.md)',
     '[GitHub](https://github.com/Dimon94/dverity)',
+    '[Issues](https://github.com/Dimon94/dverity/issues)',
     '[npm](https://www.npmjs.com/package/dverity)',
     '`npx dverity@5 install --project /path/to/project`'
   ].join('\n'));
   write(root, 'README.zh-CN.md', [
-    '# Dverity', '', '> Truth before main.', '', '[产品契约](./DVERITY.md)',
+    '# Dverity', '', '> Truth before main.', '',
+    '[![GitHub stars](https://img.shields.io/github/stars/Dimon94/dverity?style=social)](https://github.com/Dimon94/dverity)',
+    '[产品契约](./DVERITY.md)',
     '[GitHub](https://github.com/Dimon94/dverity)',
+    '[Issues](https://github.com/Dimon94/dverity/issues)',
     '[npm](https://www.npmjs.com/package/dverity)',
     '`npx dverity@5 install --project /path/to/project`'
   ].join('\n'));
@@ -117,6 +122,33 @@ test('requires canonical links and install command in both READMEs', () => {
   write(root, 'README.zh-CN.md', '# Dverity\n\n> Truth before main.\n\n[产品契约](./DVERITY.md)\n');
 
   expect(validateCurrentSurface({ root, history: captureHistory(root) }).success).toBe(false);
+});
+
+test('requires the stars badge to target the canonical repository', () => {
+  const root = fixture();
+  const readme = path.join(root, 'README.md');
+  fs.writeFileSync(
+    readme,
+    fs.readFileSync(readme, 'utf8').replace(
+      '](https://github.com/Dimon94/dverity)',
+      '](https://github.com/Dimon94/dverity/stargazers)'
+    )
+  );
+
+  expect(validateCurrentSurface({ root, history: captureHistory(root) }).errors)
+    .toContain('README identity/link/install missing: [![GitHub stars](https://img.shields.io/github/stars/Dimon94/dverity?style=social)](https://github.com/Dimon94/dverity)');
+});
+
+test('requires the canonical Issues target in both current READMEs', () => {
+  const root = fixture();
+  const readme = path.join(root, 'README.zh-CN.md');
+  fs.writeFileSync(
+    readme,
+    fs.readFileSync(readme, 'utf8').replace('https://github.com/Dimon94/dverity/issues', '#issues')
+  );
+
+  expect(validateCurrentSurface({ root, history: captureHistory(root) }).errors)
+    .toContain('README identity/link/install missing: https://github.com/Dimon94/dverity/issues');
 });
 
 test('rejects license body changes while allowing only the frozen notice', () => {

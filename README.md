@@ -2,7 +2,7 @@
 
 > Truth before main.
 
-[![GitHub stars](https://img.shields.io/github/stars/Dimon94/dverity?style=social)](https://github.com/Dimon94/dverity/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/Dimon94/dverity?style=social)](https://github.com/Dimon94/dverity)
 [![npm version](https://img.shields.io/npm/v/dverity.svg)](https://www.npmjs.com/package/dverity)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](./package.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)

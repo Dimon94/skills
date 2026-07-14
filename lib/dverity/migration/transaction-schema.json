@@ -20,7 +20,7 @@
     {
       "id": "stage",
       "mutationEdges": [
-        "journal-create", "stage-projections", "stage-unknown", "stage-manifest"
+        "journal-create", "stage-projections", "stage-manifest"
       ]
     },
     { "id": "verify", "mutationEdges": [] },

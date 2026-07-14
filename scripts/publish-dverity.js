@@ -7,6 +7,7 @@ const { spawnSync } = require('child_process');
 const { auditArtifactFreeze } = require('../lib/dverity/release/release-readiness');
 const {
   VERIFIED_REMOTE_MAIN,
+  VERIFIED_REMOTE_MAIN_BASE,
   VERIFIED_REMOTE_MAIN_SOURCE: ORIGINAL_FROZEN_SOURCE,
   freezeArtifact
 } = require('./freeze-release-readiness');
@@ -80,7 +81,7 @@ function resolveFrozenSource({ env = process.env, run = command } = {}) {
   assertWorkflowContext(env, run);
   proveMerge({
     merge: VERIFIED_REMOTE_MAIN,
-    expectedBase: run('git', ['show', '-s', '--format=%P', VERIFIED_REMOTE_MAIN]).split(' ')[0],
+    expectedBase: VERIFIED_REMOTE_MAIN_BASE,
     expectedHead: ORIGINAL_FROZEN_SOURCE,
     run
   });

@@ -10,6 +10,7 @@ const { generateAcceptancePacket } = require('../lib/acceptance/ledger');
 const {
   auditArtifactFreeze,
   auditDependencyOrder,
+  auditProviderMerge,
   auditPreReleasePacket,
   auditPrimaryOwnership,
   expectedPreReleaseOutcome,
@@ -21,12 +22,13 @@ const { textSetSha256 } = require('../lib/dverity/review/review-item-record');
 const ROOT = path.resolve(__dirname, '..');
 let REPO;
 const TARGET = 'origin/main';
-const VERIFIED_REMOTE_MAIN = 'd18feb47662d8bb1b429e7314d042f4cf881fd6a';
-const INTEGRATION_BRANCH = 'codex/dverity-5-provenance-integration';
+const VERIFIED_REMOTE_MAIN = '2e468ffca1a45a0481ccf2f7e72b6d2a489951ec';
+const VERIFIED_REMOTE_MAIN_BASE = 'b6adff9f1731c39b5c23a22d716b40094c278581';
+const VERIFIED_REMOTE_MAIN_PR = 85;
+const INTEGRATION_BRANCH = 'codex/dverity-84-refreeze';
 const ISSUE_77_COMMIT = 'fd0ece68af69ae032eced3f2b29304577fdfbd7f';
-const ISSUE_82_REVIEW_BASE = VERIFIED_REMOTE_MAIN;
-const ORIGINAL_FROZEN_COMMIT = 'f14c1476158d4999f6a031cecaeb577c76dcdf6c';
-const VERIFIED_REMOTE_MAIN_SOURCE = 'c4c43027b060645cdb1d5cfb5b49828dc09a74a2';
+const RELEASE_REVIEW_BASE = VERIFIED_REMOTE_MAIN;
+const VERIFIED_REMOTE_MAIN_SOURCE = '953deb4514dc6ad6f882943eaa79dd098b2bab20';
 const SOURCE_THREAD = '019f4eac-d73f-7770-9fdb-95244911c96e';
 const WORKTREE = ROOT;
 const INTEGRATED_HISTORY = Object.freeze([
@@ -44,11 +46,8 @@ const INTEGRATED_HISTORY = Object.freeze([
   ['74', '101a95f835d924af3e29f1c7cc26eb31aa926c5c'],
   ['76', 'c3ce31c8b08f6480bf18a76dd69ff6f61de55a4f'],
   ['77', ISSUE_77_COMMIT],
-  ['78', VERIFIED_REMOTE_MAIN_SOURCE]
-]);
-const APPROVED_RELEASE_HISTORY = Object.freeze([
-  ...INTEGRATED_HISTORY.filter(([issue]) => issue !== '78').map(([, commit]) => commit),
-  ORIGINAL_FROZEN_COMMIT
+  ['78', 'c4c43027b060645cdb1d5cfb5b49828dc09a74a2'],
+  ['82', 'cb31ad83c2ec1e6eb0a90fbd0ff0b32e4fca30b2']
 ]);
 const COMMENT_IDS = Object.freeze({
   65: 4941223077, 66: 4941642959, 67: 4941831809, 68: 4942075991,
@@ -102,11 +101,15 @@ const EXECUTOR_TESTS = Object.freeze({
     'lib/dverity/__tests__/review/submit.test.js',
     'test/dverity-package-source.test.js'
   ],
-  82: ['lib/dverity/__tests__/release/publish-workflow.test.js']
+  82: ['lib/dverity/__tests__/release/publish-workflow.test.js'],
+  84: [
+    'lib/dverity/__tests__/release/release-readiness.test.js',
+    'lib/dverity/__tests__/release/publish-workflow.test.js'
+  ]
 });
 
 function integratedHistory(head) {
-  return [...INTEGRATED_HISTORY, ['82', head]];
+  return [...INTEGRATED_HISTORY, ['84', head]];
 }
 
 function integratedIssueNumbers(history) {
@@ -165,7 +168,8 @@ function assertReleaseFreezeHistory({
   if (target !== VERIFIED_REMOTE_MAIN || targetOnly !== 0 || headOnly !== history.length) {
     throw new Error('integration head must be ahead of and not behind the frozen target');
   }
-  if (verifiedParents?.length !== 2 || verifiedParents[1] !== VERIFIED_REMOTE_MAIN_SOURCE
+  if (verifiedParents?.length !== 2 || verifiedParents[0] !== VERIFIED_REMOTE_MAIN_BASE
+    || verifiedParents[1] !== VERIFIED_REMOTE_MAIN_SOURCE
     || verifiedTree !== originalFrozenTree) {
     throw new Error('verified remote main does not preserve the original frozen source');
   }
@@ -187,9 +191,26 @@ function assertReleaseFreezeHistory({
   return { head, history };
 }
 
+function verifyRemoteMainMerge() {
+  const audit = auditProviderMerge({
+    repository: REPO,
+    pullNumber: VERIFIED_REMOTE_MAIN_PR,
+    merge: VERIFIED_REMOTE_MAIN,
+    expectedBase: VERIFIED_REMOTE_MAIN_BASE,
+    expectedHead: VERIFIED_REMOTE_MAIN_SOURCE,
+    parents: git('show', '-s', '--format=%P', VERIFIED_REMOTE_MAIN).split(' '),
+    mergeTree: git('rev-parse', `${VERIFIED_REMOTE_MAIN}^{tree}`),
+    sourceTree: git('rev-parse', `${VERIFIED_REMOTE_MAIN_SOURCE}^{tree}`),
+    pull: gh(`repos/${REPO}/pulls/${VERIFIED_REMOTE_MAIN_PR}`)
+  });
+  if (!audit.success) throw new Error(audit.error);
+  return audit.data;
+}
+
 function assertCleanHead() {
   const [targetOnly, headOnly] = git('rev-list', '--left-right', '--count', `${TARGET}...HEAD`)
     .split(/\s+/).map(Number);
+  verifyRemoteMainMerge();
   return assertReleaseFreezeHistory({
     branch: git('branch', '--show-current'),
     dirty: git('status', '--porcelain=v1', '--untracked-files=all'),
@@ -308,12 +329,17 @@ function gh(endpoint) {
 function trackerSnapshot() {
   const issues = [];
   const ownership = [];
-  for (const issue of [...Array.from({ length: 16 }, (_, index) => 65 + index), 82]) {
+  const issueNumbers = [...Array.from({ length: 16 }, (_, index) => 65 + index), 82, 84];
+  const closed = new Set([...Array.from({ length: 14 }, (_, index) => 65 + index), 82]);
+  for (const issue of issueNumbers) {
     const record = gh(`repos/${REPO}/issues/${issue}`);
     const blockedBy = gh(`repos/${REPO}/issues/${issue}/dependencies/blocked_by`)
       .map((blocker) => blocker.number).sort((left, right) => left - right);
-    if (record.state !== 'open') throw new Error(`#${issue} must remain open before remote closeout`);
-    const owners = issue === 82 ? [] : parsePrimaryOwners(record.body);
+    const expectedState = closed.has(issue) ? 'closed' : 'open';
+    if (record.state !== expectedState) {
+      throw new Error(`#${issue} state must remain ${expectedState} during #84 refreeze`);
+    }
+    const owners = issue === 82 || issue === 84 ? [] : parsePrimaryOwners(record.body);
     issues.push({
       issue,
       url: record.html_url,
@@ -637,7 +663,7 @@ function releaseHandoff(context) {
       parent_thread: SOURCE_THREAD,
       worktree: WORKTREE,
       source_clean: true,
-      dispatch_base: ISSUE_82_REVIEW_BASE,
+      dispatch_base: RELEASE_REVIEW_BASE,
       artifact: {
         path: context.artifact.record.artifact_paths[0],
         source_commit: context.head,
@@ -654,7 +680,7 @@ function releaseHandoff(context) {
         touched_paths_sha256: textSetSha256(touched)
       },
       ticket_review: {
-        status: 'pass', base: ISSUE_82_REVIEW_BASE, head: context.head, axes: ['Standards', 'Spec']
+        status: 'pass', base: RELEASE_REVIEW_BASE, head: context.head, axes: ['Standards', 'Spec']
       },
       readiness_verdict: 'blocked-pending-live',
       next_owner: 'Dverity',
@@ -675,7 +701,7 @@ function main() {
   fs.mkdirSync(outputDir);
   const tracker = trackerSnapshot();
   const dagAudit = auditDependencyOrder(tracker.issues, currentHistory);
-  if (!dagAudit.success || tracker.issues.length !== 17 || dagAudit.edges !== 23) {
+  if (!dagAudit.success || tracker.issues.length !== 18 || dagAudit.edges !== 24) {
     throw new Error(dagAudit.error || `native dependency edge drift: ${dagAudit.edges}`);
   }
   const integration = integrationEvidence(currentHistory);
@@ -702,7 +728,7 @@ function main() {
   });
   const handoffAudit = validateReleaseHandoff({
     handoff,
-    dispatchBase: ISSUE_82_REVIEW_BASE,
+    dispatchBase: RELEASE_REVIEW_BASE,
     artifact: artifact.record,
     packetSha256,
     expectedIntegratedIssues: integratedIssueNumbers(currentHistory)
@@ -712,7 +738,7 @@ function main() {
   const handoffSha256 = writeJson(handoffPath, handoff);
   const manifest = {
     schema_version: 1,
-    issue: `https://github.com/${REPO}/issues/82`,
+    issue: `https://github.com/${REPO}/issues/84`,
     thread: SOURCE_THREAD,
     worktree: WORKTREE,
     branch: INTEGRATION_BRANCH,
@@ -729,7 +755,7 @@ function main() {
     host_carry_forward: Object.fromEntries(Object.entries(hostCarry).map(([id, value]) => [id, value.proof])),
     checks: gates,
     reviews: {
-      ticket: { base: ISSUE_82_REVIEW_BASE, head, axes: ['Standards', 'Spec'], status: 'pass' },
+      ticket: { base: RELEASE_REVIEW_BASE, head, axes: ['Standards', 'Spec'], status: 'pass' },
       integration: { base: git('rev-parse', TARGET), head, axes: ['Standards', 'Spec'], status: 'pass' }
     },
     remote_actions_performed: 'none',
@@ -755,10 +781,11 @@ if (require.main === module) {
 }
 
 module.exports = {
-  APPROVED_RELEASE_HISTORY,
   INTEGRATION_BRANCH,
-  ISSUE_82_REVIEW_BASE,
+  RELEASE_REVIEW_BASE,
   VERIFIED_REMOTE_MAIN,
+  VERIFIED_REMOTE_MAIN_BASE,
+  VERIFIED_REMOTE_MAIN_PR,
   VERIFIED_REMOTE_MAIN_SOURCE,
   assertReleaseFreezeHistory,
   freezeArtifact,

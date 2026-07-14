@@ -44,6 +44,8 @@ describe('Dverity packed Skill source', () => {
       'lib/dverity/legacy/classifier.js',
       'lib/dverity/install/lifecycle.js',
       'lib/dverity/migration/data.js',
+      'lib/dverity/migration/managed-path.js',
+      'lib/dverity/migration/owned-paths.js',
       'lib/dverity/migration/transaction-schema.json',
       'lib/dverity/release/package-provenance.json',
       'lib/dverity/install/runtime-config.js',

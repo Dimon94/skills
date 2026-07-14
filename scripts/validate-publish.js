@@ -33,6 +33,8 @@ const EXPECTED_FILES = [
   'lib/dverity/legacy/classifier.js',
   'lib/dverity/install/lifecycle.js',
   'lib/dverity/migration/data.js',
+  'lib/dverity/migration/managed-path.js',
+  'lib/dverity/migration/owned-paths.js',
   'lib/dverity/migration/transaction-schema.json',
   'lib/dverity/review/merge.js',
   'lib/dverity/release/package-provenance.json',

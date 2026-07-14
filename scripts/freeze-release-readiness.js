@@ -552,18 +552,20 @@ function acceptancePacket(context) {
 }
 
 function releaseHandoff(context) {
-  const { integration } = context.provenance;
+  const { integration, repository } = context.provenance;
   const { base, branch, commits: ahead, delivered_issues: integratedIssues } = integration;
-  const touched = git('diff', '--name-only', `${TARGET}...HEAD`).split('\n').filter(Boolean).sort();
+  const directIssue = integration.current_issue;
+  const touched = context.touchedPaths || git('diff', '--name-only', `${TARGET}...HEAD`)
+    .split('\n').filter(Boolean).sort();
   return {
     source: branch,
     target: TARGET,
     base,
     head: context.head,
     ahead_commits: ahead,
-    scope_source: { kind: 'wayfinder', url: `https://github.com/${REPO}/issues/56` },
-    spec: `https://github.com/${REPO}/issues/64`,
-    issues: integratedIssues.map((issue) => `https://github.com/${REPO}/issues/${issue}`),
+    scope_source: { kind: 'wayfinder', url: `https://github.com/${repository}/issues/56` },
+    spec: `https://github.com/${repository}/issues/64`,
+    issues: integratedIssues.map((issue) => `https://github.com/${repository}/issues/${issue}`),
     checks: context.gates.map(({ command, status }) => ({ command, status })),
     local_review: { status: 'pass', base, head: context.head },
     touched_paths: touched,
@@ -572,14 +574,14 @@ function releaseHandoff(context) {
       'any source change invalidates C/A and requires a new freeze',
       '#79 and #80 remain explicit user-authority stops'
     ],
-    closeout_intent: integratedIssues.map((issue) => ({
-      issue: `#${issue}`,
+    closeout_intent: [{
+      issue: `#${directIssue}`,
       action: 'close-after-merge'
-    })),
+    }],
     remote_actions_performed: 'none',
     release_readiness: {
       provider: 'github',
-      repo: REPO,
+      repo: repository,
       remote: 'origin',
       target: TARGET,
       integration_branch: branch,
@@ -654,7 +656,8 @@ function main() {
     dispatchBase: provenance.integration.base,
     artifact: artifact.record,
     packetSha256,
-    expectedIntegratedIssues: provenance.integration.delivered_issues
+    expectedIntegratedIssues: provenance.integration.delivered_issues,
+    expectedCloseoutIssues: [provenance.integration.current_issue]
   });
   if (!handoffAudit.success) throw new Error(handoffAudit.error);
   const handoffPath = path.join(outputDir, 'wayfinder-submit-handoff.json');
@@ -705,5 +708,6 @@ if (require.main === module) {
 
 module.exports = {
   freezeArtifact,
+  releaseHandoff,
   readJsonWithRetry
 };

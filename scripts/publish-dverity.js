@@ -6,14 +6,15 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { auditArtifactFreeze } = require('../lib/dverity/release/release-readiness');
 const {
-  VERIFIED_REMOTE_MAIN,
-  VERIFIED_REMOTE_MAIN_BASE,
-  VERIFIED_REMOTE_MAIN_SOURCE: ORIGINAL_FROZEN_SOURCE,
+  RELEASE_PROVENANCE,
+  collectReleaseProvenance
+} = require('../lib/dverity/release/provenance');
+const {
   freezeArtifact
 } = require('./freeze-release-readiness');
 
 const ROOT = path.resolve(__dirname, '..');
-const EXPECTED_REPOSITORY = 'Dimon94/dverity';
+const EXPECTED_REPOSITORY = RELEASE_PROVENANCE.repository;
 const EXPECTED_PACKAGE_REPOSITORY = 'git+https://github.com/Dimon94/dverity.git';
 const RELEASE_ROOT = path.join(ROOT, 'dist/release-readiness');
 
@@ -62,33 +63,14 @@ function assertWorkflowContext(env, run) {
   requireEqual(run('git', ['rev-parse', 'origin/main']), env.GITHUB_SHA, 'canonical main head');
 }
 
-function proveMerge({ merge, expectedBase, expectedHead, run }) {
-  const parents = run('git', ['show', '-s', '--format=%P', merge]).split(' ');
-  if (parents.length !== 2 || parents[0] !== expectedBase || (expectedHead && parents[1] !== expectedHead)) {
-    throw new Error('merge parent proof mismatch');
-  }
-  const source = parents[1];
-  const pulls = JSON.parse(run('gh', ['api', `repos/${EXPECTED_REPOSITORY}/commits/${merge}/pulls`]));
-  const matches = pulls.filter((pull) => pull.merge_commit_sha === merge && pull.merged_at
-    && pull.base?.ref === 'main' && pull.base?.sha === expectedBase
-    && pull.base?.repo?.full_name === EXPECTED_REPOSITORY && pull.head?.sha === source);
-  if (matches.length !== 1) throw new Error('provider PR merge proof mismatch');
-  requireEqual(run('git', ['rev-parse', `${merge}^{tree}`]), run('git', ['rev-parse', `${source}^{tree}`]), 'merge/source tree');
-  return source;
-}
-
 function resolveFrozenSource({ env = process.env, run = command } = {}) {
   assertWorkflowContext(env, run);
-  proveMerge({
-    merge: VERIFIED_REMOTE_MAIN,
-    expectedBase: VERIFIED_REMOTE_MAIN_BASE,
-    expectedHead: ORIGINAL_FROZEN_SOURCE,
-    run
-  });
+  const provenance = collectReleaseProvenance({ run });
+  requireEqual(env.GITHUB_SHA, provenance.main.merge, 'selected release main');
   const liveMain = run('gh', ['api', `repos/${EXPECTED_REPOSITORY}/git/ref/heads/main`, '--jq', '.object.sha']);
   if (!/^[a-f0-9]{40}$/.test(liveMain)) throw new Error('provider live main is malformed');
   requireEqual(liveMain, env.GITHUB_SHA, 'provider live main');
-  return proveMerge({ merge: env.GITHUB_SHA, expectedBase: VERIFIED_REMOTE_MAIN, run });
+  return provenance.main.source;
 }
 
 function assertFrozenCheckout(source, run) {

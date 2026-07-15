@@ -1,6 +1,6 @@
 ---
 name: dverity-repair
-description: Diagnose and repair confirmed defects to Verified Local. Use for evidence-first bug repair; remote submission requires separate explicit authority.
+description: Diagnose and repair a confirmed defect to a Verified Local evidence packet. Use when a bug, defect, or regression needs evidence-first repair, or when another Dverity skill reroutes a confirmed defect. Remote promotion requires separate explicit authority.
 metadata:
   dverity_class: workflow-entry
   reads:
@@ -11,73 +11,109 @@ metadata:
 
 # Dverity Repair
 
-`dverity-repair` diagnoses and repairs confirmed defects. Read
-`../../DVERITY.md`; this Skill owns only its local phase and defaults to the
-Verified Local terminal. A repair request never grants push, review-item,
-approval, landing, issue-close, or any other remote mutation authority.
+A discipline for repairing confirmed defects on evidence. Read
+`../../DVERITY.md` for the Truth-to-Main chain; this skill owns diagnosis and
+repair only, and its terminal is **Verified Local**: a packet that passes
+`scripts/repair-contract.js#validateRepairPacket` with
+`remote_actions_performed: []`. Push, review, and landing belong to other
+skills under separate explicit authority.
 
-The operating discipline is a tight red loop: one command that the agent has
-already run, that reaches the user's exact symptom, and that can be repeated
-without human interpretation. Without that loop, return a blocked record. Do
-not manufacture a root cause or write product code to make progress look real.
+Every claim in the packet traces to a command you ran and its captured output
+(invocation, stdout/stderr, exit code). When evidence runs out, the honest
+terminal is a **blocked record** — never a plausible story, never a speculative
+product edit.
 
-## Grounding and sidecars
+**Blocked record** — the failure terminal at any phase: the commands you
+attempted with their output, the missing minimal artifact, the smallest useful
+ask (environment access, a HAR/log/core dump, permission for temporary
+instrumentation), the next owner, and zero product mutations.
+
+## Grounding
 
 Before diagnosis:
 
-1. Read `CONTEXT.md` or the nearest project vocabulary when present.
-2. Read current code, tests, ADRs, runbooks, task evidence, and relevant Git
-   history before asking the user for facts already in the repository.
-3. Use `../postmortem/SKILL.md` to recall likely recurrences, failed
-   verification lessons, or review escapes. Recall is a lead until current
-   evidence revalidates it.
-4. Use `../dverity-research/SKILL.md` only when a real external API,
-   dependency, platform, or stale-source Evidence Gap blocks a probe. Research
-   cannot substitute for reproduction.
+1. Read `CONTEXT.md` (if present) and ADRs near the code you're touching; mine
+   code, tests, runbooks, task evidence, and Git history before asking the
+   user for facts the repository already holds.
+2. Use `../postmortem/SKILL.md` to recall likely recurrences,
+   failed-verification lessons, and review escapes. Recall is a lead until
+   current evidence revalidates it.
+3. Use `../dverity-research/SKILL.md` when an external API, dependency,
+   platform, or stale-source Evidence Gap blocks a probe. Reproduction stays
+   the proof; research only unblocks a probe.
 
-## Phase 1 - Tight red loop
+## Phase 1 — Build a tight red loop
 
-Build the fastest deterministic signal that reaches the real failure. Prefer,
-in order: a boundary test, HTTP/CLI invocation, replayed trace, minimal harness,
-property loop, bisect harness, or structured HITL script.
+**This is the skill.** Everything after is mechanical consumption of the loop:
+one command that reaches the user's exact symptom and repeats without human
+interpretation. Spend disproportionate effort here — be aggressive, creative,
+relentless.
 
-The loop is ready only when all are true:
+Ways to construct one, in rough order:
 
-- it has been run and is red;
-- output contains the user's exact symptom rather than a nearby failure;
-- the same input produces the same verdict, or a flaky case has been raised to
-  a useful measured reproduction rate;
-- it runs in seconds and is agent-runnable.
+1. **Failing test** at whatever seam reaches the defect.
+2. **HTTP/CLI invocation** against a running dev instance, diffing output
+   against known-good.
+3. **Replayed trace** — capture a real request/payload/event log, replay it
+   through the code path in isolation.
+4. **Throwaway harness** — a minimal subset of the system (one service, mocked
+   deps) driving the defect path with a single call.
+5. **Property/fuzz loop** — for "sometimes wrong output", run hundreds of
+   random inputs and catch the failure mode.
+6. **Differential loop** — same input through old vs new version or config,
+   diff the outputs.
+7. **Bisection harness** — automate "boot at state X, check, repeat" so
+   `git bisect run` can consume it.
+8. **Structured HITL script** — last resort; a human clicks, the script drives
+   them and captures output back to you.
 
-For a non-deterministic defect, repeat, parallelize, stress, freeze time or
-randomness, and shrink the timing window. A low-rate signal that cannot support
-falsification is blocked, not “probably fixed.”
+Once you have *a* loop, tighten it: faster (cache setup, narrow scope), sharper
+(assert the specific symptom, not "didn't crash"), more deterministic (pin
+time, seed RNG, isolate filesystem and network).
 
-If no red loop can be established, report the attempted commands, the missing
-minimal artifact, and the next owner. Ask for the smallest useful item such as
-environment access, a HAR/log/core dump, or permission for temporary
-instrumentation. Do not mutate product code.
+**Non-deterministic defects.** The goal is a higher reproduction rate, not a
+clean repro: loop the trigger 100×, parallelise, add stress, freeze time or
+randomness, shrink the timing window — until the measured rate reaches at
+least 50%. Below that the loop cannot support falsification: go blocked.
 
-## Phase 2 - Reproduce and minimise
+**When no loop can be built**, return a blocked record. Product code stays
+untouched.
 
-Run the loop and capture the exact failure more than once. Then remove one
-input, caller, config value, step, or environmental variable at a time. Rerun
-after every removal.
+Phase 1 is complete when you can name one command you have already run —
+invocation, output, and exit code captured — and:
 
-The minimum reproduction is complete when every remaining element is
-load-bearing, removing any element changes the verdict or symptom, and the
-small case still matches the original symptom. Record the real public boundary
-where the case can become a regression test. If the architecture exposes no
-correct boundary, record that as a follow-up instead of accepting a shallow
-test.
+- [ ] it exits non-zero and its output contains the user's exact symptom
+      string, the same fingerprint the packet will carry;
+- [ ] the same input gives the same verdict every run, or a flaky case has a
+      measured rate ≥ 50%;
+- [ ] it runs in seconds, unattended.
 
-## Phase 3 - Evidence-first Hypothesis board
+If you catch yourself reading code to build a theory before this command
+exists, stop — that is the exact failure this skill prevents. No red command,
+no Phase 2.
 
-Create 3-5 evidence-backed candidates. When current evidence supports only one
-non-fabricated candidate, record why no second honest candidate exists. Never
-invent a second cause to satisfy a number.
+## Phase 2 — Reproduce and minimise
 
-Each row contains:
+Run the loop; watch it go red on the failure the user described, more than
+once — a nearby failure is the wrong bug and leads to the wrong fix. Capture
+the exact symptom output for the packet.
+
+Then shrink: remove one input, caller, config value, step, or environment
+variable at a time, rerunning after every cut. Done when:
+
+- [ ] every remaining element is load-bearing — removing any one changes the
+      verdict or symptom;
+- [ ] the minimal case still shows the original symptom;
+- [ ] you have recorded the real public boundary where this case can become a
+      regression test. If the architecture exposes no correct boundary, that
+      is itself a finding — record it as a follow-up rather than accepting a
+      shallow test.
+
+## Phase 3 — Hypothesis board
+
+Create 3–5 evidence-backed candidates — or exactly one, with a recorded reason
+why no second honest candidate exists (a two-row board fails validation, and a
+fabricated second cause is worse than none). Each row:
 
 ```text
 id, cause, observed result, abductive ECE,
@@ -86,91 +122,89 @@ rung, next check, evidence
 ```
 
 An observed result names before-state, after-state, and where it was noticed.
-Build unknown-cause hypotheses as:
+For unknown causes, reason by abductive effect–cause–effect (ECE):
 
 ```text
 observed effect <= suspected cause => independent predicted effect
 ```
 
-Write the kill probe before collecting support: “if X is the cause, expect Z;
-if not-Z appears, refute X.” A removal or action test is the confirm test and is
-recorded separately. One command cannot be both the kill probe and the confirm
-test.
+Write the kill probe **before** collecting support: "if X is the cause, expect
+Z; if not-Z appears, X is refuted." The kill probe, the corroborating
+co-effect, and the confirm test are three different commands.
 
-Use this trust ladder:
+Rank every candidate on the trust ladder:
 
-1. `conjectured`: candidate tied to an observed result;
-2. `standing`: survived a serious disconfirming probe;
-3. `corroborated`: an independent predicted effect was observed;
-4. `confirmed`: an independent removal/action test passed;
-5. `refuted`: the killing fact stays visible.
+1. `conjectured` — tied to an observed result;
+2. `standing` — survived a serious disconfirming probe;
+3. `corroborated` — an independent predicted effect was observed;
+4. `confirmed` — an independent removal/action test passed;
+5. `refuted` — the killing fact stays visible on the board.
 
-Only `confirmed` may use “root cause.” `corroborated` is “probable cause” and
-must name the missing confirmation. Supporting evidence alone never advances a
-hypothesis to `confirmed`.
+Trust language is validator-enforced: the cause statement begins `root cause:`
+only at `confirmed`; at `corroborated` it begins `probable cause:` and names
+the missing confirm test. Supporting evidence alone never climbs the ladder.
 
-Build a compact CRT only from standing-or-stronger rows. Every important edge
-must pass clarity, existence, and sufficiency checks. If competing needs create
-the defect, name the objective, both needs, both opposing wants, and the hidden
-assumption to break.
+From standing-or-stronger rows, sketch a compact Current Reality Tree (CRT);
+every important edge passes clarity, existence, and sufficiency. If two
+legitimate needs collide to create the defect, draw the evaporating cloud: the
+shared objective, both needs, both opposing wants, and the hidden assumption
+to break.
 
-## Phase 4 - Disconfirm, corroborate, confirm
+Show the board to the user before probing when they are present; proceed with
+your own ranking when they are not.
 
-Run one probe for one predicted signal at a time:
+## Phase 4 — Disconfirm, corroborate, confirm
 
-1. try to kill the leading hypothesis;
-2. if it survives, collect one independent co-effect;
-3. confirm with a removal or action test.
+One probe, one predicted signal, one variable at a time:
 
-Prefer a debugger or REPL, then a narrowly placed log. Prefix temporary logs
-with a unique `[DEBUG-...]` token so cleanup can prove their removal. For a
-performance regression, establish a timing/profile/query-plan baseline before
-mutation.
+1. try to **kill** the leading hypothesis;
+2. if it survives, collect one **independent co-effect**;
+3. **confirm** with a removal or action test.
 
-## Phase 5 - Injection and regression
+Prefer a debugger or REPL — one breakpoint beats ten logs; otherwise place
+targeted logs at exactly the boundaries that distinguish hypotheses, each
+prefixed with a unique `[DEBUG-...]` token so cleanup is a single grep. For a
+performance regression, measure first: establish a timing/profile/query-plan
+baseline before any mutation.
 
-Before adding any helper, validator, parser, script, schema, or reusable policy,
-run `../do-not-repeat-yourself/SKILL.md` and reuse the nearest correct wheel.
+## Phase 5 — Injection and regression
 
-At the correct public boundary:
+Before adding any helper, validator, parser, script, or schema, run
+`../do-not-repeat-yourself/SKILL.md` and reuse the nearest correct wheel.
 
-1. convert the minimum reproduction into a failing regression test;
-2. run it red;
-3. describe the smallest Injection and the causal edge it breaks;
-4. name the desired FRT effect, the most plausible NBR negative branch, and the
-   cheapest prevention check;
-5. implement only the Injection;
-6. run the regression green;
-7. rerun the original unminimised symptom green.
+The **Injection** is the smallest change that breaks the confirmed causal
+edge. At the recorded public boundary:
 
-A corroborated probable cause may receive a minimal low-risk repair only when
-the packet keeps the missing confirmation and risk visible. It does not become
-a root-cause claim by virtue of the test turning green.
+1. convert the minimal reproduction into a failing regression test; run it
+   red;
+2. name the Injection and the causal edge it breaks;
+3. name the desired effect (FRT), the most plausible negative branch (NBR),
+   and the cheapest prevention check;
+4. implement only the Injection;
+5. run the same regression command green;
+6. rerun the **original unminimised command** green — same command, symptom
+   gone.
 
-## Phase 6 - Cleanup and Verified Local packet
+A `corroborated` probable cause may receive a minimal low-risk repair when the
+packet keeps the missing confirmation and the residual risk visible; the green
+test does not promote it to `root cause`.
 
-Remove every tagged debug probe and one-off prototype, then run the cleanup
-scan. Submit the local evidence to
-`scripts/repair-contract.js#validateRepairPacket` with:
+## Phase 6 — Cleanup and Verified Local packet
 
-- schema version and exact symptom fingerprint;
-- original and minimized red commands/output;
-- load-bearing, determinism, and reproduction-rate evidence;
-- the full Hypothesis board, kill probe, confirm test, trust language;
-- Injection and FRT/NBR;
-- public-boundary regression red/green evidence;
-- original unminimised green recheck;
-- debug/prototype cleanup evidence;
-- `remote_actions_performed: []`.
+Grep out every `[DEBUG-...]` probe and delete throwaway prototypes; record the
+scanned paths and the verification command. Assemble the packet from what each
+phase captured — symptom fingerprint, original and minimised red evidence, the
+full board with kill/corroboration/confirm probes, Injection and FRT/NBR,
+regression red→green at the boundary, the original recheck, cleanup evidence,
+and `remote_actions_performed: []` — then run
+`scripts/repair-contract.js#validateRepairPacket`.
 
-Only a passing validator result is `verified-local-repair`. Any missing gate is
-blocked and must preserve attempted loops, the missing artifact, the next owner,
-and zero product mutations.
+The phase is complete only when the validator returns `verified-local-repair`.
+Any other result is a blocked record.
 
-## Reroute boundary
+## Routing boundary
 
-Use `scripts/repair-contract.js#routeRepairWork` for the local ownership
-decision. A confirmed defect routes only to `dverity-repair`. Feature gaps,
-requirement changes, and product-intent gaps route to the external
-Wayfinder/executor. Missing intent or less-than-confirmed defect evidence stays
-blocked. Repair does not implement features and does not promote work remotely.
+`scripts/repair-contract.js#routeRepairWork` owns the ownership decision: a
+confirmed defect routes here; feature gaps, requirement changes, and
+product-intent gaps route to the external Wayfinder/executor; missing intent
+or less-than-confirmed evidence stays blocked. Repair ships defect fixes only.

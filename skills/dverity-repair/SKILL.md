@@ -111,18 +111,21 @@ variable at a time, rerunning after every cut. Done when:
 
 ## Phase 3 — Hypothesis board
 
-Create 3–5 evidence-backed candidates — or exactly one, with a recorded reason
-why no second honest candidate exists (a two-row board fails validation, and a
-fabricated second cause is worse than none). Each row:
+A hypothesis is a falsifiable causal model, not a vague possibility or a patch
+idea. Create 3–5 evidence-backed candidates — or exactly one, with a recorded
+reason why no second honest candidate exists (a two-row board fails validation,
+and a fabricated second cause is worse than none). Each row:
 
 ```text
-id, cause, observed result, abductive ECE,
-disconfirming kill probe, independent confirm test,
-rung, next check, evidence
+id, cause, observed result, causal edge, edge assumption,
+abductive ECE, predicted co-effect, disconfirming kill probe,
+independent confirm test, rung, next check, evidence
 ```
 
 An observed result names before-state, after-state, and where it was noticed.
-For unknown causes, reason by abductive effect–cause–effect (ECE):
+The causal edge states `cause => effect`. The edge assumption is the smallest
+unproven condition required for that arrow to hold; label it as an assumption,
+not evidence. For unknown causes, reason by abductive effect–cause–effect (ECE):
 
 ```text
 observed effect <= suspected cause => independent predicted effect
@@ -131,6 +134,22 @@ observed effect <= suspected cause => independent predicted effect
 Write the kill probe **before** collecting support: "if X is the cause, expect
 Z; if not-Z appears, X is refuted." The kill probe, the corroborating
 co-effect, and the confirm test are three different commands.
+
+Challenge the leading edge with the Categories of Legitimate Reservation:
+
+1. **clarity and existence** — are both states precise and observed?
+2. **causality, reversal, and tautology** — does the cause produce the effect,
+   rather than merely accompany, restate, or follow it?
+3. **sufficiency and additional cause** — is the stated cause enough, and what
+   other cause could produce the same effect?
+4. **predicted effect** — what new observation must exist if the edge is true?
+
+An unanswered reservation is an Evidence Gap. Name the **diagnostic
+constraint**: the one gap currently preventing the leading row from being
+killed or advanced. If several gaps remain, choose the cheapest probe whose
+possible outcomes split the most candidates. Make that probe `next check`, then
+re-identify the constraint after every result. Here constraint means the limit
+on diagnosis throughput, not an unmeasured runtime bottleneck.
 
 Rank every candidate on the trust ladder:
 
@@ -144,22 +163,28 @@ Trust language is validator-enforced: the cause statement begins `root cause:`
 only at `confirmed`; at `corroborated` it begins `probable cause:` and names
 the missing confirm test. Supporting evidence alone never climbs the ladder.
 
-From standing-or-stronger rows, sketch a compact Current Reality Tree (CRT);
-every important edge passes clarity, existence, and sufficiency. If two
-legitimate needs collide to create the defect, draw the evaporating cloud: the
-shared objective, both needs, both opposing wants, and the hidden assumption
-to break.
+Use a compact Current Reality Tree (CRT) only when several observed effects or
+interacting causal edges remain. Annotate every important edge with its
+assumption and evidence status, then apply the reservations above. A CRT
+organises hypotheses; it never promotes one on the trust ladder.
+
+Use an evaporating cloud only when two legitimate needs drive opposing actions,
+not merely when causes compete. Draw the shared objective, both needs, both
+opposing wants, and the assumptions behind every arrow. A candidate Injection
+invalidates one assumption while preserving both needs.
 
 Show the board to the user before probing when they are present; proceed with
 your own ranking when they are not.
 
 ## Phase 4 — Disconfirm, corroborate, confirm
 
-One probe, one predicted signal, one variable at a time:
+Work at the diagnostic constraint. One probe, one predicted signal, one
+variable at a time:
 
 1. try to **kill** the leading hypothesis;
 2. if it survives, collect one **independent co-effect**;
-3. **confirm** with a removal or action test.
+3. **confirm** with a removal or action test;
+4. update the board, its edge assumptions, and the diagnostic constraint.
 
 Prefer a debugger or REPL — one breakpoint beats ten logs; otherwise place
 targeted logs at exactly the boundaries that distinguish hypotheses, each
@@ -172,14 +197,18 @@ baseline before any mutation.
 Before adding any helper, validator, parser, script, or schema, run
 `../do-not-repeat-yourself/SKILL.md` and reuse the nearest correct wheel.
 
-The **Injection** is the smallest change that breaks the confirmed causal
-edge. At the recorded public boundary:
+The **Injection** is the smallest product change that makes the confirmed
+causal edge false by invalidating one necessary assumption while preserving
+unaffected behaviour. It is a solution candidate, not the confirm experiment.
+At the recorded public boundary:
 
 1. convert the minimal reproduction into a failing regression test; run it
    red;
-2. name the Injection and the causal edge it breaks;
-3. name the desired effect (FRT), the most plausible negative branch (NBR),
-   and the cheapest prevention check;
+2. name the Injection, the causal edge it breaks, and the assumption it
+   invalidates;
+3. write the compact FRT chain `Injection => intermediate effect => desired
+   effect`, then the most plausible NBR chain `Injection => negative effect`
+   and its cheapest prevention check;
 4. implement only the Injection;
 5. run the same regression command green;
 6. rerun the **original unminimised command** green — same command, symptom
@@ -189,14 +218,18 @@ A `corroborated` probable cause may receive a minimal low-risk repair when the
 packet keeps the missing confirmation and the residual risk visible; the green
 test does not promote it to `root cause`.
 
+FRT and NBR are predictions. Only the red→green regression, original recheck,
+and prevention command turn those predictions into repair evidence.
+
 ## Phase 6 — Cleanup and Verified Local packet
 
 Grep out every `[DEBUG-...]` probe and delete throwaway prototypes; record the
 scanned paths and the verification command. Assemble the packet from what each
 phase captured — symptom fingerprint, original and minimised red evidence, the
-full board with kill/corroboration/confirm probes, Injection and FRT/NBR,
-regression red→green at the boundary, the original recheck, cleanup evidence,
-and `remote_actions_performed: []` — then run
+full board with edge assumptions, kill/corroboration/confirm probes and the
+diagnostic constraint, the Injection and its invalidated assumption, the
+FRT/NBR chains, regression red→green at the boundary, the original recheck,
+cleanup evidence, and `remote_actions_performed: []` — then run
 `scripts/repair-contract.js#validateRepairPacket`.
 
 The phase is complete only when the validator returns `verified-local-repair`.

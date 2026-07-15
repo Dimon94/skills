@@ -4,12 +4,12 @@ description: Review and land one authenticated provider-native review item. Use 
 metadata:
   dverity_class: workflow-entry
   reads:
-    - ../../DVERITY.md
+    - DVERITY.md
 ---
 
 # Merge Remote Review
 
-Read `../../DVERITY.md` and own only Merge through Verified Remote Main. The
+Read `DVERITY.md` and own only Merge through Verified Remote Main. The
 entry accepts one authenticated provider-native review item. A bare branch,
 remote task, missing item, anonymous record, or incomplete item identity routes
 to `submit-remote-review`; none may enter landing directly.

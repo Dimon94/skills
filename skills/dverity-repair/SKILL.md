@@ -4,16 +4,16 @@ description: Diagnose and repair a confirmed defect to a Verified Local evidence
 metadata:
   dverity_class: workflow-entry
   reads:
-    - ../../DVERITY.md
+    - DVERITY.md
   resources:
     - scripts/repair-contract.js
 ---
 
 # Dverity Repair
 
-A discipline for repairing confirmed defects on evidence. Read
-`../../DVERITY.md` for the Truth-to-Main chain; this skill owns diagnosis and
-repair only, and its terminal is **Verified Local**: a packet that passes
+A discipline for repairing confirmed defects on evidence. Read `DVERITY.md`
+for the Truth-to-Main chain; this skill owns diagnosis and repair only, and
+its terminal is **Verified Local**: a packet that passes
 `scripts/repair-contract.js#validateRepairPacket` with
 `remote_actions_performed: []`. Push, review, and landing belong to other
 skills under separate explicit authority.

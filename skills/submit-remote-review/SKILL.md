@@ -4,7 +4,7 @@ description: Submit a named verified source for remote review. Use when explicit
 metadata:
   dverity_class: workflow-entry
   reads:
-    - ../../DVERITY.md
+    - DVERITY.md
     - ../../lib/dverity/review/git-source.js
     - ../../lib/dverity/review/review-item-record.js
     - ../../lib/dverity/review/submit.js

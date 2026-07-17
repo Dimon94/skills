@@ -1,4 +1,4 @@
 interface:
   display_name: "Dverity Repair"
-  short_description: "Diagnose and repair defects to Verified Local"
-  default_prompt: "Use $dverity-repair to diagnose and repair this defect with current evidence."
+  short_description: "Repair confirmed defects to Verified Local"
+  default_prompt: "Use $dverity-repair to diagnose and repair this confirmed defect from current evidence."

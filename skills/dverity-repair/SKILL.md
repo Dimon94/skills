@@ -1,20 +1,19 @@
 ---
 name: dverity-repair
-description: Diagnose and repair a confirmed defect to a Verified Local evidence packet. Use when a bug, defect, or regression needs evidence-first repair, or when another Dverity skill reroutes a confirmed defect. Remote promotion requires separate explicit authority.
+description: Repair confirmed defects to a Verified Local evidence packet. Use for evidence-first diagnosis and repair, or when another Dverity skill routes a confirmed defect here; remote promotion requires separate authority.
 metadata:
   dverity_class: workflow-entry
   reads:
-    - DVERITY.md
+    - ./DVERITY.md
   resources:
     - scripts/repair-contract.js
 ---
 
 # Dverity Repair
 
-A discipline for repairing confirmed defects on evidence. Read `DVERITY.md`
-for the Truth-to-Main chain; this skill owns diagnosis and repair only, and
-its terminal is **Verified Local**: a packet that passes
-`scripts/repair-contract.js#validateRepairPacket` with
+A discipline for repairing confirmed defects on evidence. This skill owns
+diagnosis and repair only, and its terminal is **Verified Local**: a packet
+that passes `scripts/repair-contract.js#validateRepairPacket` with
 `remote_actions_performed: []`. Push, review, and landing belong to other
 skills under separate explicit authority.
 
@@ -32,13 +31,18 @@ instrumentation), the next owner, and zero product mutations.
 
 Before diagnosis:
 
-1. Read `CONTEXT.md` (if present) and ADRs near the code you're touching; mine
+1. Treat the directory containing this loaded `SKILL.md` as `skill_root`. Read
+   the sibling [Truth-to-Main contract](./DVERITY.md) from
+   `<skill_root>/DVERITY.md`, capturing the resolved path and command result.
+   Grounding completes only when the contract and `SKILL.md` have the same
+   parent directory.
+2. Read `CONTEXT.md` (if present) and ADRs near the code you're touching; mine
    code, tests, runbooks, task evidence, and Git history before asking the
    user for facts the repository already holds.
-2. Use `../postmortem/SKILL.md` to recall likely recurrences,
+3. Use `../postmortem/SKILL.md` to recall likely recurrences,
    failed-verification lessons, and review escapes. Recall is a lead until
    current evidence revalidates it.
-3. Use `../dverity-research/SKILL.md` when an external API, dependency,
+4. Use `../dverity-research/SKILL.md` when an external API, dependency,
    platform, or stale-source Evidence Gap blocks a probe. Reproduction stays
    the proof; research only unblocks a probe.
 

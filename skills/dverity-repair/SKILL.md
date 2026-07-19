@@ -31,18 +31,24 @@ instrumentation), the next owner, and zero product mutations.
 
 Before diagnosis:
 
-1. Treat the directory containing this loaded `SKILL.md` as `skill_root`. Read
-   the sibling [Truth-to-Main contract](./DVERITY.md) from
-   `<skill_root>/DVERITY.md`, capturing the resolved path and command result.
-   Grounding completes only when the contract and `SKILL.md` have the same
-   parent directory.
-2. Read `CONTEXT.md` (if present) and ADRs near the code you're touching; mine
+1. Resolve `skill_root` as the directory containing the loaded `SKILL.md`.
+   Read exactly `<skill_root>/DVERITY.md`, the sibling
+   [Truth-to-Main contract](./DVERITY.md). Capture `skill_root`,
+   `contract_path`, command output, exit code, and same-directory proof before
+   any repair action. If that exact file is missing, return a blocked record.
+2. Proceed to agents, delegated subtasks, product edits, or red-loop repair
+   only after step 1 has captured a successful sibling-contract read.
+3. When delegating after grounding, pass only the verified coordinates:
+   `skill_root`, `contract_path`, and the successful command output. Child
+   tasks begin from those coordinates and keep that contract location through
+   the handoff.
+4. Read `CONTEXT.md` (if present) and ADRs near the code you're touching; mine
    code, tests, runbooks, task evidence, and Git history before asking the
    user for facts the repository already holds.
-3. Use `../postmortem/SKILL.md` to recall likely recurrences,
+5. Use `../postmortem/SKILL.md` to recall likely recurrences,
    failed-verification lessons, and review escapes. Recall is a lead until
    current evidence revalidates it.
-4. Use `../dverity-research/SKILL.md` when an external API, dependency,
+6. Use `../dverity-research/SKILL.md` when an external API, dependency,
    platform, or stale-source Evidence Gap blocks a probe. Reproduction stays
    the proof; research only unblocks a probe.
 

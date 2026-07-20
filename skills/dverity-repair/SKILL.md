@@ -13,7 +13,7 @@ metadata:
 
 A discipline for repairing confirmed defects on evidence. This skill owns
 diagnosis and repair only, and its terminal is **Verified Local**: a packet
-that passes `scripts/repair-contract.js#validateRepairPacket` with
+that passes `<skill_root>/scripts/repair-contract.js#validateRepairPacket` with
 `remote_actions_performed: []`. Push, review, and landing belong to other
 skills under separate explicit authority.
 
@@ -31,11 +31,31 @@ instrumentation), the next owner, and zero product mutations.
 
 Before diagnosis:
 
-1. Resolve `skill_root` as the directory containing the loaded `SKILL.md`.
+1. Resolve `skill_root` by probing the canonical install roots. The loaded
+   skill text does not reveal its own location, and a path recalled from
+   convention is a guess — the probe below is the only grounding evidence:
+
+   ```sh
+   base=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+   for d in "$base/.claude/skills/dverity-repair" \
+            "$base/.agents/skills/dverity-repair" \
+            "$HOME/.claude/skills/dverity-repair" \
+            "$HOME/.agents/skills/dverity-repair"; do
+     [ -f "$d/SKILL.md" ] && [ -f "$d/DVERITY.md" ] && { skill_root="$d"; break; }
+   done
+   echo "skill_root=$skill_root"; ls -l "$skill_root/DVERITY.md"
+   ```
+
+   The probe is complete when it prints an absolute `skill_root=` and lists
+   `DVERITY.md` with exit code 0 — that listing is the same-directory proof.
+   Set `contract_path=<skill_root>/DVERITY.md`, then
    Read exactly `<skill_root>/DVERITY.md`, the sibling
    [Truth-to-Main contract](./DVERITY.md). Capture `skill_root`,
    `contract_path`, command output, exit code, and same-directory proof before
-   any repair action. If that exact file is missing, return a blocked record.
+   any repair action. When every probed root fails, the install is broken:
+   return a blocked record naming the probed roots. Sibling skill references
+   such as `../postmortem/SKILL.md` resolve against `skill_root`; where the
+   host supports it, invoke the sibling by name instead.
 2. Proceed to agents, delegated subtasks, product edits, or red-loop repair
    only after step 1 has captured a successful sibling-contract read.
 3. When delegating after grounding, pass only the verified coordinates:
@@ -240,14 +260,15 @@ full board with edge assumptions, kill/corroboration/confirm probes and the
 diagnostic constraint, the Injection and its invalidated assumption, the
 FRT/NBR chains, regression red→green at the boundary, the original recheck,
 cleanup evidence, and `remote_actions_performed: []` — then run
-`scripts/repair-contract.js#validateRepairPacket`.
+`<skill_root>/scripts/repair-contract.js#validateRepairPacket`.
 
 The phase is complete only when the validator returns `verified-local-repair`.
 Any other result is a blocked record.
 
 ## Routing boundary
 
-`scripts/repair-contract.js#routeRepairWork` owns the ownership decision: a
-confirmed defect routes here; feature gaps, requirement changes, and
-product-intent gaps route to the external Wayfinder/executor; missing intent
-or less-than-confirmed evidence stays blocked. Repair ships defect fixes only.
+`<skill_root>/scripts/repair-contract.js#routeRepairWork` owns the ownership
+decision: a confirmed defect routes here; feature gaps, requirement changes,
+and product-intent gaps route to the external Wayfinder/executor; missing
+intent or less-than-confirmed evidence stays blocked. Repair ships defect
+fixes only.

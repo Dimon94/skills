@@ -1,4 +1,0 @@
-interface:
-  display_name: "Merge Remote Review"
-  short_description: "Review and land one authenticated review item"
-  default_prompt: "Use $merge-remote-review to review and land this authenticated review item."

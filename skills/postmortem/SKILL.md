@@ -2,8 +2,6 @@
 name: postmortem
 description: Recall or record confirmed reusable failure lessons. Use after a verified recurrence, review escape, failed gate, or explicit user request.
 metadata:
-  dverity_class: reusable-dependency
-  reads: []
   resources:
     - scripts/postmortem-contract.js
 ---
@@ -43,5 +41,5 @@ docs/postmortems/<lowercase-kebab-slug>.md
 ```
 
 Call `scripts/postmortem-contract.js#recordPostmortem` only after the decision
-says `record: true`. The function creates the directory at that moment. The
-normal Repair path neither depends on nor eagerly creates `docs/postmortems/`.
+says `record: true`. The function creates the directory at that moment; the
+directory is never eagerly created.

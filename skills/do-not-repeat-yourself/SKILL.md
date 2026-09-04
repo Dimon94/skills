@@ -1,9 +1,6 @@
 ---
 name: do-not-repeat-yourself
-description: Find and reuse the nearest correct mechanism before adding another. Use when a Dverity change would add reusable code, policy, or workflow meaning.
-metadata:
-  dverity_class: reusable-dependency
-  reads: []
+description: Find and reuse the nearest correct mechanism before adding another. Use when a change would add reusable code, policy, or workflow meaning.
 ---
 
 # Do Not Repeat Yourself

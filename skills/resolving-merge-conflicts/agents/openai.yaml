@@ -1,4 +1,0 @@
-interface:
-  display_name: "Resolve Merge Conflicts"
-  short_description: "Resolve merge conflicts without inventing intent"
-  default_prompt: "Use $resolving-merge-conflicts to resolve this conflict from proven product intent."

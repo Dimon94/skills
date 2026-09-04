@@ -1,3 +1,0 @@
-# Record Quality Gate Packet As Transient cc-check-Owned Evidence
-
-Quality gate participants need one small interface for current verification, review, and simplification evidence, but cc-devflow keeps Durable Truth in `task.md`, Git, command output, PR/handoff, and classified Failure Ledger entries. The Quality Gate Packet is a transient bundle assembled by `cc-check` with normalized summaries and evidence references; `cc-act` may check freshness and final-commit coverage, treats missing, stale, failed, or blocked packets as non-deliverable, and must not reinterpret its pass/fail/blocked verdict. We rejected durable quality-gate files and `cc-act` re-judging because both create a second workflow truth source and spread quality semantics across callers.

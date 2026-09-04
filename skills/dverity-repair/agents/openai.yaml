@@ -1,4 +1,0 @@
-interface:
-  display_name: "Dverity Repair"
-  short_description: "Repair confirmed defects to Verified Local"
-  default_prompt: "Use $dverity-repair to diagnose and repair this confirmed defect from current evidence. Ground first: run the Grounding probe from SKILL.md to resolve an absolute skill_root, then read <skill_root>/DVERITY.md; proceed with repair or delegation only after that read succeeds."

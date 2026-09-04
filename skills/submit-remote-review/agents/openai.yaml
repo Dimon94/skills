@@ -1,4 +1,0 @@
-interface:
-  display_name: "Submit Remote Review"
-  short_description: "Submit verified local work for remote review"
-  default_prompt: "Use $submit-remote-review to submit this verified branch for remote review."

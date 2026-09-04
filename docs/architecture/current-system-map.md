@@ -14,6 +14,7 @@ Status: current
 - 部署拓扑：无部署；`~/.agents/skills` 与 `~/.claude/skills` 经 symlink 消费本仓。
 - 持久状态 owner：skill 文档与脚本本身；运行期状态归调用方项目。
 - 外部系统：GitHub（Dimon94/dverity，issue 与 remote 托管）。
+- CI：GitHub Actions 当前未配置，状态为 absent。
 
 当前模块清单：
 

@@ -20,9 +20,10 @@
 
 - **Skill**：一个 `skills/<name>/` 目录，以 SKILL.md 为公开合同，可能携带 scripts/、references/、agents/ 等支持文件。
 - **SKILL.md**：skill 的唯一公开合同与入口；frontmatter 的 name/description 决定发现与触发。
-- **Canonical source**：本仓 `skills/` 树；任何 agent 运行时目录里的同名条目只是指向它的 symlink。
-- **链接依赖**：`~/.agents/skills` 与 `~/.claude/skills` 中指向本仓或第三方 clone 的 symlink，由 repo://scripts/link-skills.sh 建立。
-- **第三方 skill**：不归本仓所有的 skill（如 mattpocock/skills 的条目）；唯一真相源是它自己的上游 clone，不复制进本仓。
+- **Canonical source**：agent 运行时读取的本仓 `skills/` 树；包含本仓自有 Skill 与经来源清单锁定的上游快照。
+- **上游快照**：从第三方套件选取单个 Skill 后写入 `skills/` 的锁定版本，由 repo://skills/sync-upstream-skills/references/sources.json 记录来源、commit 与内容 hash。
+- **链接依赖**：agent 目录中指向本仓 Skill 或独立单-Skill 项目 clone 的 symlink。
+- **第三方 skill**：行为所有权在外部项目的 Skill；套件成员使用上游快照，独立单-Skill 项目使用链接依赖。
 - **契约脚本**：skill 内被 SKILL.md 显式引用、承担确定性判定或写入的脚本（如 postmortem-contract.js）。
 - **ADR**：难回退或有真实取舍的决定记录，归 repo://docs/adr/。
 
@@ -37,16 +38,20 @@
 : _Avoid_: README.md（skill 内不写第二份说明）。
 
 **Canonical source**
-: 本仓 `skills/` 树是唯一真相源。根目录或其他机器上的同名 skill 若是指向本仓的 symlink，则只是投影；若不是 symlink，则是漂移，必须修。
-: _Avoid_: 副本、拷贝、同步版。
+: 本仓 `skills/` 树是 agent 运行时的唯一真相源。自有 Skill 由本仓拥有；上游快照由来源清单锁定。agent 目录里的同名条目只允许是指向对应 Canonical source 的 symlink。
+: _Avoid_: 运行时副本、未登记副本、第二真相。
+
+**上游快照**
+: 第三方套件中被本仓 Skill 实际依赖的单个 Skill 目录。上游项目拥有原始行为；本仓来源清单拥有选取路径、锁定 commit 和内容 hash。快照只经 repo://skills/sync-upstream-skills/SKILL.md 检查和更新；仓内漂移会阻断覆盖。
+: _Avoid_: 整套安装、隐式 fork、手工同步副本。
 
 **链接依赖**
-: `~/.agents/skills/<name>` 与 `~/.claude/skills/<name>` 是指向 `skills/<name>` 的 symlink。新增 skill 后必须重跑 repo://scripts/link-skills.sh；内容改动经 symlink 即时生效，无需重跑。
-: _Avoid_: 安装、部署、发布 skill。
+: `~/.agents/skills/<name>` 与 `~/.claude/skills/<name>` 是指向本仓 `skills/<name>` 或独立单-Skill 项目 clone 的 symlink。新增本仓 Skill 后重跑 repo://scripts/link-skills.sh；完整开发链路使用 repo://scripts/install-development-workflow.sh。
+: _Avoid_: 运行时副本、目录覆盖。
 
 **第三方 skill**
-: 不归本仓所有的 skill。接入方式：在 `~/003Tech` 或同等级目录保留其上游仓库 clone，再用 symlink 链入 agent 目录；跟进上游只在上游 clone 里 `git pull`。
-: _Avoid_: vendored skill、复制进本仓、fork 进 skills/。
+: 不归本仓所有行为的 Skill。第三方套件只选取真实依赖的成员作为上游快照；独立单-Skill 项目保留上游 clone，并用链接依赖接入。两类来源不能同时拥有同一个运行时名称。
+: _Avoid_: 整套复制、来源不明副本、同名双轨。
 
 **契约脚本**
 : 被 SKILL.md 显式引用、承担确定性判定或写入的脚本。它是 skill 的实现细节，变更按 repo://docs/agents/layer-contracts.md 的 L4 对待。

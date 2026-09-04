@@ -1,0 +1,4 @@
+interface:
+  display_name: "Productionize App With Services"
+  short_description: "Add only the product services a prototype needs"
+  default_prompt: "Use $productionize-app-with-services to identify the smallest explicitly needed product-service slices, reuse existing capabilities, avoid maturity-checklist expansion, and validate proportionally."

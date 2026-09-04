@@ -9,6 +9,7 @@ MATTPOCOCK_SKILLS_DIR="${MATTPOCOCK_SKILLS_DIR:-$SOURCE_ROOT/mattpocock-skills}"
 BRAINSTORMING_SKILLS_DIR="${BRAINSTORMING_SKILLS_DIR:-$SOURCE_ROOT/brainstorming-only}"
 DELIVERY_PIPELINE_DIR="${DELIVERY_PIPELINE_DIR:-$SOURCE_ROOT/delivery-pipeline}"
 FIREWORKS_TECH_GRAPH_DIR="${FIREWORKS_TECH_GRAPH_DIR:-$SOURCE_ROOT/fireworks-tech-graph}"
+COMPLEXITY_OPTIMIZER_DIR="${COMPLEXITY_OPTIMIZER_DIR:-$SOURCE_ROOT/codex-complexity-optimizer}"
 OFFLINE=0
 CHECK_ONLY=0
 
@@ -84,6 +85,7 @@ sync_repo 'https://github.com/mattpocock/skills.git' "$MATTPOCOCK_SKILLS_DIR"
 sync_repo 'https://github.com/Dimon94/brainstorming-only.git' "$BRAINSTORMING_SKILLS_DIR"
 sync_repo 'https://github.com/Dimon94/delivery-pipeline.git' "$DELIVERY_PIPELINE_DIR"
 sync_repo 'https://github.com/yizhiyanhua-ai/fireworks-tech-graph.git' "$FIREWORKS_TECH_GRAPH_DIR"
+sync_repo 'https://github.com/Kappaemme-git/codex-complexity-optimizer.git' "$COMPLEXITY_OPTIMIZER_DIR"
 
 verify_link() {
   local target="$1" source="$2"
@@ -131,8 +133,9 @@ for skill_md in "$ROOT"/skills/*/SKILL.md; do
 done
 
 for name in \
-  wayfinder research grill-with-docs to-spec to-tickets diagnosing-bugs \
-  domain-modeling prototype implement code-review resolving-merge-conflicts
+  wayfinder research grill-with-docs improve-codebase-architecture \
+  to-spec to-tickets diagnosing-bugs \
+  domain-modeling prototype implement
 do
   link_named_skill "$name" "$MATTPOCOCK_SKILLS_DIR/skills/engineering/$name"
 done
@@ -147,6 +150,9 @@ done
 
 link_named_skill fireworks-tech-graph \
   "$FIREWORKS_TECH_GRAPH_DIR/skills/fireworks-tech-graph"
+
+link_named_skill complexity-optimizer \
+  "$COMPLEXITY_OPTIMIZER_DIR/complexity-optimizer"
 
 printf 'verified %s Skills in %s and %s\n' \
   "$skill_count" "$AGENTS_SKILLS_DIR" "$CLAUDE_SKILLS_DIR"

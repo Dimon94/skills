@@ -1,0 +1,6 @@
+interface:
+  display_name: "Sync Upstream Skills"
+  short_description: "检查并更新精选第三方套件中的单个 Skill 快照"
+  default_prompt: "使用 $sync-upstream-skills 检查本仓第三方 Skill 快照是否落后；先只读报告，得到明确更新请求后再写入。"
+policy:
+  allow_implicit_invocation: false

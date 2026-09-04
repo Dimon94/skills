@@ -1,0 +1,8 @@
+# 上游快照保持源文件字节；Markdown 中的尾随空格可能是有效硬换行。
+skills/code-review/** whitespace=-trailing-space
+skills/resolving-merge-conflicts/** whitespace=-trailing-space
+skills/thermo-nuclear-code-quality-review/** whitespace=-trailing-space
+skills/better-*/** whitespace=-trailing-space
+skills/vercel-react-best-practices/** whitespace=-trailing-space
+skills/supabase-postgres-best-practices/** whitespace=-trailing-space
+skills/productionize-app-with-services/** whitespace=-trailing-space

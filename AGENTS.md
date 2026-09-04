@@ -23,7 +23,7 @@
 </response_style>
 
 <project>
-定位：dverity，个人 agent skill 库。skills/ 是 skill 的唯一真相源；agent 运行时目录只经 symlink 消费本仓。第三方 skill 不复制进本仓，以各自上游 clone 为准。
+定位：dverity，个人 agent skill 库。skills/ 是 agent 运行时的唯一真相源；agent 运行时目录只经 symlink 消费本仓。第三方套件只把经来源清单锁定的单个 Skill 作为上游快照放入 skills/；独立单-Skill 项目保留上游 clone，并经 symlink 消费。
 真相优先级：运行证据和持久状态 > 源码与测试 > 仓库文档和 accepted ADR > 当前官方文档 > 推理。
 </project>
 
@@ -56,7 +56,7 @@ main 只接收已验证提交；票收口即删树删分支。
 
 <architecture>
 本仓的模块是 skill。一个 skill 必须有明确 owner、公开 interface（SKILL.md）、依赖方向和验证方式。
-状态只能有一个 canonical owner。agent 目录的投影、文档转述和第三方副本不能成为第二真相。
+状态只能有一个 canonical owner。agent 目录的投影、文档转述和来源清单外副本不能成为第二真相。上游快照的来源、commit 与内容 hash 由 sync-upstream-skills 清单拥有。
 跨 skill 复用只经指针，不复制内容。
 公开合同（SKILL.md frontmatter、契约脚本接口）发生变化时，先检查调用方、回滚和 ADR。
 详细规则见 repo://docs/agents/architecture-standards.md。触发：新增 skill、改变依赖、公开 interface、契约脚本接口。

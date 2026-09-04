@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "mattpocock-skills",
+      "repository": "https://github.com/mattpocock/skills.git",
+      "ref": "main",
+      "commit": "6654f6b60cd9d5be8b54c6fafe44346dabeb3b76",
+      "license": "MIT",
+      "skills": [
+        {
+          "name": "code-review",
+          "sourcePath": "skills/engineering/code-review",
+          "treeSha256": "12daafb9c4f77deb3c3303dc2e6f8a3c2a0ff7928fc004af959ba18b8bd38068"
+        },
+        {
+          "name": "resolving-merge-conflicts",
+          "sourcePath": "skills/engineering/resolving-merge-conflicts",
+          "treeSha256": "310fa72a34cddd1dd1a9790f9ebc17bf2c83caeae5cdf87e2485be8b1abec90e"
+        }
+      ]
+    },
+    {
+      "id": "cursor-plugins",
+      "repository": "https://github.com/cursor/plugins.git",
+      "ref": "main",
+      "commit": "7314f723a487ec406b6369fe5865ba034cfed166",
+      "license": "MIT (cursor-team-kit)",
+      "skills": [
+        {
+          "name": "thermo-nuclear-code-quality-review",
+          "sourcePath": "cursor-team-kit/skills/thermo-nuclear-code-quality-review",
+          "treeSha256": "1bb59994582195f4e209546efe5f9fc5d05d6f19c91d5b18048d0f2186a4fbd2"
+        }
+      ]
+    },
+    {
+      "id": "jakubkrehel-skills",
+      "repository": "https://github.com/jakubkrehel/skills.git",
+      "ref": "main",
+      "commit": "267330e1adfc66a718fb65fa6918c1f06d0a689e",
+      "license": "MIT",
+      "skills": [
+        {
+          "name": "better-interface",
+          "sourcePath": "skills/better-interface",
+          "treeSha256": "15340ab034066bccfe2fd3a1b3f918e20e6909bba0791f1d2875a2dc47f5f99b"
+        },
+        {
+          "name": "better-accessibility",
+          "sourcePath": "skills/better-accessibility",
+          "treeSha256": "d951feb2eee2222eb1fd885d04341f9ee4b331ae8102ce80bfcd0eec405f61b5"
+        },
+        {
+          "name": "better-layout",
+          "sourcePath": "skills/better-layout",
+          "treeSha256": "8b08b3b75522f7b781d94c1ec6884731aa430f044619885eb4eee4613e78c0ad"
+        },
+        {
+          "name": "better-writing",
+          "sourcePath": "skills/better-writing",
+          "treeSha256": "b749f51d853306b11e10e8fb7b1d6269cb76ba298a5473c95b8329b5d67bc5f6"
+        },
+        {
+          "name": "better-typography",
+          "sourcePath": "skills/better-typography",
+          "treeSha256": "37dcfec6df593dc1d8f87bfd44dac6a34893d324e797e4a2bf874ef03fdfcb80"
+        },
+        {
+          "name": "better-colors",
+          "sourcePath": "skills/better-colors",
+          "treeSha256": "e5c80868406f7dbd5a93a5122b8b64357b64fc23bea7c53bc093803ddc5d3515"
+        },
+        {
+          "name": "better-ui",
+          "sourcePath": "skills/better-ui",
+          "treeSha256": "400fef927262d83f19c5a09e366802b7523ea2232fb18be0d0bf90b63583b907"
+        }
+      ]
+    },
+    {
+      "id": "vercel-agent-skills",
+      "repository": "https://github.com/vercel-labs/agent-skills.git",
+      "ref": "main",
+      "commit": "063bee94c3f4df8453406c830b0a7df0f2860278",
+      "license": "MIT (skill frontmatter)",
+      "skills": [
+        {
+          "name": "vercel-react-best-practices",
+          "sourcePath": "skills/react-best-practices",
+          "treeSha256": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+        }
+      ]
+    },
+    {
+      "id": "supabase-agent-skills",
+      "repository": "https://github.com/supabase/agent-skills.git",
+      "ref": "main",
+      "commit": "8331f910845103c08d51f6ca1d86ebb7d1f745e3",
+      "license": "MIT",
+      "skills": [
+        {
+          "name": "supabase-postgres-best-practices",
+          "sourcePath": "skills/supabase-postgres-best-practices",
+          "treeSha256": "382ac24032a5e7a18215bef0aef6d65fe88054ad467474bae329956422dcf80f"
+        }
+      ]
+    },
+    {
+      "id": "swyxio-skills",
+      "repository": "https://github.com/swyxio/skills.git",
+      "ref": "main",
+      "commit": "79df950293f8fa7821b327db22839026aa16f1cd",
+      "license": "MIT",
+      "skills": [
+        {
+          "name": "productionize-app-with-services",
+          "sourcePath": "productionize-app-with-services",
+          "treeSha256": "74584e9f983f8a4eec0beff5a93aad770e40a28e68ca478f853c9c15aa5ee2f6"
+        }
+      ]
+    }
+  ]
+}

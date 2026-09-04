@@ -21,3 +21,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-09-04 | postmortem-contract.js 的单元测试（原 test/postmortem-skill-contract.test.js）未随产品删除迁入，契约脚本当前无自动回归保护 | 深度测试 | 修改契约脚本时无快速验证 | repo://skills/postmortem/scripts/postmortem-contract.js；git history f681f58^:test/postmortem-skill-contract.test.js | P2 | Open |
 | 2026-09-04 | git-push-pr 与 gh-merge-pr 为通用重写版，尚无一次真实 PR 生命周期验证；首次真实使用后按实际证据更新本行 | 深度测试 | skill 步骤与实际 gh 行为偏差无法在仓内暴露 | repo://skills/git-push-pr/SKILL.md；repo://skills/gh-merge-pr/SKILL.md | P3 | Open |
+
+## 收口记录
+
+- 2026-09-04：无新增。

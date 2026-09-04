@@ -43,7 +43,7 @@
 </workflow>
 
 <forge>
-Issue、代码和 CI/CD 归 GitHub，项目坐标 Dimon94/dverity。Issue 约定见 repo://docs/agents/issue-tracker.md。触发：建/读/评/列 issue、取 ticket、发布 PRD、triage 标签、wayfinder 地图与 ticket 编排。
+Issue、代码和 CI/CD 归 GitHub，项目坐标 Dimon94/skills。Issue 约定见 repo://docs/agents/issue-tracker.md。触发：建/读/评/列 issue、取 ticket、发布 PRD、triage 标签、wayfinder 地图与 ticket 编排。
 平台脚本化访问用 `gh` CLI，不维护本仓封装脚本；远程写操作（建单、打标、评论、关闭、合并）只在获得明确授权后执行。GitHub Actions 当前未配置，不声称 CI 就绪。
 </forge>
 

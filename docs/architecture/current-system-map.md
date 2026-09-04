@@ -13,7 +13,7 @@ Status: current
 - 运行入口：`skills/<name>/SKILL.md` 由 agent 运行时（Claude Code / Codex / pi 等）读取；脚本由 SKILL.md 显式调用。
 - 部署拓扑：无部署；`~/.agents/skills` 与 `~/.claude/skills` 经 symlink 消费本仓。
 - 持久状态 owner：skill 文档与脚本本身；运行期状态归调用方项目。
-- 外部系统：GitHub（Dimon94/dverity，issue 与 remote 托管）。
+- 外部系统：GitHub（Dimon94/skills，issue 与 remote 托管）。
 - CI：GitHub Actions 当前未配置，状态为 absent。
 
 当前模块清单：
@@ -27,6 +27,7 @@ Status: current
 | skills/gh-merge-pr | 单个 GitHub PR 的 current-head 审查、合并与落地读回 | 不拥有产品修复、批量 PR、远程推送分支 | SKILL.md | gh CLI、git CLI；code-review（第三方 skill）、resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |
 | skills/postmortem | 可复用失败教训的判定与落账 | 不拥有工作流状态、远程交付 | SKILL.md + scripts/postmortem-contract.js | Node.js | 契约脚本经单元测试（test 目录当前未迁入，待补） |
 | scripts/link-skills.sh | 把 skills/ 链入 agent 目录 | 不拥有 skill 内容 | CLI | bash | 手动跑一次验证 symlink |
+| scripts/install-development-workflow.sh | 获取开发链路依赖仓库并建立链接依赖 | 不安装 Agent CLI、Herdr 或配置 Second Opinion | CLI | bash、git、python3、第三方 Skill 仓库 | `bash -n` + 隔离 HOME 的 offline install/check |
 
 依赖方向：
 
@@ -38,6 +39,7 @@ Status: current
 
     编辑 skills/ -> git commit -> 其他会话经 symlink 即时可见
     新增 skill -> scripts/link-skills.sh -> agent 目录出现新 symlink
+    完整开发链路 -> scripts/install-development-workflow.sh -> 上游 clone + agent 目录 symlink
 
 第三方 skill 链路：
 
@@ -65,6 +67,7 @@ Status: current
 
 - skill 内容：由调用它的 agent 会话验证，无独立 CI。
 - 链接：`scripts/link-skills.sh` 运行后 `ls -la ~/.agents/skills` 可见 symlink。
+- 开发链路安装：使用隔离 HOME 与现有依赖 checkout 运行 `scripts/install-development-workflow.sh --offline`，再运行 `--check`。
 - 契约脚本：postmortem-contract.js 的单元测试当前未迁入本仓，状态为 Unknown；补测试后更新本行。
 
 ## PROTOCOL

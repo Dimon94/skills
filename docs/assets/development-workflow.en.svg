@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1120" width="1600" height="1120">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2080 1460" width="2080" height="1460">
 <style>
 text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
 .title { fill:#111827; font-size:32px; font-weight:700; }
@@ -10,202 +10,268 @@ text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsof
 .edge-label { font-size:11px; font-weight:600; }
 .legend { fill:#475569; font-size:12px; }
 .footer { fill:#64748b; font-size:12px; }
-</style>
-<defs>
-<marker id="arrow-control" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-<polygon points="0 0, 10 4, 0 8" fill="#7c3aed"/></marker>
-<marker id="arrow-choice" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-<polygon points="0 0, 10 4, 0 8" fill="#f97316"/></marker>
-<marker id="arrow-bug" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-<polygon points="0 0, 10 4, 0 8" fill="#16a34a"/></marker>
-<marker id="arrow-feedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-<polygon points="0 0, 10 4, 0 8" fill="#ef4444"/></marker>
+</style><defs>
+<marker id="arrow-control" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#7c3aed"/></marker>
+<marker id="arrow-choice" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#f97316"/></marker>
+<marker id="arrow-bug" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#16a34a"/></marker>
+<marker id="arrow-feedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#ef4444"/></marker>
 </defs>
-<rect data-graph-role="background" width="1600" height="1120" fill="#ffffff"/>
-<text x="800" y="50" text-anchor="middle" class="title">Dimon Development Workflow</text>
-<text x="800" y="78" text-anchor="middle" class="subtitle">Route by task size and type: Large · Small · Bug</text>
-<g data-graph-role="container"><rect data-graph-role="container" x="40" y="110" width="1520" height="110" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
-<text x="58" y="138" class="section">01 · Entry</text></g>
-<g data-graph-role="container"><rect data-graph-role="container" x="40" y="270" width="460" height="390" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
-<text x="58" y="298" class="section">02A · Large Requirement</text></g>
-<g data-graph-role="container"><rect data-graph-role="container" x="570" y="270" width="460" height="390" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
-<text x="588" y="298" class="section">02B · Small Requirement</text></g>
-<g data-graph-role="container"><rect data-graph-role="container" x="1100" y="270" width="460" height="390" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
-<text x="1118" y="298" class="section">02C · Bug</text></g>
-<g data-graph-role="container"><rect data-graph-role="container" x="40" y="730" width="1520" height="260" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
-<text x="1010" y="758" class="section">03 · DELIVERY-PIPELINE AUTOMATION</text></g>
-<path id="start" data-graph-role="edge" data-source="request" data-target="route" d="M380 170 H695" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="route-large" data-graph-role="edge" data-source="route" data-target="large-clarify" d="M695 170 V235 H270 V318" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
-<path id="route-small" data-graph-role="edge" data-source="route" data-target="small-grill" d="M800 210 V318" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
-<path id="route-bug" data-graph-role="edge" data-source="route" data-target="bug-worktree" d="M905 170 H1330 V304" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
-<path id="large-wayfinder" data-graph-role="edge" data-source="large-clarify" data-target="wayfinder" d="M270 398 V442" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="wayfinder-map" data-graph-role="edge" data-source="wayfinder" data-target="shared-map" d="M270 504 V538" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="small-spec" data-graph-role="edge" data-source="small-grill" data-target="to-spec" d="M800 388 V430" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="small-tickets" data-graph-role="edge" data-source="to-spec" data-target="to-tickets" d="M800 500 V542" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="bug-diagnose" data-graph-role="edge" data-source="bug-worktree" data-target="diagnosing-bugs" d="M1330 370 V396" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
-<path id="bug-commit" data-graph-role="edge" data-source="diagnosing-bugs" data-target="git-commit" d="M1330 462 V488" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
-<path id="bug-rebase" data-graph-role="edge" data-source="git-commit" data-target="git-rebase-main" d="M1330 554 V580" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
-<path id="map-pipeline" data-graph-role="edge" data-source="shared-map" data-target="dp-input" d="M270 620 V690 H110 V808" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="tickets-pipeline" data-graph-role="edge" data-source="to-tickets" data-target="dp-input" d="M800 612 V710 H180 V808" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-gate" data-graph-role="edge" data-source="dp-input" data-target="gate" d="M220 843 H270" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-frontier" data-graph-role="edge" data-source="gate" data-target="frontier" d="M430 843 H490" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-lanes" data-graph-role="edge" data-source="frontier" data-target="lanes" d="M660 843 H720" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-fanin" data-graph-role="edge" data-source="lanes" data-target="fanin" d="M880 843 H940" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-quality" data-graph-role="edge" data-source="fanin" data-target="quality" d="M1120 843 H1170" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-remote" data-graph-role="edge" data-source="quality" data-target="remote" d="M1350 843 H1390" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
-<path id="dp-loop" data-graph-role="edge" data-source="fanin" data-target="frontier" d="M1030 878 V940 H575 V878" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5"/>
+<rect data-graph-role="background" width="2080" height="1460" fill="#ffffff"/>
+<text x="1040" y="50" text-anchor="middle" class="title">Dimon Development Workflow</text>
+<text x="1040" y="78" text-anchor="middle" class="subtitle">Analyze refactors first · then enter three delivery paths by size · current-head review</text>
+<g data-graph-role="container"><rect data-graph-role="container" x="40" y="110" width="2000" height="220" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="58" y="138" class="section">01 · TASK ENTRY</text></g>
+<g data-graph-role="container"><rect data-graph-role="container" x="40" y="390" width="620" height="350" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="58" y="418" class="section">02A · LARGE REQUIREMENT</text></g>
+<g data-graph-role="container"><rect data-graph-role="container" x="730" y="390" width="620" height="350" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="748" y="418" class="section">02B · SMALL REQUIREMENT</text></g>
+<g data-graph-role="container"><rect data-graph-role="container" x="1420" y="390" width="620" height="350" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="1438" y="418" class="section">02C · BUG</text></g>
+<g data-graph-role="container"><rect data-graph-role="container" x="40" y="790" width="2000" height="260" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="1290" y="818" class="section">03 · DELIVERY-PIPELINE AUTOMATION &amp; DELIVERY</text></g>
+<g data-graph-role="container"><rect data-graph-role="container" x="40" y="1110" width="2000" height="250" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6"/>
+<text x="1200" y="1138" class="section">04 · GH-MERGE-PR CURRENT-HEAD REVIEW (SEPARATE AUTHORITY)</text></g>
 <g data-graph-role="node" data-node-id="request">
-<rect x="160" y="140" width="220" height="60" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
-<text x="270.0" y="158" text-anchor="middle" class="type">INPUT</text>
-<text x="270.0" y="180" text-anchor="middle" class="node-title">Requirement / Problem</text>
-<text x="270.0" y="199" text-anchor="middle" class="node-sub">Classify size and type</text>
+<rect x="80" y="180" width="240" height="60" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+<text x="200.0" y="198" text-anchor="middle" class="type">INPUT</text>
+<text x="200.0" y="221" text-anchor="middle" class="node-title">Requirement / Problem</text>
+<text x="200.0" y="240" text-anchor="middle" class="node-sub">Classify size and task type</text>
+</g>
+<g data-graph-role="node" data-node-id="kind">
+<polygon points="520.0,160 640,210.0 520.0,260 400,210.0" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="520.0" y="178" text-anchor="middle" class="type">DECISION</text>
+<text x="520.0" y="201" text-anchor="middle" class="node-title">Refactor / Optimize?</text>
+<text x="520.0" y="218" text-anchor="middle" class="node-sub">Yes: analyze first</text>
+<text x="520.0" y="233" text-anchor="middle" class="node-sub">No: route directly</text>
+</g>
+<g data-graph-role="node" data-node-id="analysis">
+<rect x="760" y="150" width="500" height="120" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+<rect x="764" y="154" width="492" height="112" rx="7" fill="none" stroke="#0d9488" stroke-width="0.9" opacity="0.55"/>
+<text x="1010.0" y="168" text-anchor="middle" class="type">ANALYZE</text>
+<text x="1010.0" y="191" text-anchor="middle" class="node-title">Choose One Analysis</text>
+<text x="1010.0" y="208" text-anchor="middle" class="node-sub">improve-codebase-architecture</text>
+<text x="1010.0" y="223" text-anchor="middle" class="node-sub">productionize-app-with-services</text>
 </g>
 <g data-graph-role="node" data-node-id="route">
-<polygon points="800.0,130 905,170.0 800.0,210 695,170.0" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2"/>
-<text x="800.0" y="148" text-anchor="middle" class="type">ROUTER</text>
-<text x="800.0" y="170" text-anchor="middle" class="node-title">Task Router</text>
-<text x="800.0" y="189" text-anchor="middle" class="node-sub">Large · Small · Bug</text>
+<polygon points="1630.0,160 1760,210.0 1630.0,260 1500,210.0" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2"/>
+<text x="1630.0" y="178" text-anchor="middle" class="type">ROUTER</text>
+<text x="1630.0" y="201" text-anchor="middle" class="node-title">Scale / Type Router</text>
+<text x="1630.0" y="220" text-anchor="middle" class="node-sub">Large · Small · Bug</text>
 </g>
+<path id="start" data-graph-role="edge" data-source="request" data-target="kind" d="M320 210 H400" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="kind-analysis" data-graph-role="edge" data-source="kind" data-target="analysis" d="M640 190 H760" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<path id="analysis-route" data-graph-role="edge" data-source="analysis" data-target="route" d="M1260 210 H1500" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="kind-direct" data-graph-role="edge" data-source="kind" data-target="route" d="M520 260 V300 H1400 V235 H1565" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<g data-graph-role="label"><rect x="654.0" y="168" width="92" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="700" y="182" text-anchor="middle" class="edge-label" fill="#f97316">analyze first</text></g>
+<g data-graph-role="label"><rect x="1021.0" y="278" width="118" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="1080" y="292" text-anchor="middle" class="edge-label" fill="#f97316">ordinary / bug</text></g>
+<path id="route-0" data-graph-role="edge" data-source="route" data-target="large-clarify" d="M1550 245 V350 H350 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<g data-graph-role="label"><rect x="316.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="350" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Large</text></g>
+<path id="route-1" data-graph-role="edge" data-source="route" data-target="small-grill" d="M1630 260 V360 H1040 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<g data-graph-role="label"><rect x="1006.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="1040" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Small</text></g>
+<path id="route-2" data-graph-role="edge" data-source="route" data-target="bug-worktree" d="M1700 245 V350 H1730 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<g data-graph-role="label"><rect x="1696.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="1730" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Bug</text></g>
 <g data-graph-role="node" data-node-id="large-clarify">
-<rect x="90" y="318" width="360" height="80" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
-<text x="270.0" y="336" text-anchor="middle" class="type">OPTIONAL</text>
-<text x="270.0" y="358" text-anchor="middle" class="node-title">Optional Discovery</text>
-<text x="270.0" y="375" text-anchor="middle" class="node-sub">Research · Second Opinion · Grill</text>
-<text x="270.0" y="390" text-anchor="middle" class="node-sub">Brainstorm · Office Hours</text>
+<rect x="100" y="430" width="500" height="84" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="350.0" y="448" text-anchor="middle" class="type">OPTIONAL</text>
+<text x="350.0" y="471" text-anchor="middle" class="node-title">Optional Discovery</text>
+<text x="350.0" y="488" text-anchor="middle" class="node-sub">Research · Second Opinion · Grill</text>
+<text x="350.0" y="503" text-anchor="middle" class="node-sub">Brainstorm · Office Hours</text>
 </g>
-<g data-graph-role="node" data-node-id="wayfinder">
-<rect x="90" y="442" width="360" height="62" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-<rect x="94" y="446" width="352" height="54" rx="7" fill="none" stroke="#2563eb" stroke-width="0.9" opacity="0.55"/>
-<text x="270.0" y="460" text-anchor="middle" class="type">PLAN</text>
-<text x="270.0" y="482" text-anchor="middle" class="node-title">Wayfinder</text>
-<text x="270.0" y="501" text-anchor="middle" class="node-sub">Create shared map once clear</text>
+<g data-graph-role="node" data-node-id="large-wayfinder">
+<rect x="100" y="555" width="500" height="64" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<rect x="104" y="559" width="492" height="56" rx="7" fill="none" stroke="#2563eb" stroke-width="0.9" opacity="0.55"/>
+<text x="350.0" y="573" text-anchor="middle" class="type">PLAN</text>
+<text x="350.0" y="596" text-anchor="middle" class="node-title">Wayfinder</text>
+<text x="350.0" y="615" text-anchor="middle" class="node-sub">Create a shared Map once clear</text>
 </g>
-<g data-graph-role="node" data-node-id="shared-map">
-<path d="M90,538 H434 L450,554 V620 H90 Z" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-<path d="M434,538 V554 H450" fill="none" stroke="#16a34a" stroke-width="1.2"/>
-<text x="270.0" y="556" text-anchor="middle" class="type">ARTIFACT</text>
-<text x="270.0" y="578" text-anchor="middle" class="node-title">Shared Map</text>
-<text x="270.0" y="595" text-anchor="middle" class="node-sub">Destination · Decisions</text>
-<text x="270.0" y="610" text-anchor="middle" class="node-sub">Frontier · Fog</text>
+<g data-graph-role="node" data-node-id="large-map">
+<path d="M100,645 H584 L600,661 V715 H100 Z" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+<path d="M584,645 V661 H600" fill="none" stroke="#16a34a" stroke-width="1.2"/>
+<text x="350.0" y="663" text-anchor="middle" class="type">ARTIFACT</text>
+<text x="350.0" y="686" text-anchor="middle" class="node-title">Shared Map</text>
+<text x="350.0" y="703" text-anchor="middle" class="node-sub">Destination · Decisions</text>
+<text x="350.0" y="718" text-anchor="middle" class="node-sub">Frontier · Fog</text>
 </g>
+<path id="large-plan" data-graph-role="edge" data-source="large-clarify" data-target="large-wayfinder" d="M350 514 V555" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="large-map-edge" data-graph-role="edge" data-source="large-wayfinder" data-target="large-map" d="M350 619 V645" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
 <g data-graph-role="node" data-node-id="small-grill">
-<rect x="620" y="318" width="360" height="70" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
-<text x="800.0" y="336" text-anchor="middle" class="type">CLARIFY</text>
-<text x="800.0" y="358" text-anchor="middle" class="node-title">grill-with-docs</text>
-<text x="800.0" y="377" text-anchor="middle" class="node-sub">Grilling + Domain Modeling</text>
+<rect x="790" y="430" width="500" height="70" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="1040.0" y="448" text-anchor="middle" class="type">CLARIFY</text>
+<text x="1040.0" y="471" text-anchor="middle" class="node-title">grill-with-docs</text>
+<text x="1040.0" y="490" text-anchor="middle" class="node-sub">Grilling + Domain Modeling</text>
 </g>
 <g data-graph-role="node" data-node-id="to-spec">
-<path d="M620,430 H964 L980,446 V500 H620 Z" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-<path d="M964,430 V446 H980" fill="none" stroke="#2563eb" stroke-width="1.2"/>
-<text x="800.0" y="448" text-anchor="middle" class="type">SPEC</text>
-<text x="800.0" y="470" text-anchor="middle" class="node-title">to-spec</text>
-<text x="800.0" y="489" text-anchor="middle" class="node-sub">Synthesis · Test Seam · Publish</text>
+<path d="M790,555 H1274 L1290,571 V625 H790 Z" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<path d="M1274,555 V571 H1290" fill="none" stroke="#2563eb" stroke-width="1.2"/>
+<text x="1040.0" y="573" text-anchor="middle" class="type">SPEC</text>
+<text x="1040.0" y="596" text-anchor="middle" class="node-title">to-spec</text>
+<text x="1040.0" y="615" text-anchor="middle" class="node-sub">Synthesize · confirm test seam · publish</text>
 </g>
 <g data-graph-role="node" data-node-id="to-tickets">
-<path d="M620,542 H964 L980,558 V612 H620 Z" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-<path d="M964,542 V558 H980" fill="none" stroke="#16a34a" stroke-width="1.2"/>
-<text x="800.0" y="560" text-anchor="middle" class="type">TICKETS</text>
-<text x="800.0" y="582" text-anchor="middle" class="node-title">to-tickets</text>
-<text x="800.0" y="601" text-anchor="middle" class="node-sub">Tracer Bullets · Blocking Edges</text>
+<path d="M790,645 H1274 L1290,661 V715 H790 Z" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+<path d="M1274,645 V661 H1290" fill="none" stroke="#16a34a" stroke-width="1.2"/>
+<text x="1040.0" y="663" text-anchor="middle" class="type">TICKETS</text>
+<text x="1040.0" y="686" text-anchor="middle" class="node-title">to-tickets</text>
+<text x="1040.0" y="705" text-anchor="middle" class="node-sub">Tracer Bullets · Blocking Edges</text>
 </g>
+<path id="small-spec" data-graph-role="edge" data-source="small-grill" data-target="to-spec" d="M1040 500 V555" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="small-tickets" data-graph-role="edge" data-source="to-spec" data-target="to-tickets" d="M1040 625 V645" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
 <g data-graph-role="node" data-node-id="bug-worktree">
-<path d="M1150,314 H1272.4 L1301.2,304 H1500 Q1510,304 1510,314 V370 H1150 Z" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
-<text x="1330.0" y="322" text-anchor="middle" class="type">ISOLATE</text>
-<text x="1330.0" y="344" text-anchor="middle" class="node-title">Create Worktree</text>
-<text x="1330.0" y="363" text-anchor="middle" class="node-sub">One Bug · One Writer</text>
+<path d="M1480,440 H1650.0 L1690.0,430 H1970 Q1980,430 1980,440 V496 H1480 Z" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<text x="1730.0" y="448" text-anchor="middle" class="type">ISOLATE</text>
+<text x="1730.0" y="471" text-anchor="middle" class="node-title">Create Worktree</text>
+<text x="1730.0" y="490" text-anchor="middle" class="node-sub">One bug · one writer</text>
 </g>
 <g data-graph-role="node" data-node-id="diagnosing-bugs">
-<rect x="1150" y="396" width="360" height="66" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
-<rect x="1154" y="400" width="352" height="58" rx="7" fill="none" stroke="#dc2626" stroke-width="0.9" opacity="0.55"/>
-<text x="1330.0" y="414" text-anchor="middle" class="type">DEBUG</text>
-<text x="1330.0" y="436" text-anchor="middle" class="node-title">diagnosing-bugs</text>
-<text x="1330.0" y="455" text-anchor="middle" class="node-sub">Red Loop · Min Repro · Root Cause</text>
+<rect x="1480" y="510" width="500" height="66" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+<rect x="1484" y="514" width="492" height="58" rx="7" fill="none" stroke="#dc2626" stroke-width="0.9" opacity="0.55"/>
+<text x="1730.0" y="528" text-anchor="middle" class="type">DEBUG</text>
+<text x="1730.0" y="551" text-anchor="middle" class="node-title">diagnosing-bugs</text>
+<text x="1730.0" y="570" text-anchor="middle" class="node-sub">Red Loop · repro · root-cause fix</text>
 </g>
 <g data-graph-role="node" data-node-id="git-commit">
-<rect x="1150" y="488" width="360" height="66" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-<text x="1330.0" y="506" text-anchor="middle" class="type">LOCAL</text>
-<text x="1330.0" y="528" text-anchor="middle" class="node-title">git-commit</text>
-<text x="1330.0" y="547" text-anchor="middle" class="node-sub">Narrow · Auditable · Verified</text>
+<rect x="1480" y="590" width="500" height="66" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+<text x="1730.0" y="608" text-anchor="middle" class="type">LOCAL</text>
+<text x="1730.0" y="631" text-anchor="middle" class="node-title">git-commit</text>
+<text x="1730.0" y="650" text-anchor="middle" class="node-sub">Narrow · auditable · verified</text>
 </g>
 <g data-graph-role="node" data-node-id="git-rebase-main">
-<rect x="1150" y="580" width="360" height="66" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-<text x="1330.0" y="598" text-anchor="middle" class="type">LAND</text>
-<text x="1330.0" y="620" text-anchor="middle" class="node-title">git-rebase-main</text>
-<text x="1330.0" y="639" text-anchor="middle" class="node-sub">Rebase + Fast-forward · Local Only</text>
+<rect x="1480" y="670" width="500" height="66" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="1730.0" y="688" text-anchor="middle" class="type">LAND</text>
+<text x="1730.0" y="711" text-anchor="middle" class="node-title">git-rebase-main</text>
+<text x="1730.0" y="730" text-anchor="middle" class="node-sub">Rebase + fast-forward · local only</text>
 </g>
+<path id="bug-diagnose" data-graph-role="edge" data-source="bug-worktree" data-target="diagnosing-bugs" d="M1730 496 V510" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
+<path id="bug-commit" data-graph-role="edge" data-source="diagnosing-bugs" data-target="git-commit" d="M1730 576 V590" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
+<path id="bug-rebase" data-graph-role="edge" data-source="git-commit" data-target="git-rebase-main" d="M1730 656 V670" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-bug)"/>
 <g data-graph-role="node" data-node-id="dp-input">
-<rect x="60" y="808" width="160" height="70" rx="10" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2"/>
-<rect x="64" y="812" width="152" height="62" rx="7" fill="none" stroke="#8b5cf6" stroke-width="0.9" opacity="0.55"/>
-<text x="140.0" y="826" text-anchor="middle" class="type">CONTROL</text>
-<text x="140.0" y="848" text-anchor="middle" class="node-title">Take Map / Spec</text>
-<text x="140.0" y="867" text-anchor="middle" class="node-sub">Resume Chain</text>
+<rect x="60" y="870" width="210" height="70" rx="10" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2"/>
+<rect x="64" y="874" width="202" height="62" rx="7" fill="none" stroke="#8b5cf6" stroke-width="0.9" opacity="0.55"/>
+<text x="165.0" y="888" text-anchor="middle" class="type">CONTROL</text>
+<text x="165.0" y="911" text-anchor="middle" class="node-title">Take Map / Spec</text>
+<text x="165.0" y="930" text-anchor="middle" class="node-sub">Resume durable workflow</text>
 </g>
 <g data-graph-role="node" data-node-id="gate">
-<rect x="270" y="808" width="160" height="70" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-<text x="350.0" y="826" text-anchor="middle" class="type">STATE</text>
-<text x="350.0" y="848" text-anchor="middle" class="node-title">Rebuild Gate</text>
-<text x="350.0" y="867" text-anchor="middle" class="node-sub">Discovery → Tickets</text>
+<rect x="330" y="870" width="210" height="70" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="435.0" y="888" text-anchor="middle" class="type">STATE</text>
+<text x="435.0" y="911" text-anchor="middle" class="node-title">Rebuild Gate</text>
+<text x="435.0" y="930" text-anchor="middle" class="node-sub">Discovery → Tickets</text>
 </g>
 <g data-graph-role="node" data-node-id="frontier">
-<polygon points="512,808 638,808 660,843.0 638,878 512,878 490,843.0" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
-<text x="575.0" y="826" text-anchor="middle" class="type">SCHEDULE</text>
-<text x="575.0" y="848" text-anchor="middle" class="node-title">Ready Frontier</text>
-<text x="575.0" y="867" text-anchor="middle" class="node-sub">Largest Safe Batch</text>
+<polygon points="622,870 798,870 820,905.0 798,940 622,940 600,905.0" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="710.0" y="888" text-anchor="middle" class="type">SCHEDULE</text>
+<text x="710.0" y="911" text-anchor="middle" class="node-title">Ready Frontier</text>
+<text x="710.0" y="930" text-anchor="middle" class="node-sub">Largest safe batch</text>
 </g>
 <g data-graph-role="node" data-node-id="lanes">
-<rect x="720" y="808" width="160" height="70" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
-<text x="800.0" y="826" text-anchor="middle" class="type">WORKERS</text>
-<text x="800.0" y="848" text-anchor="middle" class="node-title">Role Lanes</text>
-<text x="800.0" y="867" text-anchor="middle" class="node-sub">Isolated Worktree</text>
+<rect x="880" y="870" width="210" height="70" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+<text x="985.0" y="888" text-anchor="middle" class="type">WORKERS</text>
+<text x="985.0" y="911" text-anchor="middle" class="node-title">Role Lanes</text>
+<text x="985.0" y="930" text-anchor="middle" class="node-sub">Isolated execution WTs</text>
 </g>
 <g data-graph-role="node" data-node-id="fanin">
-<rect x="940" y="808" width="180" height="70" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-<rect x="944" y="812" width="172" height="62" rx="7" fill="none" stroke="#16a34a" stroke-width="0.9" opacity="0.55"/>
-<text x="1030.0" y="826" text-anchor="middle" class="type">INTEGRATE</text>
-<text x="1030.0" y="848" text-anchor="middle" class="node-title">Terminal Fan-in</text>
-<text x="1030.0" y="867" text-anchor="middle" class="node-sub">Verify + Pick</text>
+<rect x="1150" y="870" width="220" height="70" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+<rect x="1154" y="874" width="212" height="62" rx="7" fill="none" stroke="#16a34a" stroke-width="0.9" opacity="0.55"/>
+<text x="1260.0" y="888" text-anchor="middle" class="type">INTEGRATE</text>
+<text x="1260.0" y="911" text-anchor="middle" class="node-title">Terminal Fan-in</text>
+<text x="1260.0" y="930" text-anchor="middle" class="node-sub">Verify + cherry-pick</text>
 </g>
 <g data-graph-role="node" data-node-id="quality">
-<rect x="1170" y="808" width="180" height="70" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
-<text x="1260.0" y="826" text-anchor="middle" class="type">QUALITY</text>
-<text x="1260.0" y="848" text-anchor="middle" class="node-title">Testing + Review</text>
-<text x="1260.0" y="867" text-anchor="middle" class="node-sub">Checks · Verdict</text>
+<rect x="1430" y="870" width="220" height="70" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+<text x="1540.0" y="888" text-anchor="middle" class="type">QUALITY</text>
+<text x="1540.0" y="911" text-anchor="middle" class="node-title">Testing + Review</text>
+<text x="1540.0" y="930" text-anchor="middle" class="node-sub">Full checks and verdict</text>
 </g>
 <g data-graph-role="node" data-node-id="remote">
-<rect x="1390" y="808" width="180" height="70" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
-<text x="1480.0" y="826" text-anchor="middle" class="type">AUTHORITY</text>
-<text x="1480.0" y="848" text-anchor="middle" class="node-title">Publication Gate</text>
-<text x="1480.0" y="867" text-anchor="middle" class="node-sub">Push · PR · Merge</text>
+<rect x="1710" y="870" width="220" height="70" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+<text x="1820.0" y="888" text-anchor="middle" class="type">AUTHORITY</text>
+<text x="1820.0" y="911" text-anchor="middle" class="node-title">Push / PR Gate</text>
+<text x="1820.0" y="930" text-anchor="middle" class="node-sub">Separate publication authority</text>
 </g>
-<g data-graph-role="label"><rect x="596.0" y="212" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="620" y="226" text-anchor="middle" class="edge-label" fill="#f97316">Large</text></g>
-<g data-graph-role="label"><rect x="798.0" y="238" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="822" y="252" text-anchor="middle" class="edge-label" fill="#f97316">Small</text></g>
-<g data-graph-role="label"><rect x="1038.0" y="148" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="1062" y="162" text-anchor="middle" class="edge-label" fill="#f97316">Bug</text></g>
-<g data-graph-role="label"><rect x="221.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="245" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Resume</text></g>
-<g data-graph-role="label"><rect x="436.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="460" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Rebuild</text></g>
-<g data-graph-role="label"><rect x="666.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="690" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Dispatch</text></g>
-<g data-graph-role="label"><rect x="886.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="910" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Complete</text></g>
-<g data-graph-role="label"><rect x="1121.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="1145" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Drained</text></g>
-<g data-graph-role="label"><rect x="1346.0" y="819" width="48" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="1370" y="833" text-anchor="middle" class="edge-label" fill="#7c3aed">Pass</text></g>
-<g data-graph-role="label"><rect x="754.0" y="918" width="92" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
-<text x="800" y="932" text-anchor="middle" class="edge-label" fill="#ef4444">Next Batch</text></g>
-<g data-graph-role="legend" transform="translate(60 1030)">
+<path id="large-pipeline" data-graph-role="edge" data-source="large-map" data-target="dp-input" d="M350 715 V750 H120 V870" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="small-pipeline" data-graph-role="edge" data-source="to-tickets" data-target="dp-input" d="M1040 715 V765 H180 V870" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-0" data-graph-role="edge" data-source="dp-input" data-target="gate" d="M270 905 H330" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-1" data-graph-role="edge" data-source="gate" data-target="frontier" d="M540 905 H600" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-2" data-graph-role="edge" data-source="frontier" data-target="lanes" d="M820 905 H880" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-3" data-graph-role="edge" data-source="lanes" data-target="fanin" d="M1090 905 H1150" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-4" data-graph-role="edge" data-source="fanin" data-target="quality" d="M1370 905 H1430" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-5" data-graph-role="edge" data-source="quality" data-target="remote" d="M1650 905 H1710" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="pipeline-loop" data-graph-role="edge" data-source="fanin" data-target="frontier" d="M1260 940 V1000 H710 V940" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5"/>
+<g data-graph-role="label"><rect x="933.0" y="978" width="104" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="985" y="992" text-anchor="middle" class="edge-label" fill="#ef4444">auto next batch</text></g>
+<g data-graph-role="node" data-node-id="review-packet">
+<rect x="60" y="1180" width="230" height="78" rx="10" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2"/>
+<rect x="64" y="1184" width="222" height="70" rx="7" fill="none" stroke="#8b5cf6" stroke-width="0.9" opacity="0.55"/>
+<text x="175.0" y="1198" text-anchor="middle" class="type">PACKET</text>
+<text x="175.0" y="1221" text-anchor="middle" class="node-title">Fixed Review Packet</text>
+<text x="175.0" y="1240" text-anchor="middle" class="node-sub">PR · Base · Head SHA · Diff · Spec</text>
+</g>
+<g data-graph-role="node" data-node-id="code-review">
+<rect x="350" y="1180" width="230" height="78" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+<text x="465.0" y="1198" text-anchor="middle" class="type">MAIN REVIEW</text>
+<text x="465.0" y="1221" text-anchor="middle" class="node-title">code-review</text>
+<text x="465.0" y="1240" text-anchor="middle" class="node-sub">Standards + Spec main review</text>
+</g>
+<g data-graph-role="node" data-node-id="specialist-gate">
+<polygon points="755.0,1174 870,1219.0 755.0,1264 640,1219.0" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="755.0" y="1192" text-anchor="middle" class="type">ROUTER</text>
+<text x="755.0" y="1215" text-anchor="middle" class="node-title">Specialist Evidence?</text>
+<text x="755.0" y="1234" text-anchor="middle" class="node-sub">Request · paths · main findings</text>
+</g>
+<g data-graph-role="node" data-node-id="specialists">
+<rect x="930" y="1174" width="350" height="90" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2"/>
+<text x="1105.0" y="1192" text-anchor="middle" class="type">SPECIALISTS</text>
+<text x="1105.0" y="1215" text-anchor="middle" class="node-title">On-demand Reviews</text>
+<text x="1105.0" y="1232" text-anchor="middle" class="node-sub">complexity · thermo · better-interface</text>
+<text x="1105.0" y="1247" text-anchor="middle" class="node-sub">React · Postgres</text>
+</g>
+<g data-graph-role="node" data-node-id="verdict">
+<rect x="1340" y="1180" width="230" height="78" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+<rect x="1344" y="1184" width="222" height="70" rx="7" fill="none" stroke="#dc2626" stroke-width="0.9" opacity="0.55"/>
+<text x="1455.0" y="1198" text-anchor="middle" class="type">VERDICT</text>
+<text x="1455.0" y="1221" text-anchor="middle" class="node-title">Current-head Verdict</text>
+<text x="1455.0" y="1240" text-anchor="middle" class="node-sub">REVIEWED / BLOCKED</text>
+</g>
+<g data-graph-role="node" data-node-id="merge">
+<rect x="1610" y="1180" width="220" height="78" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+<text x="1720.0" y="1198" text-anchor="middle" class="type">AUTHORITY</text>
+<text x="1720.0" y="1221" text-anchor="middle" class="node-title">Merge Gate</text>
+<text x="1720.0" y="1238" text-anchor="middle" class="node-sub">New authority naming PR</text>
+<text x="1720.0" y="1253" text-anchor="middle" class="node-sub">and target</text>
+</g>
+<g data-graph-role="node" data-node-id="parity">
+<rect x="1850" y="1180" width="180" height="78" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+<text x="1940.0" y="1198" text-anchor="middle" class="type">READBACK</text>
+<text x="1940.0" y="1221" text-anchor="middle" class="node-title">Parity Readback</text>
+<text x="1940.0" y="1238" text-anchor="middle" class="node-sub">Provider · Remote</text>
+<text x="1940.0" y="1253" text-anchor="middle" class="node-sub">Local · Check</text>
+</g>
+<path id="remote-review" data-graph-role="edge" data-source="remote" data-target="review-packet" d="M1820 940 V1080 H175 V1180" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="packet-main" data-graph-role="edge" data-source="review-packet" data-target="code-review" d="M290 1219 H350" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="main-specialist-gate" data-graph-role="edge" data-source="code-review" data-target="specialist-gate" d="M580 1219 H640" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="specialist-yes" data-graph-role="edge" data-source="specialist-gate" data-target="specialists" d="M870 1219 H930" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<path id="specialist-verdict" data-graph-role="edge" data-source="specialists" data-target="verdict" d="M1280 1219 H1340" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="specialist-no" data-graph-role="edge" data-source="specialist-gate" data-target="verdict" d="M755 1264 V1320 H1455 V1258" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5"/>
+<path id="verdict-merge" data-graph-role="edge" data-source="verdict" data-target="merge" d="M1570 1219 H1610" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<path id="merge-parity" data-graph-role="edge" data-source="merge" data-target="parity" d="M1830 1219 H1850" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)"/>
+<g data-graph-role="label"><rect x="867.0" y="1197" width="66" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="900" y="1211" text-anchor="middle" class="edge-label" fill="#f97316">evidence</text></g>
+<g data-graph-role="label"><rect x="1073.0" y="1298" width="74" height="20" rx="5" fill="#ffffff" opacity="0.96"/>
+<text x="1110" y="1312" text-anchor="middle" class="edge-label" fill="#ef4444">none</text></g>
+<g data-graph-role="legend" transform="translate(60 1400)">
 <path d="M0 0 H38" stroke="#7c3aed" stroke-width="2.2" fill="none" marker-end="url(#arrow-control)"/>
-<text x="50" y="5" class="legend">Main Flow / Automatic Progression</text>
-<path d="M330 0 H368" stroke="#f97316" stroke-width="2.2" fill="none" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
-<text x="380" y="5" class="legend">Task Routing / Optional Choice</text>
-<path d="M660 0 H698" stroke="#16a34a" stroke-width="2.2" fill="none" marker-end="url(#arrow-bug)"/>
-<text x="710" y="5" class="legend">Local Bug Repair Chain</text>
-<path d="M990 0 H1028" stroke="#ef4444" stroke-width="2.2" fill="none" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5"/>
-<text x="1040" y="5" class="legend">Automatic Next-batch Recompute</text>
+<text x="50" y="5" class="legend">Primary flow / automation</text>
+<path d="M500 0 H538" stroke="#f97316" stroke-width="2.2" fill="none" marker-end="url(#arrow-choice)" stroke-dasharray="7 5"/>
+<text x="550" y="5" class="legend">Routing / optional choice</text>
+<path d="M1000 0 H1038" stroke="#16a34a" stroke-width="2.2" fill="none" marker-end="url(#arrow-bug)"/>
+<text x="1050" y="5" class="legend">Local bug-fix flow</text>
+<path d="M1500 0 H1538" stroke="#ef4444" stroke-width="2.2" fill="none" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5"/>
+<text x="1550" y="5" class="legend">Feedback / no-specialist bypass</text>
 </g>
-<text x="60" y="1090" class="footer">Remote boundary: without publication authority, stop at a clean, verified local state</text>
+<text x="60" y="1440" class="footer">Authority boundary: without remote publication or merge authority, stop at a clean, verified local state</text>
 </svg>

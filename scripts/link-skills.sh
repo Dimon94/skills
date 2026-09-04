@@ -22,11 +22,11 @@ for DEST in "${DESTS[@]}"; do
   if [ -L "$DEST" ]; then
     resolved="$(readlink -f "$DEST")"
     case "$resolved" in
-      "$REPO"|"$REPO"/*)
-        echo "error: $DEST is a symlink into this repo ($resolved)." >&2
-        echo "Remove it (rm \"$DEST\") and re-run." >&2
-        exit 1
-        ;;
+    "$REPO" | "$REPO"/*)
+      echo "error: $DEST is a symlink into this repo ($resolved)." >&2
+      echo "Remove it (rm \"$DEST\") and re-run." >&2
+      exit 1
+      ;;
     esac
   fi
 

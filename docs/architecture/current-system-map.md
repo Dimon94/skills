@@ -23,6 +23,8 @@ Status: current
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/git-commit | 本地提交边界与术语收割 | 不拥有合并、推送 | SKILL.md | git CLI | 无独立测试，经人工审查 |
 | skills/git-rebase-main | 当前分支到本地 main 的 rebase 与快进 | 不拥有远程推送 | SKILL.md | git CLI；resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |
+| skills/git-push-pr | 推送已验证分支并建/更新唯一 GitHub PR | 不拥有审批、合并、issue 关闭 | SKILL.md | git CLI、gh CLI；git-commit、git-rebase-main | 无独立测试，经人工审查 |
+| skills/gh-merge-pr | 单个 GitHub PR 的 current-head 审查、合并与落地读回 | 不拥有产品修复、批量 PR、远程推送分支 | SKILL.md | gh CLI、git CLI；code-review（第三方 skill）、resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |
 | skills/postmortem | 可复用失败教训的判定与落账 | 不拥有工作流状态、远程交付 | SKILL.md + scripts/postmortem-contract.js | Node.js | 契约脚本经单元测试（test 目录当前未迁入，待补） |
 | scripts/link-skills.sh | 把 skills/ 链入 agent 目录 | 不拥有 skill 内容 | CLI | bash | 手动跑一次验证 symlink |
 

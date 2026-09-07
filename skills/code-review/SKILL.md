@@ -20,6 +20,11 @@ Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
+如果 caller 提供了已物化的 Review Evidence Bundle，先核验 fixed point、HEAD、精确 diff 关系、
+完整路径清单与 staged/worktree 状态，再复用该快照；不另选基线。WIP 审查必须覆盖请求范围内
+的 staged、unstaged 和 untracked additions。存在无关 dirty 时，父会话提供隔离快照与范围清单；
+不能把无关改动混入本次审查。两轴共用不可变证据，当前源码只补充上下文。
+
 Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
 
 ### 2. Identify the spec source
@@ -56,6 +61,18 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 - **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
 ### 4. Spawn both sub-agents in parallel
+
+Codex runtime 的两个审查轴均显式请求 `model: gpt-6-astra`、`reasoning_effort: low`。
+先核对宿主 spawn schema；完整历史 fork 若不支持模型覆盖，选择可覆盖的独立上下文形式
+（当前 `fork_turns: none`），传完整任务、规则/spec 与共享证据绝对路径。检查选用的自定义
+agent 文件是否覆盖模型/effort；请求值、工具接受与运行 readback 分别记录，缺证据写 Unknown。
+Astra 启动失败时报告审查受阻，不静默改用 Luna/Sol，不自动提高 effort。
+非 Codex runtime 保留其原生子代理模型选择方式，仍执行相同两轴合同。
+
+两轴均为只读，只交 findings/verdict；不编辑文件、不提交、不扩大权限。Astra 可以直接按需
+委派 `gpt-5.6-luna` / `high` 做有界只读检索，模型与 effort 同时传递；Astra 保留正式判断，
+不能把本轴整体转交 Luna。修复改变审查内容后，父会话更新证据快照并复核受影响轴/范围，
+原 verdict 不覆盖新改动。second opinion 不替代此正式 Review。
 
 **Standards sub-agent prompt** should include:
 

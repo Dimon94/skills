@@ -9,11 +9,6 @@
       "license": "MIT",
       "skills": [
         {
-          "name": "code-review",
-          "sourcePath": "skills/engineering/code-review",
-          "treeSha256": "12daafb9c4f77deb3c3303dc2e6f8a3c2a0ff7928fc004af959ba18b8bd38068"
-        },
-        {
           "name": "resolving-merge-conflicts",
           "sourcePath": "skills/engineering/resolving-merge-conflicts",
           "treeSha256": "310fa72a34cddd1dd1a9790f9ebc17bf2c83caeae5cdf87e2485be8b1abec90e"

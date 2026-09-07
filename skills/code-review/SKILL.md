@@ -70,7 +70,7 @@ Astra 启动失败时报告审查受阻，不静默改用 Luna/Sol，不自动�
 非 Codex runtime 保留其原生子代理模型选择方式，仍执行相同两轴合同。
 
 两轴均为只读，只交 findings/verdict；不编辑文件、不提交、不扩大权限。Astra 可以直接按需
-委派 `gpt-5.6-luna` / `high` 做有界只读检索，模型与 effort 同时传递；Astra 保留正式判断，
+委派 `gpt-5.6-luna` / `max` 做有界只读检索，模型与 effort 同时传递；Astra 保留正式判断，
 不能把本轴整体转交 Luna。修复改变审查内容后，父会话更新证据快照并复核受影响轴/范围，
 原 verdict 不覆盖新改动。second opinion 不替代此正式 Review。
 

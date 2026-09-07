@@ -8,7 +8,7 @@ description: Create narrow auditable local commits. Use when verified work must 
 ## Codex 委派
 
 Codex 父会话调用本 skill 时，将本地提交交给一个内部 subagent，显式请求
-`model: gpt-5.6-luna`、`reasoning_effort: high`；不新建 App task 或 worktree。
+`model: gpt-5.6-luna`、`reasoning_effort: max`；不新建 App task 或 worktree。
 先核对宿主 spawn schema 与自定义角色覆盖；完整历史 fork 不支持模型覆盖时使用
 `fork_turns: none`，传递本 skill 的绝对路径与完整提交任务。
 

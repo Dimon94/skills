@@ -62,17 +62,27 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-Codex runtime 的两个审查轴均显式请求 `model: gpt-6-astra`、`reasoning_effort: low`。
+先确定 review scope。caller 显式传 `implementation` 或 `whole-change`；若未传，普通 branch、
+PR 与 WIP review 按 `implementation`。只有 caller 明确传入 `whole-change`，且 Review Evidence
+Bundle 的 fixed point 是 map registry creation base，才按 whole-change 执行。
+
+以下为 Codex runtime 的参考默认值；用户明确选择的 model/effort 优先，可覆盖整个 Review 或单轴。
+caller 传递选择来源与作用范围，两轴按最终选择显式请求，未覆盖字段沿用默认值：
+
+- `implementation`：`model: gpt-6-astra`、`reasoning_effort: low`。
+- `whole-change`：`model: gpt-5.6-sol`、`reasoning_effort: xhigh`。
+
 先核对宿主 spawn schema；完整历史 fork 若不支持模型覆盖，选择可覆盖的独立上下文形式
 （当前 `fork_turns: none`），传完整任务、规则/spec 与共享证据绝对路径。检查选用的自定义
 agent 文件是否覆盖模型/effort；请求值、工具接受与运行 readback 分别记录，缺证据写 Unknown。
-Astra 启动失败时报告审查受阻，不静默改用 Luna/Sol，不自动提高 effort。
+指定模型启动失败时报告审查受阻，不静默替换模型或 effort。
 非 Codex runtime 保留其原生子代理模型选择方式，仍执行相同两轴合同。
 
-两轴均为只读，只交 findings/verdict；不编辑文件、不提交、不扩大权限。Astra 可以直接按需
-委派 `gpt-5.6-luna` / `max` 做有界只读检索，模型与 effort 同时传递；Astra 保留正式判断，
+两轴均为只读，只交 findings/verdict；不编辑文件、不提交、不扩大权限。主 reviewer 可以直接按需
+委派 `gpt-5.6-luna` / `max` 做有界只读检索，模型与 effort 同时传递；主 reviewer 保留正式判断，
 不能把本轴整体转交 Luna。修复改变审查内容后，父会话更新证据快照并复核受影响轴/范围，
-原 verdict 不覆盖新改动。second opinion 不替代此正式 Review。
+原 verdict 不覆盖新改动。second opinion 不替代此正式 Review。implementation 与 whole-change
+使用不同 fixed point，前者验证单票交付，后者验证集成后的跨票行为，不能互相代替。
 
 **Standards sub-agent prompt** should include:
 

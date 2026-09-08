@@ -100,6 +100,14 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 ### 5. Aggregate
 
+中断、超时、失联或缺少最终 verdict 均为未完成。执行者不得以自评、测试通过或“已修复”
+替代独立复核；不得要求 reviewer 为赶进度直接通过。取消审查必须记录原因并恢复或重派，
+取消本身不免除审查义务。只有用户明确豁免可改变要求，保留用户原话、来源和范围，不写成 PASS。
+有 coordinator 时，由 coordinator 管理正式 reviewer 的启动、取消与恢复，实施 worker 只提交
+候选代码与修复说明。coordinator 从 reviewer 宿主任务直接读取最终结果，不采信实施者转述。
+每轴返回 reviewer/task ID、审查 base 与 head（WIP 则 snapshot）、最终 verdict、未解决 finding。
+修复后必须取得覆盖新版本的独立结论；中断的复核不能沿用修复前 verdict 放行。
+
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.

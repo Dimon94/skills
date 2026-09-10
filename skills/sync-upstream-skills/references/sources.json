@@ -114,6 +114,20 @@
           "treeSha256": "74584e9f983f8a4eec0beff5a93aad770e40a28e68ca478f853c9c15aa5ee2f6"
         }
       ]
+    },
+    {
+      "id": "humanlayer-skills",
+      "repository": "https://github.com/humanlayer/skills.git",
+      "ref": "main",
+      "commit": "3c2629142c5d437428269b1b722b08c0b87f574d",
+      "license": "MIT",
+      "skills": [
+        {
+          "name": "show-me",
+          "sourcePath": "plugins/show-me/skills/show-me",
+          "treeSha256": "d9228810a40818d08716b086dfe8f5c7412ca3b45728f6a2f3f0dde0a67deeae"
+        }
+      ]
     }
   ]
 }

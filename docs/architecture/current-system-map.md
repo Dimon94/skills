@@ -20,6 +20,7 @@ Status: current
 
 | Module | Owns | Does not own | Public interface | Depends on | Verification |
 | --- | --- | --- | --- | --- | --- |
+| skills/avoid-overengineering | 手动调用的最简实现约束与交付前消融实验 | 不拥有全仓审计或自动触发 | SKILL.md | 无 | pi Skill 加载校验 + 人工审查 |
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/git-commit | 本地提交边界与范围核验 | 不拥有合并、推送 | SKILL.md | git CLI | Skill 校验与人工审查 |
 | skills/git-rebase-main | 当前分支到本地 main 的 rebase 与快进 | 不拥有远程推送 | SKILL.md | git CLI；resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |

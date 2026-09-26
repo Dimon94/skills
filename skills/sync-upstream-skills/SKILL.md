@@ -39,5 +39,6 @@ node skills/sync-upstream-skills/scripts/sync-upstream-skills.js --update
 ## 边界
 
 - 独立单-Skill 项目使用上游 clone + symlink，不进入来源清单。
+- 改写自上游的自有 Skill 不进入来源清单；出处归 repo://skills/sync-upstream-skills/references/adapted-sources.md，人工对照。
 - 本 Skill 不修改 `~/.agents`、`~/.claude`，也不提交、推送或发布。
 - 对上游快照的长期本地改造必须转成本仓自有 Skill；快照目录不保留隐式 patch。

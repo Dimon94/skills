@@ -32,6 +32,7 @@ Status: current
 | skills/why | 代码与决策的动机溯源（本仓自有，改写自上游，出处同上） | 不拥有机制讲解 | SKILL.md + references/ | git CLI、gh CLI；环境可用的证据类 MCP | Skill 校验与人工审查 |
 | skills/create-verification-skill | 生成项目本地 verify skill 与 feature map（本仓自有，改写自上游，出处同上） | 不拥有生成物的运行节奏与产品修复 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
 | skills/maintain-verification-skill | 项目本地 verify skill 与 feature map 的漂移审计（本仓自有，改写自上游，出处同上） | 不拥有产品代码修复 | SKILL.md | 无 | Skill 校验与人工审查 |
+| skills/investigate | 只读调研的路由与收口：机制走 how、动机叠加 why、决策给推荐与 tradeoffs（本仓自有，改写自上游，出处同上） | 不拥有机制讲解、动机溯源或代码变更 | SKILL.md | how、why | Skill 校验与人工审查 |
 | skills/blast-radius | 改动影响面分析与安全事实的代码取证（本仓自有，改写自上游，出处同上） | 不拥有寻路决策与产品修复 | SKILL.md | how、why；wayfinder（影响面起雾时） | Skill 校验与人工审查 |
 | skills/sync-upstream-skills | 上游快照的来源、锁定状态、检查与显式更新；改写自有 Skill 的出处清单（adapted-sources.md） | 不拥有快照内 Review 规则、运行时链接或独立项目更新 | SKILL.md + scripts/sync-upstream-skills.js | git CLI、Node.js、references/sources.json | node:test + `--check` |
 | skills/postmortem | 可复用失败教训的判定与落账 | 不拥有工作流状态、远程交付 | SKILL.md + scripts/postmortem-contract.js | Node.js | 契约脚本经单元测试（test 目录当前未迁入，待补） |

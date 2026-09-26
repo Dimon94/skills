@@ -14,7 +14,7 @@
 | 小型需求 | `grill-with-docs` → `to-spec` → `to-tickets` → `delivery-pipeline` 接管 Spec |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
 | Bug | 独立 Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
-| 理解既有代码 | `how` 讲清机制；`why` 追溯设计背后的动机与约束 |
+| 理解既有代码 | `investigate` 做只读调研：机制问题路由到 `how`，动机问题叠加 `why`，方案决策给推荐与取舍表 |
 | 评估改动影响面 | `blast-radius` 跑真实代码证明改动在 diff 之外会不会炸；影响面起雾时转 `wayfinder` |
 | 项目缺少行为验证手段 | 每个项目跑一次 `create-verification-skill` 生成本地 `verify-<app>` skill；漂移后用 `maintain-verification-skill` 校正 |
 
@@ -43,7 +43,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | [Dimon94/skills](https://github.com/Dimon94/skills) | `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | Research、Grilling、架构分析、Wayfinder、Spec、Tickets、实现与 Review | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | 精选 `productionize-app-with-services` 上游快照的来源 | 由本仓安装脚本一并安装 |
-| [cursor/plugins](https://github.com/cursor/plugins) | `thermo-nuclear-code-quality-review` 快照及改写的 `how`、`why`、`blast-radius` 与 verification 一对的上游来源 | 由本仓安装脚本一并安装 |
+| [cursor/plugins](https://github.com/cursor/plugins) | `thermo-nuclear-code-quality-review` 快照及改写的 `how`、`why`、`blast-radius`、`investigate` 与 verification 一对的上游来源 | 由本仓安装脚本一并安装 |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | 精选 `show-me` 上游快照的来源 | 由本仓安装脚本一并安装 |
 | [Kappaemme-git/codex-complexity-optimizer](https://github.com/Kappaemme-git/codex-complexity-optimizer) | 独立的 `complexity-optimizer` Skill | 本仓安装脚本直接关联 |
 | [Dimon94/delivery-pipeline](https://github.com/Dimon94/delivery-pipeline) | 从 Map 或 Spec 接管自动调度、集成、测试与 Review | [Install](https://github.com/Dimon94/delivery-pipeline#install) |

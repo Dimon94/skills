@@ -5,7 +5,7 @@
       "id": "mattpocock-skills",
       "repository": "https://github.com/mattpocock/skills.git",
       "ref": "main",
-      "commit": "6654f6b60cd9d5be8b54c6fafe44346dabeb3b76",
+      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
       "license": "MIT",
       "skills": [
         {
@@ -19,7 +19,7 @@
       "id": "cursor-plugins",
       "repository": "https://github.com/cursor/plugins.git",
       "ref": "main",
-      "commit": "7314f723a487ec406b6369fe5865ba034cfed166",
+      "commit": "ecc249f1e306fc64ddf83c7bed16cacf7c2239db",
       "license": "MIT (cursor-team-kit)",
       "skills": [
         {
@@ -91,7 +91,7 @@
       "id": "supabase-agent-skills",
       "repository": "https://github.com/supabase/agent-skills.git",
       "ref": "main",
-      "commit": "8331f910845103c08d51f6ca1d86ebb7d1f745e3",
+      "commit": "551274ed2fe97c8fea1325f7ceb05803a542f8df",
       "license": "MIT",
       "skills": [
         {
@@ -105,7 +105,7 @@
       "id": "swyxio-skills",
       "repository": "https://github.com/swyxio/skills.git",
       "ref": "main",
-      "commit": "79df950293f8fa7821b327db22839026aa16f1cd",
+      "commit": "a7abae744cfb144f19e3c9804518eaf1c542ed0c",
       "license": "MIT",
       "skills": [
         {
@@ -119,13 +119,13 @@
       "id": "humanlayer-skills",
       "repository": "https://github.com/humanlayer/skills.git",
       "ref": "main",
-      "commit": "3c2629142c5d437428269b1b722b08c0b87f574d",
+      "commit": "ca7c8088db69e315a8b2deea43820270457f8f3c",
       "license": "MIT",
       "skills": [
         {
           "name": "show-me",
           "sourcePath": "plugins/show-me/skills/show-me",
-          "treeSha256": "d9228810a40818d08716b086dfe8f5c7412ca3b45728f6a2f3f0dde0a67deeae"
+          "treeSha256": "3b78f9dc6d8e2b23fb1c8e82c36608096f42b75f66c73cd54bd9cc610309cee7"
         }
       ]
     }

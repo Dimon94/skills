@@ -14,6 +14,9 @@
 | 小型需求 | `grill-with-docs` → `to-spec` → `to-tickets` → `delivery-pipeline` 接管 Spec |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
 | Bug | 独立 Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
+| 理解既有代码 | `how` 讲清机制；`why` 追溯设计背后的动机与约束 |
+| 评估改动影响面 | `blast-radius` 跑真实代码证明改动在 diff 之外会不会炸；影响面起雾时转 `wayfinder` |
+| 项目缺少行为验证手段 | 每个项目跑一次 `create-verification-skill` 生成本地 `verify-<app>` skill；漂移后用 `maintain-verification-skill` 校正 |
 
 前置澄清工具按问题选择，不是固定顺序，也不要求全部执行。重构和优化分析也是分流前置步骤，不是独立交付链。Push、PR 和远程合并始终需要单独授权。
 
@@ -40,6 +43,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | [Dimon94/skills](https://github.com/Dimon94/skills) | `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | Research、Grilling、架构分析、Wayfinder、Spec、Tickets、实现与 Review | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | 精选 `productionize-app-with-services` 上游快照的来源 | 由本仓安装脚本一并安装 |
+| [cursor/plugins](https://github.com/cursor/plugins) | `thermo-nuclear-code-quality-review` 快照及改写的 `how`、`why`、`blast-radius` 与 verification 一对的上游来源 | 由本仓安装脚本一并安装 |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | 精选 `show-me` 上游快照的来源 | 由本仓安装脚本一并安装 |
 | [Kappaemme-git/codex-complexity-optimizer](https://github.com/Kappaemme-git/codex-complexity-optimizer) | 独立的 `complexity-optimizer` Skill | 本仓安装脚本直接关联 |
 | [Dimon94/delivery-pipeline](https://github.com/Dimon94/delivery-pipeline) | 从 Map 或 Spec 接管自动调度、集成、测试与 Review | [Install](https://github.com/Dimon94/delivery-pipeline#install) |
@@ -59,5 +63,6 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 - `scripts/link-skills.sh`：链接 `skills/` 中的自有 Skill 与上游快照。
 - `scripts/install-development-workflow.sh`：安装完整开发链路 Skill Bundle。
 - `skills/sync-upstream-skills/references/sources.json`：上游快照的来源、路径、commit 与内容 hash。
+- `skills/sync-upstream-skills/references/adapted-sources.md`：改写自上游的自有 Skill 的出处与基于 commit。
 
 运行 `$sync-upstream-skills` 检查精选快照；明确要求更新后才写入。独立单-Skill 项目仍更新对应上游 clone，symlink 会立即读取新内容。

@@ -14,6 +14,9 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 | Small requirement | `grill-with-docs` → `to-spec` → `to-tickets` → hand the published Spec to `delivery-pipeline` |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
 | Bug | isolated Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
+| Understand existing code | `how` walks the mechanism; `why` traces the motivation and constraints behind the shape |
+| Assess a change's blast radius | `blast-radius` proves what a change breaks beyond the diff by running real code; foggy, wide impact goes to `wayfinder` |
+| No scripted way to prove a project works | Run `create-verification-skill` once per project to generate a local `verify-<app>` skill; `maintain-verification-skill` keeps its feature map honest |
 
 The pre-map tools are selected by the problem. They are not a fixed sequence and do not all have to run. Refactor and optimization analysis is also a pre-routing step, not an independent delivery path. Pushes, pull requests, and remote merges always require separate authority.
 
@@ -40,6 +43,7 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 | [Dimon94/skills](https://github.com/Dimon94/skills) | Local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, specs, tickets, implementation, and review | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | Upstream source for the curated `productionize-app-with-services` snapshot | Included by this repository's installer |
+| [cursor/plugins](https://github.com/cursor/plugins) | Upstream source for the `thermo-nuclear-code-quality-review` snapshot and the adapted `how`, `why`, `blast-radius`, and verification-skill pair | Included by this repository's installer |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | Upstream source for the curated `show-me` snapshot | Included by this repository's installer |
 | [Kappaemme-git/codex-complexity-optimizer](https://github.com/Kappaemme-git/codex-complexity-optimizer) | Standalone `complexity-optimizer` Skill | Linked directly by this repository's installer |
 | [Dimon94/delivery-pipeline](https://github.com/Dimon94/delivery-pipeline) | Automated dispatch, integration, testing, and review from a Map or Spec | [Install](https://github.com/Dimon94/delivery-pipeline#install) |
@@ -59,5 +63,6 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 - `scripts/link-skills.sh`: links repository-owned Skills and upstream snapshots from `skills/`.
 - `scripts/install-development-workflow.sh`: installs the complete development-workflow Skill Bundle.
 - `skills/sync-upstream-skills/references/sources.json`: source, path, commit, and content hash for every upstream snapshot.
+- `skills/sync-upstream-skills/references/adapted-sources.md`: upstream source and base commit for repo-owned Skills adapted from upstream.
 
 Run `$sync-upstream-skills` to check curated snapshots; it writes only after an explicit update request. Standalone single-Skill projects still update through their upstream clone, and symlinks consume the result immediately.

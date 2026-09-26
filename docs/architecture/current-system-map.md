@@ -28,7 +28,9 @@ Status: current
 | skills/gh-merge-pr | 单个 GitHub PR 的 current-head SubAgent Review、合并与落地读回 | 不拥有 Review 规则、产品修复、批量 PR、远程推送分支 | SKILL.md | gh CLI、git CLI；code-review（固定主审）；complexity-optimizer、thermo-nuclear-code-quality-review、better-interface、vercel-react-best-practices、supabase-postgres-best-practices（按证据专项）；resolving-merge-conflicts | Skill 校验与独立前向测试 |
 | skills/{resolving-merge-conflicts,thermo-nuclear-code-quality-review,better-*,vercel-react-best-practices,supabase-postgres-best-practices,productionize-app-with-services,show-me} | 提供来源清单锁定的第三方套件 Skill 上游快照 | 不拥有上游行为演进或隐式本地 patch | 各自 SKILL.md | 上游 Git 仓库；sync-upstream-skills | 来源 hash + Skill 校验 |
 | skills/code-review | Standards / Spec 双轴审查与 Codex 子审查模型策略（本仓自有） | 不拥有 Pipeline 证据 transport、实现或发布 | SKILL.md | caller 的固定证据与规范/spec | Skill 校验 + 独立双轴审查 |
-| skills/sync-upstream-skills | 上游快照的来源、锁定状态、检查与显式更新 | 不拥有快照内 Review 规则、运行时链接或独立项目更新 | SKILL.md + scripts/sync-upstream-skills.js | git CLI、Node.js、references/sources.json | node:test + `--check` |
+| skills/how | 代码机制讲解与子系统走读（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有动机溯源 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
+| skills/why | 代码与决策的动机溯源（本仓自有，改写自上游，出处同上） | 不拥有机制讲解 | SKILL.md + references/ | git CLI、gh CLI；环境可用的证据类 MCP | Skill 校验与人工审查 |
+| skills/sync-upstream-skills | 上游快照的来源、锁定状态、检查与显式更新；改写自有 Skill 的出处清单（adapted-sources.md） | 不拥有快照内 Review 规则、运行时链接或独立项目更新 | SKILL.md + scripts/sync-upstream-skills.js | git CLI、Node.js、references/sources.json | node:test + `--check` |
 | skills/postmortem | 可复用失败教训的判定与落账 | 不拥有工作流状态、远程交付 | SKILL.md + scripts/postmortem-contract.js | Node.js | 契约脚本经单元测试（test 目录当前未迁入，待补） |
 | scripts/link-skills.sh | 把 skills/ 链入 agent 目录并拒绝覆盖普通目录 | 不拥有 skill 内容 | CLI | bash | `bash -n` + 隔离 HOME 检查 |
 | scripts/install-development-workflow.sh | 链接本仓 Skill，并为独立第三方项目获取 clone 与建立链接依赖 | 不安装整套 Review Skill 套件、Agent CLI、Herdr 或 Second Opinion | CLI | bash、git、python3、独立第三方 Skill 仓库 | `bash -n` + 隔离 HOME 的 offline install/check |

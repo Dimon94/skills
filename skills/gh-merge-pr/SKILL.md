@@ -47,6 +47,10 @@ Standards 来源必须覆盖仓库的 Coding 与 Architecture 规则。Spec 缺�
 | `better-interface` | 用户明确要求完整界面 Review；其内部领域编排仍由该 Skill 拥有 |
 | `vercel-react-best-practices` | diff 改变 React/Next.js 渲染、数据获取或 bundle 行为 |
 | `supabase-postgres-best-practices` | diff 改变 Postgres/Supabase 查询、schema、RLS 或连接配置 |
+| `blast-radius` | diff 命中共享库/公开接口、DB schema、wire format、feature flag 或跨语言数据读者；用户明确要求爆炸半径分析；或主 Review 发现小 diff 外部影响不明 |
+
+只读约束指不修改产品文件；`blast-radius` 允许执行取证脚本与测试来证明安全事实，
+产出只能是报告与证据，不得 stage、commit 或改动产品代码。
 
 PR 若来自 `productionize-app-with-services`，把它的计划、Quality Bar、迁移审计和验证证据
 作为 Spec 输入；Review 阶段只消费这些证据。

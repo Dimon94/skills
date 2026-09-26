@@ -9,7 +9,10 @@ Investigate the motivation and intent behind code.
 
 Companion to the `how` skill. `how` answers what the code does and how it works. `why` answers what forces led to its shape.
 
-Spawn subagents in the current runtime's native way. Investigators should be fast; the synthesizer should be strong.
+Spawn subagents in the current runtime's native way. When the runtime accepts an explicit model per spawn, set it by role tier; a model the user explicitly chose always wins over this table. If the runtime cannot resolve a tier to a concrete model, leave model unset and continue — never block on it.
+
+- investigators: fast tier. The cheapest adequate general model in the current runtime.
+- synthesizer: strong tier. The strongest reasoning model available.
 
 ## Operating Posture
 

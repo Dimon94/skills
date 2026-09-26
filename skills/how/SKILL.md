@@ -7,7 +7,10 @@ description: "Use for \"how does X work\", code walkthroughs before changing som
 
 Explore the codebase to answer "how does X work?" questions. Produce architectural explanations at the level of a senior engineer onboarding onto a subsystem, enough to build a working mental model, not so much that it reads like annotated source code.
 
-Spawn subagents in the current runtime's native way. Explorers should be fast; the explainer/synthesizer should be strong.
+Spawn subagents in the current runtime's native way. When the runtime accepts an explicit model per spawn, set it by role tier; a model the user explicitly chose always wins over this table. If the runtime cannot resolve a tier to a concrete model, leave model unset and continue — never block on it.
+
+- explorers: fast tier. The cheapest adequate general model in the current runtime.
+- explainer / synthesizer: strong tier. The strongest reasoning model available.
 
 ## Step 1. Assess Complexity
 

@@ -24,7 +24,7 @@ Status: current
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/git-commit | 本地提交边界与范围核验 | 不拥有合并、推送 | SKILL.md | git CLI | Skill 校验与人工审查 |
 | skills/git-rebase-main | 当前分支到本地 main 的 rebase 与快进 | 不拥有远程推送 | SKILL.md | git CLI；resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |
-| skills/git-push-pr | 推送已验证分支并建/更新唯一 GitHub PR | 不拥有审批、合并、issue 关闭 | SKILL.md | git CLI、gh CLI；git-commit、git-rebase-main | 无独立测试，经人工审查 |
+| skills/git-push-pr | 推送已验证分支并建/更新唯一 GitHub PR | 不拥有 PR 正文模板、审批、合并、issue 关闭 | SKILL.md | git CLI、gh CLI；git-commit、git-rebase-main；mattpocock-skills:pr（正文模板，运行时入口：`~/.agents/skills/pr/SKILL.md`） | 无独立测试，经人工审查 |
 | skills/gh-merge-pr | 单个 GitHub PR 的 current-head SubAgent Review、合并与落地读回 | 不拥有 Review 规则、产品修复、批量 PR、远程推送分支 | SKILL.md | gh CLI、git CLI；code-review（固定主审）；complexity-optimizer、thermo-nuclear-code-quality-review、better-interface、vercel-react-best-practices、supabase-postgres-best-practices、blast-radius（按证据专项）；resolving-merge-conflicts | Skill 校验与独立前向测试 |
 | skills/{resolving-merge-conflicts,thermo-nuclear-code-quality-review,better-*,vercel-react-best-practices,supabase-postgres-best-practices,productionize-app-with-services,show-me} | 提供来源清单锁定的第三方套件 Skill 上游快照 | 不拥有上游行为演进或隐式本地 patch | 各自 SKILL.md | 上游 Git 仓库；sync-upstream-skills | 来源 hash + Skill 校验 |
 | skills/code-review | Standards / Spec 双轴审查与 Codex 子审查模型策略（本仓自有） | 不拥有 Pipeline 证据 transport、实现或发布 | SKILL.md | caller 的固定证据与规范/spec | Skill 校验 + 独立双轴审查 |

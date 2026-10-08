@@ -31,9 +31,9 @@ checks below read-only and report what would happen.
 
 1. `git push -u origin <branch>`. Non-fast-forward rejection → stop and
    report; never force-push without explicit rewrite authority.
-2. Create (`gh pr create`) or update (`gh pr edit`) the one PR. Body states
-   problem, change, verification; link issues with `Closes #n` only for
-   issues this PR directly resolves.
+2. 创建（`gh pr create`）或更新（`gh pr edit`）唯一 PR。起草或刷新正文前，
+   读取 `mattpocock-skills:pr`（运行时入口：`~/.agents/skills/pr/SKILL.md`），
+   按其模板写正文。`Closes #n` 仅关联本 PR 直接解决的 issue。
 3. Read back `gh pr view --json url,headRefOid,state` and confirm the PR head
    matches the local commit just pushed.
 

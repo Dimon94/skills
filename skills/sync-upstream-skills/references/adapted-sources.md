@@ -10,5 +10,8 @@
 | maintain-verification-skill | cursor/plugins | `pstack/skills/maintain-verification-skill` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-verification-skill/SKILL.md> |
 | blast-radius | cursor/plugins | `pstack/skills/blast-radius` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md> |
 | investigate | cursor/plugins | `pstack/skills/poteto-mode/playbooks/investigation.md` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/investigation.md> |
+| test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
+
+`test-review` 借鉴固定审查范围、Standards / Spec 独立分派与分轴报告的结构；测试审查内容由本仓维护，目标项目的测试规范在调用时读取。
 
 改写内容：how/why 仅把 Cursor 专属点位通用化（模型路由段、Task 子 agent 参数字段、`mcps/` 目录发现方式、cursor location 措辞），正文与 references 原文照抄。create-verification-skill 与 maintain-verification-skill 仅把生成/定位路径从 `.cursor/skills/` 改为 `.agents/skills/`（pi 原生发现项目级 `.agents/skills/`），其余原文照抄。blast-radius 把第 6 步的 `arena` 多模型并发改为建议用 `wayfinder` 画寻路图，并把收尾的 `unslop` 引用改为内联的去 AI 腔要求（本仓不引入该 skill），其余原文照抄。investigate 去掉 Cursor 专属点位（throughput checkpoint、unslop、architect、babysit），路由目标换成本仓已有的 how / why，其余语义照抄。

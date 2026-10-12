@@ -1,0 +1,4 @@
+interface:
+  display_name: "Epic Planner"
+  short_description: "通过远程调研、原型与拷问票持续寻路，对齐后形成可并发的多地图规划"
+  default_prompt: "使用 $epic-planner 启动或续接这个史诗的寻路索引，通过内部调研、外部研究、原型和拷问票解决关键问题，对齐后形成多地图 epic-plan；产物全部保存在远程 tracker。"

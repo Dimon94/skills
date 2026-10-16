@@ -26,11 +26,11 @@ function event(cwd, filePath, tool = "Write") {
   return { hook_event_name: "PreToolUse", tool_name: tool, cwd, tool_input: { file_path: filePath } };
 }
 
-function invoke(input, script = entry, env = {}) {
+function invoke(input, script = entry, env = {}, mode = "claude") {
   const environment = { ...process.env, TEST_DISCIPLINE_HOOK: "1", ...env };
   delete environment.FORCE_COLOR;
   delete environment.COLORTERM;
-  return spawnSync(process.execPath, [script, "claude"], {
+  return spawnSync(process.execPath, [script, mode], {
     input: typeof input === "string" ? input : JSON.stringify(input),
     encoding: "utf8",
     env: environment,
@@ -73,6 +73,48 @@ test("缝 1 #3：普通源码静默放行", (t) => {
 test("缝 1 #4：仓根上层 test 目录不触发提醒", (t) => {
   const repo = repository(t, "test/project");
   silent(invoke(event(repo, path.join(repo, "src/app.ts"), "Edit")));
+});
+
+test("缝 1 #5：Codex 多文件补丁只注入一份，完整列出命中文件", (t) => {
+  const repo = repository(t);
+  const command = [
+    "*** Begin Patch", "*** Update File: src/app.ts", "@@", "-old", "+new",
+    "*** Add File: tests/x_test.go", "+package tests",
+    "*** Update File: tests/unit case.test.js  ", "@@", "-old", "+new",
+    "*** Delete File: perf/old run.js", "*** End Patch",
+  ].join("\n");
+  const input = { hook_event_name: "PreToolUse", tool_name: "apply_patch", cwd: repo, tool_input: { command } };
+  const text = context(invoke(input, entry, {}, "codex"));
+  assert.equal(text.split("\n")[0], "[test-discipline] 命中测试文件：tests/x_test.go、tests/unit case.test.js、perf/old run.js");
+  assert.equal(text.split("[test-discipline]").length - 1, 1);
+  assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  silent(invoke({ ...input, tool_input: { command: "*** Update File: src/app.ts\n" } }, entry, {}, "codex"));
+});
+
+test("缝 1 #6：Codex Move to 命中，跨仓规范取首个命中文件的仓根", (t) => {
+  const cwd = repository(t, "test/project");
+  const first = repository(t, "first");
+  const second = repository(t, "second");
+  fs.writeFileSync(path.join(cwd, "TESTING.md"), "事件工作仓的规范\n");
+  fs.writeFileSync(path.join(first, "CONTRIBUTING.md"), "首个命中仓的规范\n");
+  fs.writeFileSync(path.join(second, "CODING_STANDARDS.md"), "后续仓的规范\n");
+  const command = [
+    "*** Begin Patch", "*** Update File: src/app.ts", "*** Move to: tests/b.spec.ts", "@@", "+test",
+    "*** Update File: tests/b.spec.ts", "*** End Patch",
+  ].join("\n");
+  const input = { hook_event_name: "PreToolUse", tool_name: "apply_patch", cwd, tool_input: { command } };
+  assert.equal(context(invoke(input, entry, {}, "codex")).split("\n")[0], "[test-discipline] 命中测试文件：tests/b.spec.ts");
+  const crossRepo = [
+    "*** Update File: src/app.ts",
+    `*** Add File: ${path.join(first, "tests/first case.js")}`,
+    `*** Delete File: ${path.join(second, "load/second.js")}`,
+  ].join("\r\n");
+  const text = context(invoke({ ...input, tool_input: { command: crossRepo } }, entry, {}, "codex"));
+  assert.ok(text.includes("项目测试规范（来源：常见落点）：\n- CONTRIBUTING.md\n"));
+  assert.ok(!text.includes("TESTING.md"));
+  assert.ok(!text.includes("CODING_STANDARDS.md"));
+  assert.ok(text.includes("tests/first case.js"));
+  assert.ok(text.includes("load/second.js"));
 });
 
 test("缝 1 #7：首条测试规范索引列出全部合法项，优先于常见落点", (t) => {
@@ -195,13 +237,16 @@ test("缝 1 #12：运行时原样读取写前自检小节，不注入相邻小�
 test("缝 1 #13：关闭开关不输出，连非法 JSON 也不解析", (t) => {
   silent(invoke(event(repository(t), "a.test.js"), entry, { TEST_DISCIPLINE_HOOK: "0" }));
   silent(invoke("not JSON", entry, { TEST_DISCIPLINE_HOOK: "0" }));
+  silent(invoke("not JSON", entry, { TEST_DISCIPLINE_HOOK: "0" }, "codex"));
 });
 
 test("缝 1 #14：非 JSON 有稳定错误，退出 1 而非 2", () => {
-  const result = invoke("not JSON");
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, "");
-  assert.equal(result.stderr, "test-discipline: stdin 不是合法 JSON\n");
+  for (const mode of ["claude", "codex"]) {
+    const result = invoke("not JSON", entry, {}, mode);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "test-discipline: stdin 不是合法 JSON\n");
+  }
 });
 
 test("缝 1 #15：SubagentStart 按会话 cwd 注入规范与自检，不依赖工具字段", (t) => {
@@ -212,16 +257,18 @@ test("缝 1 #15：SubagentStart 按会话 cwd 注入规范与自检，不依赖�
   fs.writeFileSync(path.join(repo, "rules.md"), "规范正文\n");
   fs.writeFileSync(path.join(cwd, "AGENTS.md"), "模块规则\n");
   const input = { hook_event_name: "SubagentStart", cwd };
-  let text = context(invoke(input), "SubagentStart");
-  assert.ok(text.startsWith("[test-discipline]\n项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：module/AGENTS.md\n"));
-  assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
-  assert.ok(text.includes("深层说明："));
-  assert.ok(!text.includes("命中测试文件"));
-  assert.ok(!text.includes("无项目测试规范"));
-  text = context(invoke({ ...input, cwd: sandbox(t) }), "SubagentStart");
-  assert.ok(text.startsWith("[test-discipline]\n无项目测试规范："));
-  assert.ok(!text.includes("命中测试文件"));
-  silent(invoke(input, entry, { TEST_DISCIPLINE_HOOK: "0" }));
+  for (const mode of ["claude", "codex"]) {
+    let text = context(invoke(input, entry, {}, mode), "SubagentStart");
+    assert.ok(text.startsWith("[test-discipline]\n项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：module/AGENTS.md\n"));
+    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+    assert.ok(text.includes("深层说明："));
+    assert.ok(!text.includes("命中测试文件"));
+    assert.ok(!text.includes("无项目测试规范"));
+    text = context(invoke({ ...input, cwd: sandbox(t) }, entry, {}, mode), "SubagentStart");
+    assert.ok(text.startsWith("[test-discipline]\n无项目测试规范："));
+    assert.ok(!text.includes("命中测试文件"));
+    silent(invoke(input, entry, { TEST_DISCIPLINE_HOOK: "0" }, mode));
+  }
 });
 
 test("第 2 节：所有命名类别与完整目录段命中，近似目录及大小写不误判", (t) => {
@@ -257,6 +304,8 @@ test("仓根定位支持 .git 文件、嵌套 cwd、路径规范化与无 git �
 test("第 10 节：缺字段或错误类型显式失败，不处理的工具与事件静默", (t) => {
   const valid = event(repository(t), "a.test.js");
   const inputs = [
+    [{ ...valid, tool_name: "apply_patch", tool_input: {} }, "PreToolUse 缺少 tool_input.command", "codex"],
+    [{ ...valid, tool_name: "apply_patch", tool_input: { command: 7 } }, "PreToolUse 缺少 tool_input.command", "codex"],
     [{ ...valid, tool_input: {} }, "PreToolUse 缺少 tool_input.file_path"],
     [{ ...valid, tool_input: { file_path: 7 } }, "PreToolUse 缺少 tool_input.file_path"],
     [{ ...valid, cwd: undefined }, "PreToolUse 缺少 cwd"],
@@ -266,14 +315,16 @@ test("第 10 节：缺字段或错误类型显式失败，不处理的工具与�
     [{ hook_event_name: "SubagentStart" }, "SubagentStart 缺少 cwd"],
     [{ hook_event_name: "SubagentStart", cwd: "relative" }, "SubagentStart cwd 必须是绝对路径"],
   ];
-  for (const [input, message] of inputs) {
-    const result = invoke(input);
+  for (const [input, message, mode = "claude"] of inputs) {
+    const result = invoke(input, entry, {}, mode);
     assert.equal(result.status, 1);
     assert.equal(result.stdout, "");
     assert.equal(result.stderr, `test-discipline: ${message}\n`);
   }
   silent(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash" }));
   silent(invoke({ hook_event_name: "SessionStart" }));
+  silent(invoke({ hook_event_name: "PreToolUse", tool_name: "shell" }, entry, {}, "codex"));
+  silent(invoke({ hook_event_name: "SessionStart" }, entry, {}, "codex"));
 });
 
 test("第 10 节：SKILL.md 缺失或没有写前自检小节时输出稳定错误", (t) => {

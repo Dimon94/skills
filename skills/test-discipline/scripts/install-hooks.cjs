@@ -8,8 +8,10 @@ const { isDeepStrictEqual } = require("node:util");
  * COORD: repo://skills/test-discipline/scripts/install-hooks.cjs
  * INPUT: 本地 JSON 配置与 Pi symlink；本 Skill 的真实 hooks 路径用于识别注册位置。
  * OUTPUT: 目标表内的 hook 注册、卸载与只读状态；不修改 hook 运行逻辑。
- * PARAM: 无参数安装；--check 只读；--uninstall 卸载，三者互斥。CLAUDE_SETTINGS 覆盖 ~/.claude/settings.json。
+ * PARAM: 无参数安装；--check 只读；--uninstall 卸载，三者互斥。
+ * PARAM: CLAUDE_SETTINGS 覆盖 ~/.claude/settings.json；CODEX_HOOKS 覆盖 ~/.codex/hooks.json。
  * PARAM: PI_EXTENSIONS_DIR 覆盖 ~/.pi/agent/extensions，目标名为 test-discipline.js。
+ * INVARIANT: 不读写 Codex config.toml 或信任记录；安装成功提示用户在 /hooks 信任。
  * INVARIANT: 按安装器命令中的绝对入口认领；他人配置保序；键序不影响检查；无变化不写。
  * CHAIN: 参数 -> 读取并校验全部目标 -> 清理本 Skill 条目与因此清空的组 -> 安装时追加 -> 变化前备份 -> 原子替换。
  * INVARIANT: Pi 安装拒绝覆盖非 symlink；检查缺失为 missing、指向当前扩展为 installed，其余为 drift。
@@ -21,19 +23,24 @@ const { isDeepStrictEqual } = require("node:util");
  */
 
 const hooksDirectory = fs.realpathSync(path.resolve(__dirname, "../hooks"));
-const command = `node '${path.join(hooksDirectory, "entry.cjs").replaceAll("'", "'\\''")}' claude`;
+const command = `node '${path.join(hooksDirectory, "entry.cjs").replaceAll("'", "'\\''")}'`;
 const targets = [{
-  name: "Claude",
+  name: "Claude", mode: "claude", matcher: "Edit|Write|MultiEdit",
   file: path.resolve(process.env.CLAUDE_SETTINGS || path.join(os.homedir(), ".claude/settings.json")),
-  groups: {
-    PreToolUse: [{ matcher: "Edit|Write|MultiEdit", hooks: [{ type: "command", command, timeout: 5 }] }],
-    SubagentStart: [{ hooks: [{ type: "command", command, timeout: 5 }] }],
-  },
 }, {
+  name: "Codex", mode: "codex", matcher: "apply_patch",
+  file: path.resolve(process.env.CODEX_HOOKS || path.join(os.homedir(), ".codex/hooks.json")),
+}].map(({ name, mode, matcher, file }) => {
+  const hook = { type: "command", command: `${command} ${mode}`, timeout: 5 };
+  return { name, file, groups: {
+    PreToolUse: [{ matcher, hooks: [hook] }],
+    SubagentStart: [{ hooks: [hook] }],
+  } };
+}).concat({
   name: "Pi",
   file: path.resolve(process.env.PI_EXTENSIONS_DIR || path.join(os.homedir(), ".pi/agent/extensions"), "test-discipline.js"),
   source: path.join(hooksDirectory, "pi.js"),
-}];
+});
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -193,6 +200,7 @@ function main() {
     process.stdout.write(`${target.name}: ${status}\n`);
     if (args[0] === "--check" && status !== "installed") process.exitCode = 1;
   }
+  if (args.length === 0) process.stdout.write("Codex：请在 /hooks 中信任 test-discipline 条目\n");
 }
 
 try {

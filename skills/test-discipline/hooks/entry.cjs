@@ -1,9 +1,11 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-/* L3-L6 -- Claude 事件边界
+/* L3-L6 -- Claude/Codex 事件边界
  * COORD: repo://skills/test-discipline/hooks/entry.cjs
- * IN: argv 为 claude，stdin 为 PreToolUse 或 SubagentStart JSON；仅转换协议。
+ * IN: argv 为 claude 或 codex，stdin 为 PreToolUse 或 SubagentStart JSON；仅转换协议。
+ * PARAM: claude 读取 tool_input.file_path；codex 仅处理 apply_patch 的 tool_input.command。
+ * OUT: 两端都只输出 hookSpecificOutput，不输出 systemMessage；SubagentStart 按 cwd 注入。
  * OUT: 命中时输出 additionalContext JSON；跳过时静默退出 0，错误写 stderr 并退出 1。
  * PARAM: TEST_DISCIPLINE_HOOK 来自环境，仅值 0 关闭；关闭优先于参数和 stdin 读取。
  * CHAIN: 开关 -> 参数 -> JSON -> 事件字段校验 -> 共享核心 -> JSON 输出。
@@ -18,25 +20,28 @@ function requiredString(value, field, hookEventName) {
   return value;
 }
 
-function claudeInput(event) {
+function hookInput(event, mode) {
   if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error("事件必须为 JSON 对象");
   if (typeof event.hook_event_name !== "string") throw new Error("事件缺少 hook_event_name");
   const hookEventName = event.hook_event_name;
   if (!["PreToolUse", "SubagentStart"].includes(hookEventName)) return null;
   if (hookEventName === "PreToolUse") {
     const tool = requiredString(event.tool_name, "tool_name", hookEventName);
-    if (!["Edit", "Write", "MultiEdit"].includes(tool)) return null;
+    const tools = mode === "claude" ? ["Edit", "Write", "MultiEdit"] : ["apply_patch"];
+    if (!tools.includes(tool)) return null;
   }
   const cwd = requiredString(event.cwd, "cwd", hookEventName);
   if (!path.isAbsolute(cwd)) throw new Error(`${hookEventName} cwd 必须是绝对路径`);
-  const filePath = hookEventName === "PreToolUse"
-    ? requiredString(event.tool_input?.file_path, "tool_input.file_path", hookEventName) : null;
-  return { cwd, filePath, hookEventName };
+  if (hookEventName === "SubagentStart") return { cwd, value: null, hookEventName };
+  const field = mode === "claude" ? "file_path" : "command";
+  const value = requiredString(event.tool_input?.[field], `tool_input.${field}`, hookEventName);
+  return { cwd, value, hookEventName };
 }
 
 function main() {
   if (process.env.TEST_DISCIPLINE_HOOK === "0") return;
-  if (process.argv.length !== 3 || process.argv[2] !== "claude") throw new Error("用法：entry.cjs claude");
+  const mode = process.argv[2];
+  if (process.argv.length !== 3 || !["claude", "codex"].includes(mode)) throw new Error("用法：entry.cjs claude|codex");
   const stdin = fs.readFileSync(0, "utf8");
   let event;
   try {
@@ -44,10 +49,11 @@ function main() {
   } catch (error) {
     throw new Error("stdin 不是合法 JSON", { cause: error });
   }
-  const input = claudeInput(event);
+  const input = hookInput(event, mode);
   if (!input) return;
-  const { buildContext } = require("./core.cjs");
-  const additionalContext = buildContext(input.cwd, input.filePath);
+  const { buildContext, buildPatchContext } = require("./core.cjs");
+  const build = mode === "codex" && input.hookEventName === "PreToolUse" ? buildPatchContext : buildContext;
+  const additionalContext = build(input.cwd, input.value);
   if (additionalContext === null) return;
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: input.hookEventName, additionalContext } }) + "\n");
 }

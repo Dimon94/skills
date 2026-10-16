@@ -36,6 +36,21 @@ description: 为项目建立或补齐测试规范，或用户主动要求写测�
 
 已知限制：PreToolUse 的附加上下文在本次工具返回后进入模型视野，提醒作用于后续编辑；证据见 repo://docs/research/test-discipline/claude.md「PreToolUse 的时序」。本机默认工具清单未暴露 MultiEdit，其他配置下是否存在为 Unknown。入口不处理 shell 写文件。
 
+## Codex 入口
+
+运行 `node <本 Skill 绝对路径>/hooks/entry.cjs codex`，从 stdin 接收事件 JSON：
+
+- `PreToolUse`：仅处理 `apply_patch`，读取 `cwd` 与 `tool_input.command` 补丁全文。逐行解析 `*** Add File: `、`*** Update File: `、`*** Delete File: `、`*** Move to: ` 后的路径，保留路径中的空格，去掉行尾空白。一份补丁只输出一份提醒，去重后列出全部命中文件；跨仓时以首个命中文件的仓根查找规范，命中路径相对该仓根展示。
+- `SubagentStart`：按 `cwd` 注入规范定位与写前自检，不输出“命中测试文件”行。
+
+两种事件都只输出 `hookSpecificOutput.hookEventName` 与 `additionalContext`，不输出 `systemMessage` 或权限决定。关闭开关与错误退出合同同 Claude 入口。
+
+适配依据同版本源码，未完成真实 Codex 验证：`additionalContext` 进入模型的时机为 Unknown；shell 调用补丁是否仍触发 `apply_patch` 为 Unknown。**推断**：hook 退出码 1 不直接阻断工具；错误在 exec/TUI 中如何显示仍为 Unknown。不能保证同一次编辑前模型已读到提醒。上述运行态由 [#107](https://github.com/Dimon94/skills/issues/107) 真机验收核实，证据归 repo://docs/research/test-discipline/codex.md。
+
+### Codex 信任面
+
+安装成功后，用户须在 `/hooks` 中信任 test-discipline 条目；安装器不修改 `config.toml` 或信任记录。**推断**：Codex 的信任哈希绑定 hook 定义，而不绑定脚本内容；定义不变时，修改本仓脚本可能无需重新信任。因此能修改本仓脚本的人可能获得 agent 进程中的代码执行能力。信任持久性与是否要求重新信任仍为 Unknown，由 #107 核实。更新 hook 时审查脚本内容，不能只检查已有信任状态；取舍与回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
+
 ## 项目测试规范定位
 
 hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行，按 `、` 分隔并逐项校验 `repo://` 路径。有合法项时只列合法项；失效项只列原值与首个原因，不作为规范路径。没有合法项才检查常见落点，两步皆空时提示“无项目测试规范”。校验与落点顺序归 repo://skills/test-discipline/hooks/core.cjs 的 `indexFailure`、`projectContext`。
@@ -76,8 +91,8 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 ## 成员与验证
 
-- `hooks/core.cjs`：拥有测试与压测文件判定、仓根定位、测试规范索引校验与回退、最近 AGENTS.md 查找、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
-- `hooks/entry.cjs`：拥有 Claude 事件校验、stdin/stdout 与失败映射。
+- `hooks/core.cjs`：拥有补丁路径解析、测试与压测文件判定、仓根定位、测试规范索引校验与回退、最近 AGENTS.md 查找、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
+- `hooks/entry.cjs`：拥有 Claude/Codex 事件校验、stdin/stdout 与失败映射。
 - `tests/hook.test.cjs`：穿过真实 CLI，使用临时 git 仓验证缝 1。运行 `node --test skills/test-discipline/tests/hook.test.cjs`。
 - `references/baseline-testing-standards.md`：基线测试规范通用正文；其余三个模板提供 TS/JS、Python、Go 语言节。建档时读取并填写，验证采用临时 git 仓手动演练：已有规范只补索引、无规范生成基线；演练不 stage、不 commit。
 - 深层原则归 repo://skills/test-review/references/test-heuristics.md；hook 按自身真实位置推导绝对路径，目标不存在时省略该行。
@@ -98,7 +113,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 ## 安装
 
-安装职责以本节为准：`scripts/install-hooks.cjs` 拥有目标表内的 hook 注册、状态检查与卸载；Claude 入口仍只读。先检查，获得用户对目标配置写入的明确授权后再安装或卸载：
+安装职责以本节为准：`scripts/install-hooks.cjs` 拥有目标表内的 hook 注册、状态检查与卸载；Claude/Codex 入口仍只读。先检查，获得用户对目标配置写入的明确授权后再安装或卸载：
 
 ```sh
 node skills/test-discipline/scripts/install-hooks.cjs --check
@@ -106,10 +121,10 @@ node skills/test-discipline/scripts/install-hooks.cjs
 node skills/test-discipline/scripts/install-hooks.cjs --uninstall
 ```
 
-目标表 `targets` 包含 Claude 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 配置路径，默认为 `~/.claude/settings.json`，注册包括 PreToolUse 与 SubagentStart。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。
+目标表 `targets` 包含 Claude、Codex 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 的 `~/.claude/settings.json`；`CODEX_HOOKS` 覆盖 Codex 的 `~/.codex/hooks.json`。Claude 与 Codex 都注册 PreToolUse 与 SubagentStart。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。Codex 安装成功后提示去 `/hooks` 信任，不写 `config.toml` 或信任记录。
 
 检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
 
 `--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。JSON 沿用条目识别、变化前备份和原子替换；Pi 只备份并删除解析后指向本仓当前扩展的 symlink，保留其他链接和非 symlink 目标。目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 
-安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS`、`PI_EXTENSIONS_DIR` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。
+安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS`、`CODEX_HOOKS`、`PI_EXTENSIONS_DIR` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。

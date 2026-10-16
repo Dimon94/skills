@@ -2,7 +2,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 /* L3-L6 -- 共享核心
- * IN: 已校验的绝对 cwd；filePath 为非空路径或 null（按 cwd 注入子 agent 上下文）。
+ * IN: 已校验的绝对 cwd；filePath 为非空路径、路径数组或 null（按 cwd 注入子 agent 上下文）。
+ * IN: buildPatchContext 接收已校验的补丁全文；四种路径前缀保留空格、去掉行尾空白。
+ * OUT: 多文件只组装一次，去重后列全命中项；规范与最近 AGENTS.md 取首个命中文件的仓。
  * OUT: 命中或子 agent 启动时返回文本，普通文件返回 null；只读本地文件，无状态。
  * CHAIN: .git 仓根（无则 cwd）-> 根 AGENTS.md 首条索引 -> 无合法项时常见落点。
  * INVARIANT: 索引在此校验一次，拒绝绝对路径及词法或 symlink 越界；失效项只进诊断。
@@ -111,20 +113,34 @@ function projectContext(root, directory) {
   return location + nearestAgents(root, directory) + invalid.join("") + missing;
 }
 
-function buildContext(cwd, filePath = null) {
-  const absolute = filePath === null ? cwd : path.resolve(cwd, filePath);
-  const directory = filePath === null ? cwd : path.dirname(absolute);
+function testFileLocation(cwd, absolute) {
+  const directory = path.dirname(absolute);
   const root = repositoryRoot(directory, cwd);
   const relative = path.relative(root, absolute).split(path.sep).join("/");
-  if (!isWithin(root, absolute)) return null;
-  if (filePath !== null && !isTestFile(relative)) return null;
+  return isWithin(root, absolute) && isTestFile(relative) ? { absolute, root, directory } : null;
+}
 
+function buildContext(cwd, filePath = null) {
+  const paths = filePath === null ? [] : Array.isArray(filePath) ? filePath : [filePath];
+  const absolutePaths = [...new Set(paths.map((file) => path.resolve(cwd, file)))];
+  const matches = absolutePaths.map((file) => testFileLocation(cwd, file)).filter(Boolean);
+  if (filePath !== null && matches.length === 0) return null;
+  const { root, directory } = matches[0] || { root: repositoryRoot(cwd, cwd), directory: cwd };
+  const filenames = matches.map(({ absolute }) => path.relative(root, absolute).split(path.sep).join("/"));
   const skillDirectory = path.dirname(path.dirname(fs.realpathSync(__filename)));
   const body = readChecklist(skillDirectory);
   const explanation = path.resolve(skillDirectory, "../test-review/references/test-heuristics.md");
-  const heading = filePath === null ? "[test-discipline]\n" : `[test-discipline] 命中测试文件：${relative}\n`;
+  const heading = filePath === null ? "[test-discipline]\n" : `[test-discipline] 命中测试文件：${filenames.join("、")}\n`;
   const text = heading + projectContext(root, directory) + body;
   return fs.existsSync(explanation) ? `${text}\n深层说明：${explanation}` : text;
 }
 
-module.exports = { buildContext };
+function buildPatchContext(cwd, patch) {
+  const paths = patch.split(/\r?\n/).flatMap((line) => {
+    const match = line.match(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$/);
+    return match?.[1].trim() ? [match[1]] : [];
+  });
+  return buildContext(cwd, paths);
+}
+
+module.exports = { buildContext, buildPatchContext };

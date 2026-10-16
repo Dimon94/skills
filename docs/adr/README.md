@@ -4,6 +4,12 @@
 
 普通实现选择由代码、测试和最近的 AGENTS.md 说明。不要为局部变量、普通 helper 或格式调整创建 ADR。
 
+## 索引
+
+- [精选上游 Skill 快照](0001-curated-upstream-skill-snapshots.md)
+- [code-review 转为本仓自有 Skill](0002-owned-code-review.md)
+- [Skill 自带多端 agent hook](0003-skill-owned-agent-hooks.md)
+
 ## 命名
 
 使用四位编号和短标题：

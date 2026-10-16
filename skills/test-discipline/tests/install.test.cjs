@@ -114,6 +114,39 @@ test("缝 3 #4：旧仓路径报告 drift，重装修复且保留混合组内他
   assert.equal(repaired.stdout.trim(), "Claude: installed");
 });
 
+test("缝 3 #5：卸载只移除本 Skill 条目与因此清空的组，备份后可重复执行", (t) => {
+  const box = sandbox(t);
+  const foreign = { type: "command", command: "echo keep" };
+  const owned = { type: "command", command: `node '${path.join(skill, "hooks/entry.cjs")}' claude`, timeout: 5 };
+  const stale = { ...owned, command: "node '/old/skills/test-discipline/hooks/entry.cjs' claude" };
+  const empty = { matcher: "Read", hooks: [] };
+  const config = { theme: "dark", hooks: {
+    PreToolUse: [empty, { matcher: "Write", timeout: 9, hooks: [owned, foreign] }, { matcher: "Edit", hooks: [stale] }],
+    SubagentStart: [{ hooks: [owned] }],
+    PostToolUse: [{ hooks: [foreign] }],
+  } };
+  const original = JSON.stringify(config, null, 4) + "\n";
+  fs.writeFileSync(box.settings, original);
+  const result = invoke(box, ["--uninstall"]);
+  success(result);
+  assert.equal(result.stdout.trim(), "Claude: uninstalled");
+  assert.deepEqual(JSON.parse(fs.readFileSync(box.settings, "utf8")), { theme: "dark", hooks: {
+    PreToolUse: [empty, { matcher: "Write", timeout: 9, hooks: [foreign] }],
+    SubagentStart: [],
+    PostToolUse: [{ hooks: [foreign] }],
+  } });
+  const backups = fs.readdirSync(path.dirname(box.settings)).filter((name) => name.includes(".bak-"));
+  assert.equal(backups.length, 1);
+  assert.equal(fs.readFileSync(path.join(path.dirname(box.settings), backups[0]), "utf8"), original);
+  const before = snapshot(box);
+  success(invoke(box, ["--uninstall"]));
+  assert.deepEqual(snapshot(box), before);
+  const check = invoke(box, ["--check"]);
+  assert.equal(check.status, 1, check.stderr);
+  assert.equal(check.stdout.trim(), "Claude: missing");
+  assert.equal(fs.existsSync(path.join(box.home, ".claude")), false);
+});
+
 test("配置事件与 hook 字段的键顺序不影响 installed 判定", (t) => {
   const box = sandbox(t);
   fs.writeFileSync(box.settings, JSON.stringify({ hooks: { SubagentStart: [], PreToolUse: [] } }));
@@ -149,13 +182,13 @@ test("目录片段相同的他人相对命令不被认领或移除", (t) => {
   success(invoke(box, ["--check"]));
 });
 
-test("缝 3 #6：非法 JSON 安装与检查退出 1，不写文件或备份", (t) => {
+test("缝 3 #6：非法 JSON 安装、检查与卸载退出 1，不写文件或备份", (t) => {
   const box = sandbox(t);
   const invalid = ['{"hooks": broken', 'null', '[]', '{"hooks":[]}', '{"hooks":{"PreToolUse":[{}]}}'];
   for (const content of invalid) {
     fs.writeFileSync(box.settings, content);
     const before = snapshot(box);
-    for (const args of [[], ["--check"]]) {
+    for (const args of [[], ["--check"], ["--uninstall"]]) {
       const result = invoke(box, args);
       assert.equal(result.status, 1);
       assert.equal(result.stdout, "");

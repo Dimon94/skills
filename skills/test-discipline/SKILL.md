@@ -98,15 +98,18 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 ## 安装
 
-安装职责以本节为准：`scripts/install-hooks.cjs` 拥有 Claude hook 注册与状态检查；Claude 入口仍只读。先检查，获得用户对目标配置写入的明确授权后再安装：
+安装职责以本节为准：`scripts/install-hooks.cjs` 拥有目标表内的 hook 注册、状态检查与卸载；Claude 入口仍只读。先检查，获得用户对目标配置写入的明确授权后再安装或卸载：
 
 ```sh
 node skills/test-discipline/scripts/install-hooks.cjs --check
 node skills/test-discipline/scripts/install-hooks.cjs
+node skills/test-discipline/scripts/install-hooks.cjs --uninstall
 ```
 
 目标表 `targets` 只含 Claude。`CLAUDE_SETTINGS` 可覆盖目标路径；默认路径为 `~/.claude/settings.json`。注册包括 PreToolUse 与 SubagentStart；事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。SubagentStart 的提醒依赖 Claude 入口支持该事件。
 
 检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
+
+`--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。沿用条目识别、变化前备份和原子替换；目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 
 安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。

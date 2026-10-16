@@ -7,10 +7,11 @@ const { isDeepStrictEqual } = require("node:util");
 /* L3-L6 -- 安装边界
  * COORD: repo://skills/test-discipline/scripts/install-hooks.cjs
  * INPUT: 本地 JSON 配置；本 Skill 的真实 hooks 路径用于识别注册位置。
- * OUTPUT: 目标表内的 Claude 注册与只读状态；不修改 hook 运行逻辑。
- * PARAM: 无参数安装；--check 只读。CLAUDE_SETTINGS 覆盖 ~/.claude/settings.json。
+ * OUTPUT: 目标表内的 hook 注册、卸载与只读状态；不修改 hook 运行逻辑。
+ * PARAM: 无参数安装；--check 只读；--uninstall 卸载，三者互斥。CLAUDE_SETTINGS 覆盖 ~/.claude/settings.json。
  * INVARIANT: 按安装器命令中的绝对入口认领；他人配置保序；键序不影响检查；无变化不写。
- * CHAIN: 参数 -> 读取并校验全部目标 -> 计算 -> 原配置备份 -> 同目录临时写入 -> rename。
+ * CHAIN: 参数 -> 读取并校验全部目标 -> 清理本 Skill 条目与因此清空的组 -> 安装时追加 -> 变化前备份 -> 原子替换。
+ * OUT: 卸载不创建缺失配置；重复卸载无写入；保留原有空组、事件与其他配置。
  * FAIL: 输入或写入失败退出 1；修正报错路径的配置或权限后重试。
  * TEST: repo://skills/test-discipline/tests/install.test.cjs
  * PROTOCOL: 公开参数变更同步 repo://skills/test-discipline/SKILL.md「安装」。
@@ -84,7 +85,8 @@ function checkTarget(target) {
   return isDeepStrictEqual(actual, expected) ? "installed" : "drift";
 }
 
-function installConfig(target) {
+function updateConfig(target, uninstall) {
+  if (uninstall && target.config.hooks === undefined) return target.config;
   const hooks = { ...target.config.hooks };
   for (const [event, groups] of Object.entries(hooks)) {
     hooks[event] = groups.flatMap((group) => {
@@ -93,8 +95,10 @@ function installConfig(target) {
       return remaining.length ? [{ ...group, hooks: remaining }] : [];
     });
   }
-  for (const [event, groups] of Object.entries(target.groups)) {
-    hooks[event] = [...(hooks[event] || []), ...groups];
+  if (!uninstall) {
+    for (const [event, groups] of Object.entries(target.groups)) {
+      hooks[event] = [...(hooks[event] || []), ...groups];
+    }
   }
   return { ...target.config, hooks };
 }
@@ -130,15 +134,16 @@ function writeTarget(target, config) {
 
 function main() {
   const args = process.argv.slice(2);
-  if (args.length > 1 || (args.length === 1 && args[0] !== "--check")) {
-    throw new Error("用法：node install-hooks.cjs [--check]；移除其他参数后重试");
+  if (args.length > 1 || (args.length === 1 && !["--check", "--uninstall"].includes(args[0]))) {
+    throw new Error("用法：node install-hooks.cjs [--check|--uninstall]；移除其他参数后重试");
   }
+  const uninstall = args[0] === "--uninstall";
   const loaded = targets.map(readTarget);
   for (const target of loaded) {
-    if (args[0] !== "--check") writeTarget(target, installConfig(target));
-    const status = args[0] === "--check" ? checkTarget(target) : "installed";
+    if (args[0] !== "--check") writeTarget(target, updateConfig(target, uninstall));
+    const status = args[0] === "--check" ? checkTarget(target) : uninstall ? "uninstalled" : "installed";
     process.stdout.write(`${target.name}: ${status}\n`);
-    if (status !== "installed") process.exitCode = 1;
+    if (args[0] === "--check" && status !== "installed") process.exitCode = 1;
   }
 }
 

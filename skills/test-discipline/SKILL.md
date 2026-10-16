@@ -50,3 +50,15 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 - 深层原则归 repo://skills/test-review/references/test-heuristics.md；hook 按自身真实位置推导绝对路径，目标不存在时省略该行。
 
 本 Skill 不拥有项目阶段、规范建档、用户全局配置或 hook 安装。调用方自行注册入口；本入口不写任何配置。
+
+## Pi 入口
+
+用 `pi -e <本 Skill 绝对路径>/hooks/pi.js` 加载 ESM 扩展。扩展通过真实文件路径创建 `createRequire`，复用 `hooks/core.cjs`；模块解析证据见 repo://docs/research/test-discipline/pi.md「模块解析」。
+
+只处理主会话成功的 `edit`、`write` 工具结果。命中测试或压测文件时，在原 `content` 后追加写前自检与规范定位；带 `structuredContent` 时原样回传。普通源码、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
+
+`TEST_DISCIPLINE_HOOK=0` 在扩展加载时关闭提醒；运行中修改开关需重新加载扩展。处理异常时只发以 `test-discipline:` 开头的 error 级通知，不改工具结果；按通知修正事件路径或恢复「写前自检」小节后重试。
+
+已知缺口：Pi 子 agent 与嵌套工具调用不覆盖，包括 codemode 内部的 edit/write。提醒在编辑成功后进入模型视野，作用于后续编辑；不处理 shell 写文件。
+
+验证：`tests/pi.test.cjs` 穿过扩展注册的 `tool_result` 入口，使用临时仓与隔离进程验证缝 2。运行 `node --test skills/test-discipline/tests/pi.test.cjs`。本入口不负责安装或写入用户全局配置。

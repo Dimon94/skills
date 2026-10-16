@@ -10,10 +10,14 @@
 | maintain-verification-skill | cursor/plugins | `pstack/skills/maintain-verification-skill` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-verification-skill/SKILL.md> |
 | blast-radius | cursor/plugins | `pstack/skills/blast-radius` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md> |
 | investigate | cursor/plugins | `pstack/skills/poteto-mode/playbooks/investigation.md` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/investigation.md> |
+| no-comments | cursor/plugins | `pstack/skills/no-comments`、`pstack/agents/comment-sicko.md` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/no-comments/SKILL.md> |
+| in-your-own-words | cursor/plugins | `pstack/skills/in-your-own-words` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/in-your-own-words/SKILL.md> |
 | test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
 | epic-planner | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
 
 `test-review` 借鉴固定审查范围、Standards / Spec 独立分派与分轴报告的结构；测试审查内容由本仓维护，目标项目的测试规范在调用时读取。
+
+`no-comments` 保留注释清理、必要例外、独立审查与根因修复流程；将 Comment Sicko 规则收进 Skill 的只读 reference，用宿主子 agent 替代 Cursor Task 类型。移除 poteto-mode、architect 与 principle Skill 的安装依赖，结构推演留在入口；how/why 复用现有 Skill。疑义项按 Unknown 保留，正确性抑制先修根因再删除，有效约束待编码时保留。`in-your-own-words` 保留只复述目标与问题的职责。两者使用中文，保留上游的 `disable-model-invocation: true`；Codex 显式调用策略归各自 `agents/openai.yaml`。均由本仓维护，不进入快照锁定清单。
 
 `epic-planner` 借鉴目标负责制、深模块词汇、Wayfinder 的建索引/解票/frontier/迷雾循环与 context pointer 写法，并参考同 commit 的 `skills/engineering/to-spec`、`skills/engineering/to-tickets` 的远程 Issue 发布设计；在史诗层加入 investigate 内部调研，按票路由 research、prototype、grill-with-docs，远程保存结论后才收敛多地图计划。本仓拥有该寻路合同与跨地图集成规划，外部运行时依赖由调用环境提供，不复制上游 Skill。
 

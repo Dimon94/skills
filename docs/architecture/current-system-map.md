@@ -31,6 +31,8 @@ Status: current
 | skills/code-review | Standards / Spec 双轴审查与 Codex 子审查模型策略（本仓自有） | 不拥有 Pipeline 证据 transport、实现或发布 | SKILL.md | caller 的固定证据与规范/spec | Skill 校验 + 独立双轴审查 |
 | skills/test-review | 按目标项目测试规范审查测试正确性、必要性与覆盖证据；Standards / Spec 两轴独立 | 不拥有测试清理、规范修订、全仓审计或合并 | SKILL.md | caller 的固定证据、项目测试规范与 spec；宿主子 agent（可用时） | Skill 校验 + 隔离案例双轴前向测试 |
 | skills/how | 代码机制讲解与子系统走读（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有动机溯源 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
+| skills/no-comments | 显式调用的注释清理、必要例外与范围内根因修复（本仓自有，改写自 pstack，出处同上） | 不拥有范围外重构、提交或发布 | SKILL.md + references/comment-sicko.md + agents/openai.yaml | how、why；宿主子 agent（可用时） | Skill 校验 + 隔离案例前向验证 |
+| skills/in-your-own-words | 显式调用时复述用户目标与问题（本仓自有，改写自 pstack，出处同上） | 不拥有实现或文件修改 | SKILL.md + agents/openai.yaml | 无 | Skill 校验 + 隔离案例前向验证 |
 | skills/why | 代码与决策的动机溯源（本仓自有，改写自上游，出处同上） | 不拥有机制讲解 | SKILL.md + references/ | git CLI、gh CLI；环境可用的证据类 MCP | Skill 校验与人工审查 |
 | skills/create-verification-skill | 生成项目本地 verify skill 与 feature map（本仓自有，改写自上游，出处同上） | 不拥有生成物的运行节奏与产品修复 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
 | skills/maintain-verification-skill | 项目本地 verify skill 与 feature map 的漂移审计（本仓自有，改写自上游，出处同上） | 不拥有产品代码修复 | SKILL.md | 无 | Skill 校验与人工审查 |

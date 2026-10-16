@@ -1,9 +1,9 @@
 # Issue tracker
 
-本仓的 issue 和 PRD 归 GitHub，项目坐标 `Dimon94/dverity`：
+本仓的 issue 和 PRD 归 GitHub，项目坐标 `Dimon94/skills`：
 
 ```text
-https://github.com/Dimon94/dverity
+https://github.com/Dimon94/skills
 ```
 
 ## 约定

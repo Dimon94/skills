@@ -40,6 +40,8 @@ BDD 澄清业务行为；TDD 是开发反馈过程；单元、集成与 E2E 描�
 | `jest.fn`、`vi.fn`、`mockResolvedValue`、`toHaveBeenCalled` | 是否替换被测 owner 后再断言假结果？是否验证内部协作细节却遗漏真实输出？ | 真实 owner 对外部 seam 的金额、收件人、次数、顺序或失败路由；说明未覆盖的服务边界。 |
 | `expect(true)`、`assert True`、`toBeTruthy`、`toBeDefined`、`not.toThrow`、`status(200)` | 断言是否无条件成立、只验非空/无异常，或声称超出实际证明范围？ | 已确认的存在性、错误/HTTP 合同、明确限定范围的冒烟测试。 |
 | expected 与 actual 共用被测函数、自动更新 baseline | 两边是否复用同一个错误算法？预期是否来自未经复核的当前实现？ | 独立样例/标准向量、经审核基线；property/metamorphic 检查要有需求支持的不变量，并能拒绝一个具体错误实现。 |
+| `waitFor`、`dynamic import`、`collect`、`void onPress` | 局部超时是否混入真实模块冷加载？按钮返回值能否代表整条操作完成？失败后的清理会不会撤销仍在使用的替身？ | 分开模块准备与行为等待；保留真实 owner、业务状态和副作用断言，用受控探针区分超时原因，不靠加大预算结案。 |
+| `UNREGISTERED`、`registry`、`owner`、`check:` | 门禁读到需求规定的 owner 吗？合法输入能通过吗？静态解析会丢失校验字段吗？另一 owner 的登记会不会意外放行？ | 对实际扫描与登记范围运行最小正反例；保留治理字段，无法解析时明确失败；错误文案不能代替根因，修接线前不复制同义规则或扩大公共登记。 |
 | `skip`、`retry`、`allow_failure`、`catch`、`sleep`、未 await | 关键断言是否未执行，异常是否被吞掉，失败是否未传到 runner/CI？重试是否掩盖真实错误？ | 明确排除的范围、有界等待或外部协调，保留最终失败与缺口证据；按项目规范判断。 |
 
 ## 消融测试：证明独有保护

@@ -82,7 +82,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 - `references/baseline-testing-standards.md`：基线测试规范通用正文；其余三个模板提供 TS/JS、Python、Go 语言节。建档时读取并填写，验证采用临时 git 仓手动演练：已有规范只补索引、无规范生成基线；演练不 stage、不 commit。
 - 深层原则归 repo://skills/test-review/references/test-heuristics.md；hook 按自身真实位置推导绝对路径，目标不存在时省略该行。
 
-本 Skill 拥有建档流程与模板，不拥有项目阶段或生成后项目规范的后续维护，也不拥有用户全局配置或 hook 安装。调用方自行注册入口；本入口不写任何配置。
+本 Skill 拥有建档流程与模板，以及 `scripts/install-hooks.cjs` 的 hook 注册与检查；不拥有项目阶段、生成后项目规范的后续维护或用户全局配置的其余内容。各 hook 入口只读，不写任何配置。
 
 ## Pi 入口
 
@@ -95,3 +95,18 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 已知缺口：Pi 子 agent 与嵌套工具调用不覆盖，包括 codemode 内部的 edit/write。提醒在编辑成功后进入模型视野，作用于后续编辑；不处理 shell 写文件。
 
 验证：`tests/pi.test.cjs` 穿过扩展注册的 `tool_result` 入口，使用临时仓与隔离进程验证缝 2。运行 `node --test skills/test-discipline/tests/pi.test.cjs`。本入口不负责安装或写入用户全局配置。
+
+## 安装
+
+安装职责以本节为准：`scripts/install-hooks.cjs` 拥有 Claude hook 注册与状态检查；Claude 入口仍只读。先检查，获得用户对目标配置写入的明确授权后再安装：
+
+```sh
+node skills/test-discipline/scripts/install-hooks.cjs --check
+node skills/test-discipline/scripts/install-hooks.cjs
+```
+
+目标表 `targets` 只含 Claude。`CLAUDE_SETTINGS` 可覆盖目标路径；默认路径为 `~/.claude/settings.json`。注册包括 PreToolUse 与 SubagentStart；事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。SubagentStart 的提醒依赖 Claude 入口支持该事件。
+
+检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
+
+安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。

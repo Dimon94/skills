@@ -59,7 +59,7 @@ test("缝 3 #1：安装保留他人条目、字段与顺序，先备份原配置
   assert.deepEqual(installed.hooks.PreToolUse[0], foreign);
   const command = `node '${path.join(skill, "hooks/entry.cjs")}' claude`;
   const hook = { type: "command", command, timeout: 5 };
-  assert.deepEqual(installed.hooks.PreToolUse[1], { matcher: "Edit|Write|MultiEdit", hooks: [hook] });
+  assert.deepEqual(installed.hooks.PreToolUse[1], { matcher: "Edit|Write|MultiEdit|Bash", hooks: [hook] });
   assert.deepEqual(installed.hooks.SubagentStart, [{ hooks: [hook] }]);
   const backups = fs.readdirSync(path.dirname(box.settings)).filter((name) => name.startsWith("settings.json.test-discipline.bak-"));
   assert.equal(backups.length, 1);
@@ -125,6 +125,24 @@ test("缝 3 #4：旧仓路径报告 drift，重装修复且保留混合组内他
   const repaired = invoke(box, ["--check"]);
   success(repaired);
   assert.equal(repaired.stdout.trim(), "Claude: installed\nCodex: installed\nPi: installed");
+});
+
+test("缝 3 Bash：旧 Claude matcher 报 drift，重装修复且不改变 Codex 与 Pi", (t) => {
+  const box = sandbox(t);
+  success(invoke(box));
+  const config = JSON.parse(fs.readFileSync(box.settings, "utf8"));
+  config.hooks.PreToolUse[0].matcher = "Edit|Write|MultiEdit";
+  fs.writeFileSync(box.settings, JSON.stringify(config));
+  const before = snapshot(box);
+  const check = invoke(box, ["--check"]);
+  assert.equal(check.status, 1, check.stderr);
+  assert.equal(check.stderr, "");
+  assert.equal(check.stdout.trim(), "Claude: drift\nCodex: installed\nPi: installed");
+  assert.deepEqual(snapshot(box), before);
+  success(invoke(box));
+  success(invoke(box, ["--check"]));
+  const unaffected = (rows) => rows.filter(([file]) => file === box.codex || file === box.link);
+  assert.deepEqual(unaffected(snapshot(box)), unaffected(before));
 });
 
 test("缝 3 #5：卸载只移除本 Skill 条目与因此清空的组，备份后可重复执行", (t) => {

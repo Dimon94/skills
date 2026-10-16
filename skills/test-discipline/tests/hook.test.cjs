@@ -117,6 +117,128 @@ test("缝 1 #6：Codex Move to 命中，跨仓规范取首个命中文件的仓�
   assert.ok(text.includes("load/second.js"));
 });
 
+test("缝 1 Bash：字面量写入目标复用写前自检，读取与执行测试不注入", async (t) => {
+  const cwd = repository(t);
+  const input = (command) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } });
+  const writes = [
+    ["cat > x_test.go <<'EOF'\npackage main\nEOF", "x_test.go"],
+    ["cat >> 'tests/unit case.ts' <<'EOF'\nmore\nEOF", "tests/unit case.ts"],
+    ["sed -i '' 's/old/new/' x_test.go", "x_test.go"],
+    ["sed -i '' -e's/old/new/' x_test.go", "x_test.go"],
+    ["sed -i '' -fscript.sed x_test.go", "x_test.go"],
+    ["perl -i -pe's/old/new/' x_test.go", "x_test.go"],
+    ["cp a tests/x.test.tsx", "tests/x.test.tsx"],
+    ["cp source \\\n  x.test.ts", "x.test.ts"],
+    ["cp source x.te\\\nst.ts", "x.test.ts"],
+    ['cat > "tests/[slug].test.ts"', "tests/[slug].test.ts"],
+    ["cp source 'tests/[slug].test.ts'", "tests/[slug].test.ts"],
+    ["python3 -c \"Path('tests/[slug].test.ts').write_text('')\"", "tests/[slug].test.ts"],
+    ["node -e \"fs.writeFileSync('tests/[slug].test.ts', '')\"", "tests/[slug].test.ts"],
+    ["tools.write({path: 'tests/[slug].test.ts', content: ''})", "tests/[slug].test.ts"],
+    ["python3 -c \"Path('x.test.ts').write_text('test')\"", "x.test.ts"],
+    ["tee -a x.spec.ts", "x.spec.ts"],
+    ["sed -i.bak -e 's/old/new/' x_test.py", "x_test.py"],
+    ["perl -i -pe 's/old/new/' x_test.go", "x_test.go"],
+    ["mv source 'tests/unit case.ts'", "tests/unit case.ts"],
+    ["git mv source x.test.ts", "x.test.ts"],
+    ["rm -f x.test.ts", "x.test.ts"],
+    ["git rm -- x.test.ts", "x.test.ts"],
+    ["python3 <<'PY'\nPath('x.test.ts').write_bytes(b'')\nPY", "x.test.ts"],
+    ["python3 -c \"open('x.test.ts', 'w').write('test')\"", "x.test.ts"],
+    ["python3 -c \"open('x.test.ts', 'a').write('test')\"", "x.test.ts"],
+    ["node -e \"fs.writeFileSync('x.test.ts', '')\"", "x.test.ts"],
+    ["node -e \"fs.writeFile('x.test.ts', '', () => {})\"", "x.test.ts"],
+    ["tools.edit({path: 'x.test.ts', edits: []})", "x.test.ts"],
+    ["await tools.write({content: '', path: 'x.test.ts'})", "x.test.ts"],
+  ];
+  for (const [command, filename] of writes) await t.test(command, () => {
+    const text = context(invoke(input(command)));
+    assert.equal(text.split("\n")[0], `[test-discipline] 命中测试文件：${filename}`, command);
+    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  });
+  for (const command of [
+    "cat x_test.go", "grep TODO x_test.go", "sed -n '1,20p' x_test.go", "rg TODO tests",
+    "node --test x.test.cjs", "go test ./...", "pytest test_x.py", "vitest run x.test.ts",
+    "echo ok 2>&1", "cat x_test.go > /tmp/x.log", "echo 'cat > x.test.ts'",
+    '[[ "$v" > "x.test.ts" ]]',
+    '[[ "$v" < "x.test.ts" || "$v" > "y.test.ts" ]]',
+  ]) silent(invoke(input(command)));
+});
+
+test("缝 1 Bash r2-1：sed/perl 的脚本参数不算原地修改选项", (t) => {
+  const cwd = repository(t);
+  for (const command of ["sed -ne'/interesting/p' x.test.ts", "perl -pe's/old/interesting/' x.test.ts"]) {
+    silent(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } }));
+  }
+});
+
+test("缝 1 Bash r2-2：heredoc 在续行命令结束后才消费数据", (t) => {
+  const cwd = repository(t);
+  const command = "cat <<'EOF' \\\n  > x.test.ts\nignored\nEOF";
+  const text = context(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } }));
+  assert.equal(text.split("\n")[0], "[test-discipline] 命中测试文件：x.test.ts");
+});
+
+test("缝 1 Bash r2-3：内联脚本与 heredoc 区分 shell 展开和字面量美元符", async (t) => {
+  const cwd = repository(t);
+  for (const [command, filename] of [
+    ["python3 -c \"from pathlib import Path; Path('$TARGET.test.ts').write_text('')\"", null],
+    ["node -e \"fs.writeFileSync('$TARGET.test.ts', '')\"", null],
+    ["python3 <<PY\nPath('$TARGET.test.ts').write_text('')\nPY", null],
+    ["node <<JS\nfs.writeFileSync('$TARGET.test.ts', '')\nJS", null],
+    ['python3 -c \'Path("$TARGET.test.ts").write_text("")\'', "$TARGET.test.ts"],
+    ['node -e \'fs.writeFileSync("$TARGET.test.ts", "")\'', "$TARGET.test.ts"],
+    ["python3 -c \"Path('\\$TARGET.test.ts').write_text('')\"", "$TARGET.test.ts"],
+    ["python3 <<'PY'\nPath('$TARGET.test.ts').write_text('')\nPY", "$TARGET.test.ts"],
+    ["python3 <<PY\nPath('\\$TARGET.test.ts').write_text('')\nPY", "$TARGET.test.ts"],
+  ]) await t.test(command, () => {
+    const result = invoke({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } });
+    if (filename === null) silent(result);
+    else assert.equal(context(result).split("\n")[0], `[test-discipline] 命中测试文件：${filename}`);
+  });
+});
+
+test("缝 1 Bash r2-4：here-string 不吞掉后续写入命令", (t) => {
+  const cwd = repository(t);
+  const command = "cat <<< 'hello'\ncp source x.test.ts";
+  const text = context(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } }));
+  assert.equal(text.split("\n")[0], "[test-discipline] 命中测试文件：x.test.ts");
+});
+
+test("缝 1 Bash：跳过变量、补丁块与 heredoc 数据；多文件只注入一次并按首个仓定位", (t) => {
+  const cwd = repository(t);
+  const first = repository(t, "first");
+  const second = repository(t, "second");
+  fs.writeFileSync(path.join(cwd, "TESTING.md"), "不应选中的工作仓规范\n");
+  fs.writeFileSync(path.join(first, "CONTRIBUTING.md"), "首个命中仓规范\n");
+  fs.writeFileSync(path.join(second, "CODING_STANDARDS.md"), "不应选中的后续仓规范\n");
+  const input = (command) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } });
+  const a = path.join(first, "a.test.ts");
+  const b = path.join(second, "b_test.go");
+  const text = context(invoke(input(`tee '${a}' > '${b}'; cp source '${a}'`)));
+  assert.equal(text.split("\n")[0], `[test-discipline] 命中测试文件：a.test.ts、${path.relative(first, b)}`);
+  assert.equal(text.split("[test-discipline]").length - 1, 1);
+  assert.ok(text.includes("- CONTRIBUTING.md\n"));
+  assert.ok(!text.includes("TESTING.md"));
+  assert.ok(!text.includes("CODING_STANDARDS.md"));
+  assert.equal(fs.existsSync(a), false);
+  assert.equal(fs.existsSync(b), false);
+  for (const command of [
+    'cat > "$DIR/x.test.ts"', 'cp source ${TARGET}.test.ts', 'rm tests/*.ts',
+    'echo ok > "$(pwd)/x.test.ts"', 'python3 -c "Path(name).write_text(\'x\')"',
+    'node -e "fs.writeFileSync(\'x.test.ts\' + suffix, \'\')"',
+    'tools.write({path: target, content: ""})',
+    "python3 -c \"open('x.test.ts', 'r').read()\"",
+    "cat <<'EOF'\ncp source x.test.ts\nEOF",
+    "cat <<'A' <<'B'\nignored\nA\ncp source x.test.ts\nB",
+    "cat <<'EOF'\nPath('x.test.ts').write_text('x')\nEOF",
+    "# cp source x.test.ts\ncat x.test.ts",
+    "apply_patch <<'PATCH'\n*** Begin Patch\n*** Add File: x.test.ts\n+cat > y.test.ts\n+Path('z.test.ts').write_text('')\n*** End Patch\nPATCH",
+  ]) silent(invoke(input(command)));
+  const patchAndWrite = "*** Begin Patch\n+cp source ignored.test.ts\n*** End Patch\ncat > actual.test.ts";
+  assert.equal(context(invoke(input(patchAndWrite))).split("\n")[0], "[test-discipline] 命中测试文件：actual.test.ts");
+});
+
 test("缝 1 #7：首条测试规范索引列出全部合法项，优先于常见落点", (t) => {
   const repo = repository(t);
   fs.mkdirSync(path.join(repo, "rules"));
@@ -306,6 +428,8 @@ test("第 10 节：缺字段或错误类型显式失败，不处理的工具与�
   const inputs = [
     [{ ...valid, tool_name: "apply_patch", tool_input: {} }, "PreToolUse 缺少 tool_input.command", "codex"],
     [{ ...valid, tool_name: "apply_patch", tool_input: { command: 7 } }, "PreToolUse 缺少 tool_input.command", "codex"],
+    [{ ...valid, tool_name: "Bash", tool_input: {} }, "PreToolUse 缺少 tool_input.command"],
+    [{ ...valid, tool_name: "Bash", tool_input: { command: 7 } }, "PreToolUse 缺少 tool_input.command"],
     [{ ...valid, tool_input: {} }, "PreToolUse 缺少 tool_input.file_path"],
     [{ ...valid, tool_input: { file_path: 7 } }, "PreToolUse 缺少 tool_input.file_path"],
     [{ ...valid, cwd: undefined }, "PreToolUse 缺少 cwd"],
@@ -321,7 +445,7 @@ test("第 10 节：缺字段或错误类型显式失败，不处理的工具与�
     assert.equal(result.stdout, "");
     assert.equal(result.stderr, `test-discipline: ${message}\n`);
   }
-  silent(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash" }));
+  silent(invoke({ hook_event_name: "PreToolUse", tool_name: "Read" }));
   silent(invoke({ hook_event_name: "SessionStart" }));
   silent(invoke({ hook_event_name: "PreToolUse", tool_name: "shell" }, entry, {}, "codex"));
   silent(invoke({ hook_event_name: "SessionStart" }, entry, {}, "codex"));

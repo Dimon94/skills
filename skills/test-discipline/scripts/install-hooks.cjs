@@ -25,7 +25,7 @@ const { isDeepStrictEqual } = require("node:util");
 const hooksDirectory = fs.realpathSync(path.resolve(__dirname, "../hooks"));
 const command = `node '${path.join(hooksDirectory, "entry.cjs").replaceAll("'", "'\\''")}'`;
 const targets = [{
-  name: "Claude", mode: "claude", matcher: "Edit|Write|MultiEdit",
+  name: "Claude", mode: "claude", matcher: "Edit|Write|MultiEdit|Bash",
   file: path.resolve(process.env.CLAUDE_SETTINGS || path.join(os.homedir(), ".claude/settings.json")),
 }, {
   name: "Codex", mode: "codex", matcher: "apply_patch",

@@ -29,12 +29,12 @@ description: 为项目建立或补齐测试规范，或用户主动要求写测�
 
 运行 `node <本 Skill 绝对路径>/hooks/entry.cjs claude`，从 stdin 接收 Claude Code 事件 JSON，输出 `hookSpecificOutput.additionalContext`：
 
-- `PreToolUse`：仅处理 `Edit`、`Write`、`MultiEdit`，读取 `cwd` 与 `tool_input.file_path`。命中测试或压测文件时注入；普通源码不输出。
+- `PreToolUse`：`Edit`、`Write`、`MultiEdit` 读取 `cwd` 与 `tool_input.file_path`；`Bash` 读取 `cwd` 与 `tool_input.command`，通过共享核心 `extractWriteTargets` 解析写入目标。命中测试或压测文件时注入；普通源码、只读命令与单纯跑测试不输出。一条命令只注入一次，列全命中文件，规范定位取首个命中文件的仓。
 - `SubagentStart`：只读取 `cwd`，按会话工作目录注入规范定位与写前自检。输出事件名为 `SubagentStart`，文本以 `[test-discipline]` 开头，不含“命中测试文件”行。
 
 提醒从不拒绝或改写工具调用。设置 `TEST_DISCIPLINE_HOOK=0` 后入口不读 stdin、不输出，退出 0；其他输入与读取错误写入以 `test-discipline:` 开头的 stderr，退出 1。恢复方式：修正事件字段或恢复本文件的「写前自检」小节后重试。
 
-已知限制：PreToolUse 的附加上下文在本次工具返回后进入模型视野，提醒作用于后续编辑；证据见 repo://docs/research/test-discipline/claude.md「PreToolUse 的时序」。本机默认工具清单未暴露 MultiEdit，其他配置下是否存在为 Unknown。入口不处理 shell 写文件。
+已知限制：PreToolUse 的附加上下文在本次工具返回后进入模型视野，提醒作用于后续编辑；证据见 repo://docs/research/test-discipline/claude.md「PreToolUse 的时序」。本机默认工具清单未暴露 MultiEdit，其他配置下是否存在为 Unknown。Bash 只解析字面量写入目标，不识别变量路径、间接写入与代码生成；跳过 `*** Begin Patch` 至 `*** End Patch` 的补丁块，不执行命令。解析按文本规则，不是完整 shell 解析；以下组合有已知漏报或误报：heredoc 只归给所在行首命令，`;`、`&&` 之后的 `python3`/`node` 读入的 heredoc 漏报，`python3 -c … <<'PY'` 的 heredoc 数据会误报；Perl 只区分 `-i`、`-e`、`-f`，`-Mstrict` 等附着参数中的 `i` 会误报；`then`、`do`、`else` 等控制词之后的 `cp`、`rm` 漏报。
 
 ## Codex 入口
 
@@ -91,7 +91,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 ## 成员与验证
 
-- `hooks/core.cjs`：拥有补丁路径解析、测试与压测文件判定、仓根定位、测试规范索引校验与回退、最近 AGENTS.md 查找、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
+- `hooks/core.cjs`：通过 `extractWriteTargets(command)` 导出按文本顺序去重的字面量写入目标，供各端适配层交给 `buildContext`；拥有补丁路径解析、测试与压测文件判定、仓根定位、测试规范索引校验与回退、最近 AGENTS.md 查找、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
 - `hooks/entry.cjs`：拥有 Claude/Codex 事件校验、stdin/stdout 与失败映射。
 - `tests/hook.test.cjs`：穿过真实 CLI，使用临时 git 仓验证缝 1。运行 `node --test skills/test-discipline/tests/hook.test.cjs`。
 - `references/baseline-testing-standards.md`：基线测试规范通用正文；其余三个模板提供 TS/JS、Python、Go 语言节。建档时读取并填写，验证采用临时 git 仓手动演练：已有规范只补索引、无规范生成基线；演练不 stage、不 commit。
@@ -123,7 +123,7 @@ node skills/test-discipline/scripts/install-hooks.cjs --uninstall
 
 目标表 `targets` 包含 Claude、Codex 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 的 `~/.claude/settings.json`；`CODEX_HOOKS` 覆盖 Codex 的 `~/.codex/hooks.json`。Claude 与 Codex 都注册 PreToolUse 与 SubagentStart。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。Codex 安装成功后提示去 `/hooks` 信任，不写 `config.toml` 或信任记录。
 
-检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
+检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动或 Claude matcher 仍为旧值 `Edit|Write|MultiEdit` 时，检查报告 drift；获得配置写入授权后重新安装即可修正。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
 
 `--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。JSON 沿用条目识别、变化前备份和原子替换；Pi 只备份并删除解析后指向本仓当前扩展的 symlink，保留其他链接和非 symlink 目标。目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 

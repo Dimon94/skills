@@ -3,7 +3,8 @@ const path = require("node:path");
 
 /* L3-L6 -- 共享核心
  * IN: 已校验的绝对 cwd；filePath 为非空路径、路径数组或 null（按 cwd 注入子 agent 上下文）。
- * IN: buildPatchContext 接收已校验的补丁全文；四种路径前缀保留空格、去掉行尾空白。
+ * IN: buildPatchContext 接收已校验的补丁全文；extractWriteTargets 接收命令或 codemode 文本。
+ * OUT: 写入目标解析只提取字面量路径；文件判定与多文件规范定位仍归 buildContext。
  * OUT: 多文件只组装一次，去重后列全命中项；规范与最近 AGENTS.md 取首个命中文件的仓。
  * OUT: 命中或子 agent 启动时返回文本，普通文件返回 null；只读本地文件，无状态。
  * CHAIN: .git 仓根（无则 cwd）-> 根 AGENTS.md 首条索引 -> 无合法项时常见落点。
@@ -143,4 +144,188 @@ function buildPatchContext(cwd, patch) {
   return buildContext(cwd, paths);
 }
 
-module.exports = { buildContext, buildPatchContext };
+function unquoteWord(raw, maskExpansions = false) {
+  return raw.replace(/'([^']*)'|"((?:\\[\s\S]|[^"\\])*)"|\\\r?\n|\\(.)|([$`])/g,
+    (_, single, double, escaped, expansion) => {
+      if (single !== undefined) return single;
+      if (double === undefined) return escaped ?? (expansion && maskExpansions ? "\0" : expansion ?? "");
+      return double.replace(/\\\r?\n|\\([\\"$`])|([$`])/g,
+        (_, escaped, expansion) => escaped ?? (expansion && maskExpansions ? "\0" : expansion ?? ""));
+    });
+}
+
+function literalTarget(raw) {
+  if (!raw || raw.includes("\0")) return null;
+  const expansions = raw.replace(/'[^']*'|"(?:\\.|[^"\\])*"|\\./g,
+    (part) => part[0] === '"' ? part.slice(1, -1).replace(/\\[\\"$`]|[^$`]/g, "") : "");
+  return /[$`*?{}\[\]~]/.test(expansions) ? null : unquoteWord(raw);
+}
+
+function commandLines(command) {
+  const shell = [];
+  const code = [];
+  let logical = "";
+  let offset = 0;
+  let patch = false;
+  let heredocs = [];
+  for (const line of command.split("\n")) {
+    const text = line.replace(/\r$/, "");
+    if (text.trim() === "*** Begin Patch") patch = true;
+    const heredoc = heredocs[0];
+    const hidden = patch || Boolean(heredoc);
+    if (patch && text.trim() === "*** End Patch") patch = false;
+    else if (heredoc) {
+      heredoc.index ??= offset;
+      if ((heredoc.tabs ? text.replace(/^\t+/, "") : text) === heredoc.end) {
+        const body = heredoc.body.join("\n");
+        const codeText = heredoc.expand ? body.replace(/\\\r?\n|\\([$`\\])|([$`])/g,
+          (_, escaped, expansion) => escaped ?? (expansion ? "\0" : "")) : body;
+        if (heredoc.code) code.push({ text: codeText, index: heredoc.index });
+        heredocs.shift();
+      } else heredoc.body.push(text);
+    } else if (!hidden) {
+      logical += line + "\n";
+      const continued = [...logical.matchAll(/'[^']*'|"(?:\\[\s\S]|[^"\\])*"|\\\r?\n|\\[\s\S]/g)]
+        .some((match) => /^\\\r?\n$/.test(match[0]) && match.index + match[0].length === logical.length);
+      const tokens = continued ? [] : shellTokens(logical);
+      if (!continued) logical = "";
+      heredocs = tokens.flatMap(({ raw }, index) => ["<<", "<<-"].includes(raw) && tokens[index + 1] ? [{
+        end: unquoteWord(tokens[index + 1].raw), expand: !/['"\\]/.test(tokens[index + 1].raw),
+        tabs: raw === "<<-", body: [], index: null,
+      }] : []);
+      if (heredocs.length && /^(?:python[\d.]*|node)$/.test(tokens[0]?.raw || "")) heredocs.at(-1).code = true;
+    }
+    shell.push(hidden ? " ".repeat(line.length) : line);
+    offset += line.length + 1;
+  }
+  return { shell: shell.join("\n"), code };
+}
+
+function shellTokens(command) {
+  const pattern = /#[^\n]*|(?:[^\s'"\\;&|<>()]+|'[^']*'|"(?:\\[\s\S]|[^"\\])*"|\\[\s\S])+|>>|<<<|<<-?|&&|\|\||[^\s]/g;
+  return [...command.matchAll(pattern)].filter(([raw]) => !raw.startsWith("#") && !/^(?:\\\r?\n)+$/.test(raw))
+    .map((match) => ({ raw: match[0], index: match.index }));
+}
+
+function codeLiteral(raw) {
+  if (!raw || !/^["'`]/.test(raw) || raw.at(-1) !== raw[0]) return null;
+  const value = raw.slice(1, -1);
+  if (/\\(?![\\'"`])|\0/.test(value) || (raw[0] === "`" && value.includes("${"))) return null;
+  return value.replace(/\\([\\'"`])/g, "$1");
+}
+
+function objectPath(tokens, start) {
+  let depth = 0;
+  for (let index = start; index < tokens.length; index += 1) {
+    const token = tokens[index].raw;
+    if (token === "}" && depth === 0) return null;
+    if (depth === 0 && (token === "path" || codeLiteral(token) === "path")
+        && tokens[index + 1]?.raw === ":" && [",", "}"].includes(tokens[index + 3]?.raw)) return codeLiteral(tokens[index + 2]?.raw);
+    if (["{", "[", "("].includes(token)) depth += 1;
+    if (["}", "]", ")"].includes(token)) depth -= 1;
+  }
+  return null;
+}
+
+function codeTargets(code, offset = 0) {
+  const pattern = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/|[a-zA-Z_$][\w$]*|[^\s]/g;
+  const tokens = [...code.matchAll(pattern)].filter(([raw]) => !/^(?:\/\/|\/\*|#)/.test(raw))
+    .map((match) => ({ raw: match[0], index: offset + match.index }));
+  const paths = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const tail = tokens.slice(index, index + 8).map(({ raw }) => raw);
+    let target = null;
+    if (tail[0] === "Path" && tail[1] === "(" && tail[3] === ")" && tail[4] === "."
+        && ["write_text", "write_bytes"].includes(tail[5]) && tail[6] === "(") target = codeLiteral(tail[2]);
+    if (["writeFileSync", "writeFile"].includes(tail[0]) && tail[1] === "(" && tail[3] === ",") target = codeLiteral(tail[2]);
+    if (tail[0] === "open" && tail[1] === "(" && tail[3] === "," && /^[wa][b+t]*$/.test(codeLiteral(tail[4]) || "")
+        && [",", ")"].includes(tail[5])) target = codeLiteral(tail[2]);
+    if (tail[0] === "tools" && tail[1] === "." && ["edit", "write"].includes(tail[2])
+        && tail[3] === "(" && tail[4] === "{") target = objectPath(tokens, index + 5);
+    if (target) paths.push({ path: target, index: tokens[index].index });
+  }
+  return paths;
+}
+
+function inPlaceFiles(tokens, program) {
+  let inPlace = false;
+  let expression = program === "sed";
+  const files = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const word = unquoteWord(tokens[index].raw);
+    if (word === "") continue;
+    const option = word.match(/^-([^-ef]*)([ef])?(.*)$/);
+    if (option) {
+      inPlace ||= option[1].includes("i");
+      if (option[2]) { index += option[3] ? 0 : 1; expression = false; }
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    if (expression) { expression = false; continue; }
+    files.push(tokens[index]);
+  }
+  return inPlace ? files : [];
+}
+
+function utilityTargets(tokens) {
+  const words = [...tokens];
+  let program = words.shift()?.raw;
+  if (program === "git") program = words.shift()?.raw;
+  if (["sed", "perl"].includes(program)) return inPlaceFiles(words, program);
+  const operands = words.filter(({ raw }) => !unquoteWord(raw).startsWith("-"));
+  if (["cp", "mv"].includes(program)) return operands.length >= 2 ? operands.slice(-1) : [];
+  return ["tee", "rm"].includes(program) ? operands : [];
+}
+
+function statementTargets(tokens) {
+  const paths = utilityTargets(tokens).map(({ raw, index }) => ({ path: literalTarget(raw), index }));
+  if (!/^(?:python[\d.]*|node)$/.test(tokens[0]?.raw || "")) return paths;
+  const flag = tokens.findIndex(({ raw }) => ["-c", "-e", "--eval"].includes(raw));
+  const script = tokens[flag + 1];
+  return flag !== -1 && script ? paths.concat(codeTargets(unquoteWord(script.raw, true), script.index)) : paths;
+}
+
+function shellTargets(shell) {
+  const paths = [];
+  const tokens = shellTokens(shell);
+  let statement = [];
+  let conditional = false;
+  for (let index = 0; index <= tokens.length; index += 1) {
+    const token = tokens[index];
+    const previous = tokens[index - 1];
+    const newline = previous && token && shell.slice(previous.index + previous.raw.length, token.index).replace(/\\\r?\n/g, "").includes("\n");
+    if (!token || newline || [";", "&&", "||", "|", "&"].includes(token.raw)) {
+      paths.push(...statementTargets(statement));
+      statement = [];
+    }
+    if (!token) break;
+    if (token.raw === "[[") conditional = true;
+    if (conditional) {
+      if (token.raw === "]]") conditional = false;
+      continue;
+    }
+    if ([">", ">>", "<", "<<<", "<<", "<<-"].includes(token.raw)) {
+      if (previous && /^\d+$/.test(previous.raw) && previous.index + previous.raw.length === token.index) statement.pop();
+      const next = tokens[index + 1];
+      if ([">", ">>"].includes(token.raw) && next?.raw !== "&") paths.push({ path: literalTarget(next?.raw), index: token.index });
+      index += next?.raw === "&" ? 2 : 1;
+    } else if (![";", "&&", "||", "|", "&"].includes(token.raw)) statement.push(token);
+  }
+  return paths;
+}
+
+/* L4 -- 写入目标解析
+ * IN: 已校验的命令或 codemode 文本；仅提取字面量，不解释 shell 或代码运行结果。
+ * OUT: 按文本顺序返回去重路径，测试文件判定仍归 buildContext；补丁块与 heredoc 数据不当命令。
+ * INVARIANT: 不执行命令、不启动子进程、不读写状态；变量路径、间接写入与代码生成不识别。
+ * INVARIANT: 按 shell 引用、转义与 heredoc 分隔符区分展开和字面量；续行结束后才消费 heredoc 数据。
+ * TEST: repo://skills/test-discipline/tests/hook.test.cjs「缝 1 Bash」。
+ */
+function extractWriteTargets(command) {
+  const { shell, code } = commandLines(command);
+  const targets = shellTargets(shell).concat(codeTargets(shell), code.flatMap(({ text, index }) => codeTargets(text, index)));
+  targets.sort((left, right) => left.index - right.index);
+  return [...new Set(targets.map(({ path }) => path).filter(Boolean))];
+}
+
+module.exports = { buildContext, buildPatchContext, extractWriteTargets };

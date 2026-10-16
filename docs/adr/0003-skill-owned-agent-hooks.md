@@ -38,6 +38,14 @@ Related: [#93](https://github.com/Dimon94/skills/issues/93)、[#101](https://git
 
 备份保留为恢复点，不自动删除。恢复原配置前核对备份和其他工具的后续写入，获得用户授权后再恢复，避免覆盖后续改动。
 
+### 5. 解析字面量写入目标，覆盖 shell 与 codemode
+
+[#93 范围修订](https://github.com/Dimon94/skills/issues/93) 将 shell 写测试文件纳入提醒面。共享核心 `extractWriteTargets` 拥有命令文本的写入目标提取；各端适配层复用它与既有 `buildContext`，不复制测试文件判定。解析不执行命令、不读写状态、不启动子进程；补丁块交给既有补丁路径解析，避免重复注入。
+
+Claude `PreToolUse` 的 `Bash` 从 `tool_input.command` 提取目标，安装 matcher 加入 `Bash`；旧 matcher 由 `--check` 报 drift，用户授权后重装修复。多文件沿用一次注入与首个命中仓规范定位。识别边界是字面量路径，不识别变量路径、间接写入与代码生成；具体形态归 repo://skills/test-discipline/hooks/core.cjs 的 `extractWriteTargets` 与缝 1 测试。
+
+否决方案 B（调用前后 git 快照比对）：它要求启动子进程、存状态，并为每次 shell 增加开销，破坏现有只读、无状态合同。若 #107 真机验收发现间接写入的漏报，再另开票评估，不在解析器中补状态机制。回退保留本记录第 4 节的授权与卸载顺序。
+
 ## Consequences
 
 ### 正面

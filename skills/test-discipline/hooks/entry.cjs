@@ -4,7 +4,7 @@ const path = require("node:path");
 /* L3-L6 -- Claude/Codex 事件边界
  * COORD: repo://skills/test-discipline/hooks/entry.cjs
  * IN: argv 为 claude 或 codex，stdin 为 PreToolUse 或 SubagentStart JSON；仅转换协议。
- * PARAM: claude 读取 tool_input.file_path；codex 仅处理 apply_patch 的 tool_input.command。
+ * PARAM: claude 的 Bash 读取 tool_input.command，其余工具读取 file_path；codex 仅处理 apply_patch 的 command。
  * OUT: 两端都只输出 hookSpecificOutput，不输出 systemMessage；SubagentStart 按 cwd 注入。
  * OUT: 命中时输出 additionalContext JSON；跳过时静默退出 0，错误写 stderr 并退出 1。
  * PARAM: TEST_DISCIPLINE_HOOK 来自环境，仅值 0 关闭；关闭优先于参数和 stdin 读取。
@@ -27,15 +27,15 @@ function hookInput(event, mode) {
   if (!["PreToolUse", "SubagentStart"].includes(hookEventName)) return null;
   if (hookEventName === "PreToolUse") {
     const tool = requiredString(event.tool_name, "tool_name", hookEventName);
-    const tools = mode === "claude" ? ["Edit", "Write", "MultiEdit"] : ["apply_patch"];
+    const tools = mode === "claude" ? ["Edit", "Write", "MultiEdit", "Bash"] : ["apply_patch"];
     if (!tools.includes(tool)) return null;
   }
   const cwd = requiredString(event.cwd, "cwd", hookEventName);
   if (!path.isAbsolute(cwd)) throw new Error(`${hookEventName} cwd 必须是绝对路径`);
   if (hookEventName === "SubagentStart") return { cwd, value: null, hookEventName };
-  const field = mode === "claude" ? "file_path" : "command";
+  const field = mode === "claude" && event.tool_name !== "Bash" ? "file_path" : "command";
   const value = requiredString(event.tool_input?.[field], `tool_input.${field}`, hookEventName);
-  return { cwd, value, hookEventName };
+  return { cwd, value, hookEventName, shell: mode === "claude" && event.tool_name === "Bash" };
 }
 
 function main() {
@@ -51,9 +51,9 @@ function main() {
   }
   const input = hookInput(event, mode);
   if (!input) return;
-  const { buildContext, buildPatchContext } = require("./core.cjs");
+  const { buildContext, buildPatchContext, extractWriteTargets } = require("./core.cjs");
   const build = mode === "codex" && input.hookEventName === "PreToolUse" ? buildPatchContext : buildContext;
-  const additionalContext = build(input.cwd, input.value);
+  const additionalContext = build(input.cwd, input.shell ? extractWriteTargets(input.value) : input.value);
   if (additionalContext === null) return;
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: input.hookEventName, additionalContext } }) + "\n");
 }

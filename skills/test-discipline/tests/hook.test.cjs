@@ -38,13 +38,13 @@ function invoke(input, script = entry, env = {}) {
   });
 }
 
-function context(result) {
+function context(result, hookEventName = "PreToolUse") {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   const output = JSON.parse(result.stdout);
   assert.deepEqual(Object.keys(output), ["hookSpecificOutput"]);
   assert.deepEqual(Object.keys(output.hookSpecificOutput).sort(), ["additionalContext", "hookEventName"]);
-  assert.equal(output.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(output.hookSpecificOutput.hookEventName, hookEventName);
   return output.hookSpecificOutput.additionalContext;
 }
 
@@ -75,14 +75,109 @@ test("缝 1 #4：仓根上层 test 目录不触发提醒", (t) => {
   silent(invoke(event(repo, path.join(repo, "src/app.ts"), "Edit")));
 });
 
-test("缝 1 #10：命中时始终输出无规范提示", (t) => {
+test("缝 1 #7：首条测试规范索引列出全部合法项，优先于常见落点", (t) => {
+  const repo = repository(t);
+  fs.mkdirSync(path.join(repo, "rules"));
+  fs.writeFileSync(path.join(repo, "rules/unit.md"), "不应复制的单元规范正文\n");
+  fs.writeFileSync(path.join(repo, "rules/e2e.md"), "不应复制的端到端规范正文\n");
+  fs.writeFileSync(path.join(repo, "TESTING.md"), "常见落点\n");
+  fs.writeFileSync(path.join(repo, "AGENTS.md"), [
+    " 测试规范：repo://ignored.md",
+    "测试规范:repo://ignored.md",
+    "测试规范： repo://rules/./unit.md 、 repo://rules/e2e.md ",
+    "测试规范：repo://TESTING.md",
+  ].join("\n"));
+  const text = context(invoke(event(repo, "a.spec.js")));
+  assert.ok(text.includes("项目测试规范（来源：测试规范索引）：\n- rules/unit.md\n- rules/e2e.md\n"));
+  assert.ok(!text.includes("TESTING.md"));
+  assert.ok(!text.includes("无项目测试规范"));
+  assert.ok(!text.includes("索引失效"));
+  assert.ok(!text.includes("不应复制"));
+});
+
+test("缝 1 #8：失效索引只列原值与首个原因，全部失效时回退", (t) => {
+  const repo = repository(t);
+  const outside = path.join(path.dirname(repo), "x.md");
+  fs.writeFileSync(outside, "仓外规范\n");
+  fs.symlinkSync(outside, path.join(repo, "escape.md"));
+  fs.mkdirSync(path.join(repo, "rules"));
+  fs.writeFileSync(path.join(repo, "TESTING.md"), "回退规范\n");
+  const invalid = [
+    ["/missing.md", "缺少 repo:// 前缀"],
+    ["repo:///missing.md", "不允许绝对路径"],
+    ["repo://../x.md", "越出仓根"],
+    ["repo://rules/../../absent.md", "越出仓根"],
+    ["repo://escape.md", "越出仓根"],
+    ["repo://missing.md", "文件不存在"],
+    ["repo://rules", "文件不存在"],
+  ];
+  const agents = path.join(repo, "AGENTS.md");
+  const invalidIndex = invalid.map(([raw]) => raw).join("、");
+  fs.writeFileSync(agents, `测试规范：${invalidIndex}\n`);
+  let text = context(invoke(event(repo, "a.spec.js")));
+  for (const [raw, reason] of invalid) {
+    assert.ok(text.includes(`索引失效：${raw}（${reason}）\n`), raw);
+  }
+  assert.equal(text.split("索引失效：").length - 1, invalid.length);
+  assert.deepEqual(text.split("\n").filter((line) => line.startsWith("- ")), ["- TESTING.md"]);
+  assert.ok(text.includes("项目测试规范（来源：常见落点）："));
+  assert.ok(!text.includes("无项目测试规范"));
+  fs.writeFileSync(path.join(repo, "rules/valid.md"), "合法规范\n");
+  fs.writeFileSync(agents, `测试规范：repo://rules/valid.md、${invalidIndex}\n测试规范：repo://TESTING.md\n`);
+  text = context(invoke(event(repo, "a.spec.js")));
+  assert.ok(text.includes("项目测试规范（来源：测试规范索引）：\n- rules/valid.md\n"));
+  assert.ok(!text.includes("- TESTING.md\n"));
+  assert.ok(text.includes("索引失效：repo://../x.md（越出仓根）"));
+  fs.unlinkSync(path.join(repo, "TESTING.md"));
+  fs.writeFileSync(agents, "测试规范：repo://missing.md\n");
+  text = context(invoke(event(repo, "a.spec.js")));
+  assert.ok(text.includes("索引失效：repo://missing.md（文件不存在）\n无项目测试规范："));
+});
+
+test("缝 1 #9：无索引时按合同顺序列出全部常见落点，不复制正文", (t) => {
+  const repo = repository(t);
+  const files = ["docs/agents/quality-standards.md", "docs/agents/ui-e2e.md", "TESTING.md", "CONTRIBUTING.md", "CODING_STANDARDS.md"];
+  for (const file of files.toReversed()) {
+    fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+    fs.writeFileSync(path.join(repo, file), "不应复制的规范正文\n");
+  }
+  const text = context(invoke(event(repo, "a.spec.js")));
+  assert.ok(text.includes("项目测试规范（来源：常见落点）：\n- docs/agents/quality-standards.md\n- docs/agents/ui-e2e.md\n- TESTING.md\n- CONTRIBUTING.md\n- CODING_STANDARDS.md\n"));
+  assert.ok(!text.includes("无项目测试规范"));
+  assert.ok(!text.includes("不应复制"));
+});
+
+test("缝 1 #10：没有索引与常见落点时输出无规范提示", (t) => {
   const repo = repository(t);
   const text = context(invoke(event(repo, "a.spec.js")));
   assert.ok(text.includes("无项目测试规范：按下方写前自检判断；用户要求时可运行 test-discipline 建档。"));
+});
+
+test("缝 1 #11：最近 AGENTS.md 从文件目录向上查找，无 git 时止于事件 cwd", (t) => {
+  const repo = repository(t);
+  const module = path.join(repo, "src/module");
+  fs.mkdirSync(module, { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "测试规范：repo://TESTING.md\n");
-  fs.writeFileSync(path.join(repo, "TESTING.md"), "现有规范\n");
-  const withSpec = context(invoke(event(repo, "a.spec.js")));
-  assert.equal(withSpec, text);
+  fs.writeFileSync(path.join(repo, "TESTING.md"), "项目规范\n");
+  fs.writeFileSync(path.join(module, "AGENTS.md"), "测试规范：repo://must-not-use.md\n");
+  let text = context(invoke(event(repo, "src/module/tests/a.test.js")));
+  assert.ok(text.includes("最近 AGENTS.md：src/module/AGENTS.md\n"));
+  assert.ok(text.includes("- TESTING.md\n最近 AGENTS.md："));
+  assert.ok(!text.includes("must-not-use.md"));
+  fs.unlinkSync(path.join(module, "AGENTS.md"));
+  text = context(invoke(event(module, "tests/a.test.js")));
+  assert.ok(text.includes("最近 AGENTS.md：AGENTS.md\n"));
+  const parent = sandbox(t);
+  const noGit = path.join(parent, "workspace");
+  fs.mkdirSync(noGit);
+  fs.writeFileSync(path.join(parent, "AGENTS.md"), "仓外规则\n");
+  fs.writeFileSync(path.join(noGit, "AGENTS.md"), "测试规范：repo://TESTING.md\n");
+  fs.writeFileSync(path.join(noGit, "TESTING.md"), "无 git 规范\n");
+  text = context(invoke(event(noGit, "missing/tests/a.js")));
+  assert.ok(text.includes("项目测试规范（来源：测试规范索引）：\n- TESTING.md\n最近 AGENTS.md：AGENTS.md\n"));
+  fs.unlinkSync(path.join(noGit, "AGENTS.md"));
+  text = context(invoke(event(noGit, "missing/tests/a.js")));
+  assert.ok(!text.includes("最近 AGENTS.md："));
 });
 
 test("缝 1 #12：运行时原样读取写前自检小节，不注入相邻小节", (t) => {
@@ -107,6 +202,26 @@ test("缝 1 #14：非 JSON 有稳定错误，退出 1 而非 2", () => {
   assert.equal(result.status, 1);
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "test-discipline: stdin 不是合法 JSON\n");
+});
+
+test("缝 1 #15：SubagentStart 按会话 cwd 注入规范与自检，不依赖工具字段", (t) => {
+  const repo = repository(t);
+  const cwd = path.join(repo, "module");
+  fs.mkdirSync(cwd);
+  fs.writeFileSync(path.join(repo, "AGENTS.md"), "测试规范：repo://rules.md\n");
+  fs.writeFileSync(path.join(repo, "rules.md"), "规范正文\n");
+  fs.writeFileSync(path.join(cwd, "AGENTS.md"), "模块规则\n");
+  const input = { hook_event_name: "SubagentStart", cwd };
+  let text = context(invoke(input), "SubagentStart");
+  assert.ok(text.startsWith("[test-discipline]\n项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：module/AGENTS.md\n"));
+  assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  assert.ok(text.includes("深层说明："));
+  assert.ok(!text.includes("命中测试文件"));
+  assert.ok(!text.includes("无项目测试规范"));
+  text = context(invoke({ ...input, cwd: sandbox(t) }), "SubagentStart");
+  assert.ok(text.startsWith("[test-discipline]\n无项目测试规范："));
+  assert.ok(!text.includes("命中测试文件"));
+  silent(invoke(input, entry, { TEST_DISCIPLINE_HOOK: "0" }));
 });
 
 test("第 2 节：所有命名类别与完整目录段命中，近似目录及大小写不误判", (t) => {
@@ -148,6 +263,8 @@ test("第 10 节：缺字段或错误类型显式失败，不处理的工具与�
     [{ ...valid, tool_name: undefined }, "PreToolUse 缺少 tool_name"],
     [null, "事件必须为 JSON 对象"],
     [{}, "事件缺少 hook_event_name"],
+    [{ hook_event_name: "SubagentStart" }, "SubagentStart 缺少 cwd"],
+    [{ hook_event_name: "SubagentStart", cwd: "relative" }, "SubagentStart cwd 必须是绝对路径"],
   ];
   for (const [input, message] of inputs) {
     const result = invoke(input);
@@ -156,7 +273,7 @@ test("第 10 节：缺字段或错误类型显式失败，不处理的工具与�
     assert.equal(result.stderr, `test-discipline: ${message}\n`);
   }
   silent(invoke({ hook_event_name: "PreToolUse", tool_name: "Bash" }));
-  silent(invoke({ hook_event_name: "SubagentStart" }));
+  silent(invoke({ hook_event_name: "SessionStart" }));
 });
 
 test("第 10 节：SKILL.md 缺失或没有写前自检小节时输出稳定错误", (t) => {

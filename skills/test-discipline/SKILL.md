@@ -27,15 +27,24 @@ description: 用户主动要求写测试前做自检时使用。
 
 ## Claude 入口
 
-运行 `node <本 Skill 绝对路径>/hooks/entry.cjs claude`，从 stdin 接收 Claude Code 事件 JSON。仅处理 `PreToolUse` 的 `Edit`、`Write`、`MultiEdit`，读取 `cwd` 与 `tool_input.file_path`。命中测试或压测文件时输出 `hookSpecificOutput.additionalContext`；普通源码不输出。命中时一律给出无项目测试规范提示，不执行规范查找。
+运行 `node <本 Skill 绝对路径>/hooks/entry.cjs claude`，从 stdin 接收 Claude Code 事件 JSON，输出 `hookSpecificOutput.additionalContext`：
+
+- `PreToolUse`：仅处理 `Edit`、`Write`、`MultiEdit`，读取 `cwd` 与 `tool_input.file_path`。命中测试或压测文件时注入；普通源码不输出。
+- `SubagentStart`：只读取 `cwd`，按会话工作目录注入规范定位与写前自检。输出事件名为 `SubagentStart`，文本以 `[test-discipline]` 开头，不含“命中测试文件”行。
 
 提醒从不拒绝或改写工具调用。设置 `TEST_DISCIPLINE_HOOK=0` 后入口不读 stdin、不输出，退出 0；其他输入与读取错误写入以 `test-discipline:` 开头的 stderr，退出 1。恢复方式：修正事件字段或恢复本文件的「写前自检」小节后重试。
 
 已知限制：PreToolUse 的附加上下文在本次工具返回后进入模型视野，提醒作用于后续编辑；证据见 repo://docs/research/test-discipline/claude.md「PreToolUse 的时序」。本机默认工具清单未暴露 MultiEdit，其他配置下是否存在为 Unknown。入口不处理 shell 写文件。
 
+## 项目测试规范定位
+
+hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行，按 `、` 分隔并逐项校验 `repo://` 路径。有合法项时只列合法项；失效项只列原值与首个原因，不作为规范路径。没有合法项才检查常见落点，两步皆空时提示“无项目测试规范”。校验与落点顺序归 repo://skills/test-discipline/hooks/core.cjs 的 `indexFailure`、`projectContext`。
+
+无论规范是否存在，都列出从被编辑文件所在目录到仓根之间最近的 AGENTS.md；子 agent 从 `cwd` 起查找。仓根通过向上寻找 `.git` 目录或文件确定，找不到时使用事件 `cwd`。hook 只提供规范路径，不复制规范正文。
+
 ## 成员与验证
 
-- `hooks/core.cjs`：拥有测试与压测文件判定、仓根定位、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
+- `hooks/core.cjs`：拥有测试与压测文件判定、仓根定位、测试规范索引校验与回退、最近 AGENTS.md 查找、小节读取与注入文本组装。无状态，只读本地文件，不访问网络、不启动子进程。
 - `hooks/entry.cjs`：拥有 Claude 事件校验、stdin/stdout 与失败映射。
 - `tests/hook.test.cjs`：穿过真实 CLI，使用临时 git 仓验证缝 1。运行 `node --test skills/test-discipline/tests/hook.test.cjs`。
 - 深层原则归 repo://skills/test-review/references/test-heuristics.md；hook 按自身真实位置推导绝对路径，目标不存在时省略该行。

@@ -246,7 +246,10 @@ test("缝 3 #7：Pi 目标是普通文件时拒绝覆盖，检查与卸载保留
 test("缝 3 Codex：保留配置、信任提示、幂等、漂移修复与卸载", (t) => {
   const box = sandbox(t);
   const foreign = { type: "command", command: "echo codex-keep" };
-  const original = JSON.stringify({ keep: true, hooks: { PreToolUse: [{ matcher: "shell", hooks: [foreign] }] } });
+  const original = JSON.stringify({ keep: true, hooks: {
+    PreToolUse: [{ matcher: "shell", hooks: [foreign] }],
+    PostToolUse: [{ matcher: "Bash", hooks: [foreign] }],
+  } });
   fs.writeFileSync(box.codex, original);
   const codexHome = path.join(box.home, ".codex");
   fs.mkdirSync(codexHome);
@@ -255,7 +258,8 @@ test("缝 3 Codex：保留配置、信任提示、幂等、漂移修复与卸载
   const configStat = fs.statSync(config);
   const result = invoke(box);
   success(result);
-  assert.ok(result.stdout.replace(/\s+/g, " ").includes("Codex：请在 /hooks 中信任 test-discipline 条目"));
+  const output = result.stdout.replace(/\s+/g, " ");
+  assert.ok(output.includes("Codex：请在 /hooks 中信任 test-discipline 条目"));
   const installed = JSON.parse(fs.readFileSync(box.codex, "utf8"));
   const hook = { type: "command", command: `node '${path.join(skill, "hooks/entry.cjs")}' codex`, timeout: 5 };
   assert.equal(installed.keep, true);
@@ -263,6 +267,10 @@ test("缝 3 Codex：保留配置、信任提示、幂等、漂移修复与卸载
     { matcher: "shell", hooks: [foreign] }, { matcher: "apply_patch", hooks: [hook] },
   ]);
   assert.deepEqual(installed.hooks.SubagentStart, [{ hooks: [hook] }]);
+  assert.deepEqual(installed.hooks.PostToolUse, [
+    { matcher: "Bash", hooks: [foreign] }, { matcher: "Bash", hooks: [hook] },
+  ]);
+  assert.ok(output.includes("新增 PostToolUse 组需重新信任"));
   const backup = fs.readdirSync(path.dirname(box.codex)).find((name) => name.startsWith("hooks.json.test-discipline.bak-"));
   assert.ok(backup);
   assert.equal(fs.readFileSync(path.join(path.dirname(box.codex), backup), "utf8"), original);
@@ -270,7 +278,18 @@ test("缝 3 Codex：保留配置、信任提示、幂等、漂移修复与卸载
   success(invoke(box));
   success(invoke(box, ["--check"]));
   assert.deepEqual(snapshot(box), before);
-  installed.hooks.PreToolUse[1].hooks[0].command = "node '/old/test-discipline/hooks/entry.cjs' codex";
+  installed.hooks.PostToolUse.pop();
+  fs.writeFileSync(box.codex, JSON.stringify(installed));
+  const incomplete = snapshot(box);
+  const missingGroup = invoke(box, ["--check"]);
+  assert.equal(missingGroup.status, 1, missingGroup.stderr);
+  assert.equal(missingGroup.stdout.trim(), "Claude: installed\nCodex: drift\nPi: installed");
+  assert.deepEqual(snapshot(box), incomplete);
+  success(invoke(box));
+  success(invoke(box, ["--check"]));
+  const unaffected = (rows) => rows.filter(([file]) => file === box.settings || file === box.link);
+  assert.deepEqual(unaffected(snapshot(box)), unaffected(before));
+  installed.hooks.PostToolUse.push({ matcher: "Bash", hooks: [{ ...hook, command: "node '/old/test-discipline/hooks/entry.cjs' codex" }] });
   fs.writeFileSync(box.codex, JSON.stringify(installed));
   const drifted = snapshot(box);
   const check = invoke(box, ["--check"]);
@@ -281,7 +300,11 @@ test("缝 3 Codex：保留配置、信任提示、幂等、漂移修复与卸载
   success(invoke(box, ["--check"]));
   success(invoke(box, ["--uninstall"]));
   assert.deepEqual(JSON.parse(fs.readFileSync(box.codex, "utf8")), {
-    keep: true, hooks: { PreToolUse: [{ matcher: "shell", hooks: [foreign] }], SubagentStart: [] },
+    keep: true, hooks: {
+      PreToolUse: [{ matcher: "shell", hooks: [foreign] }],
+      PostToolUse: [{ matcher: "Bash", hooks: [foreign] }],
+      SubagentStart: [],
+    },
   });
   const removed = snapshot(box);
   success(invoke(box, ["--uninstall"]));

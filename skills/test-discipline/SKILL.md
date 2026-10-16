@@ -41,15 +41,18 @@ description: 为项目建立或补齐测试规范，或用户主动要求写测�
 运行 `node <本 Skill 绝对路径>/hooks/entry.cjs codex`，从 stdin 接收事件 JSON：
 
 - `PreToolUse`：仅处理 `apply_patch`，读取 `cwd` 与 `tool_input.command` 补丁全文。逐行解析 `*** Add File: `、`*** Update File: `、`*** Delete File: `、`*** Move to: ` 后的路径，保留路径中的空格，去掉行尾空白。一份补丁只输出一份提醒，去重后列出全部命中文件；跨仓时以首个命中文件的仓根查找规范，命中路径相对该仓根展示。
+- `PostToolUse`：仅处理 `Bash`，读取 `cwd` 与 `tool_input.command` 命令文本，复用共享核心 `extractWriteTargets` 与既有测试文件判定。命中测试或压测文件时只注入一份提醒，去重后列全命中文件；普通命令不输出。解析边界同「Claude 入口」的 Bash 已知限制，提醒作用于工具调用结束后。
 - `SubagentStart`：按 `cwd` 注入规范定位与写前自检，不输出“命中测试文件”行。
 
-两种事件都只输出 `hookSpecificOutput.hookEventName` 与 `additionalContext`，不输出 `systemMessage` 或权限决定。关闭开关与错误退出合同同 Claude 入口。
+三种事件都只输出 `hookSpecificOutput.hookEventName` 与 `additionalContext`，不输出 `systemMessage` 或权限决定。关闭开关与错误退出合同同 Claude 入口。
 
-适配依据同版本源码，未完成真实 Codex 验证：`additionalContext` 进入模型的时机为 Unknown；shell 调用补丁是否仍触发 `apply_patch` 为 Unknown。**推断**：hook 退出码 1 不直接阻断工具；错误在 exec/TUI 中如何显示仍为 Unknown。不能保证同一次编辑前模型已读到提醒。上述运行态由 [#107](https://github.com/Dimon94/skills/issues/107) 真机验收核实，证据归 repo://docs/research/test-discipline/codex.md。
+**推断**：同版本源码的 `post_tool_use_input` 为 shell 构造 `tool_input: {"command": "<命令文本>"}`，本入口按此形状校验；形状不符时写 stderr、退出 1，永不退出 2。源码依据见 repo://docs/research/test-discipline/codex.md「9. shell 写入的 PostToolUse 源码合同」。
+
+适配依据同版本源码，未完成真实 Codex 验证：`additionalContext` 进入模型的时机、shell 调用补丁是否仍触发 `apply_patch`、shell 是否真以 `Bash` 触发、codemode 内嵌套 `exec_command` 是否触发及真实 `tool_input` 字段均为 Unknown。**推断**：hook 退出码 1 不直接阻断工具；错误在 exec/TUI 中如何显示仍为 Unknown。不能保证同一次编辑前模型已读到提醒。上述运行态由 [#107](https://github.com/Dimon94/skills/issues/107) 真机验收核实，证据归 repo://docs/research/test-discipline/codex.md。
 
 ### Codex 信任面
 
-安装成功后，用户须在 `/hooks` 中信任 test-discipline 条目；安装器不修改 `config.toml` 或信任记录。**推断**：Codex 的信任哈希绑定 hook 定义，而不绑定脚本内容；定义不变时，修改本仓脚本可能无需重新信任。因此能修改本仓脚本的人可能获得 agent 进程中的代码执行能力。信任持久性与是否要求重新信任仍为 Unknown，由 #107 核实。更新 hook 时审查脚本内容，不能只检查已有信任状态；取舍与回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
+安装成功后，用户须在 `/hooks` 中信任 test-discipline 条目；新增 `PostToolUse` 组需重新信任。安装器不修改 `config.toml` 或信任记录。**推断**：Codex 的信任哈希绑定 hook 定义，而不绑定脚本内容；定义不变时，修改本仓脚本可能无需重新信任。因此能修改本仓脚本的人可能获得 agent 进程中的代码执行能力。信任持久性与仅修改脚本是否要求重新信任仍为 Unknown，由 #107 核实。更新 hook 时审查脚本内容，不能只检查已有信任状态；取舍与回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 
 ## 项目测试规范定位
 
@@ -121,9 +124,9 @@ node skills/test-discipline/scripts/install-hooks.cjs
 node skills/test-discipline/scripts/install-hooks.cjs --uninstall
 ```
 
-目标表 `targets` 包含 Claude、Codex 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 的 `~/.claude/settings.json`；`CODEX_HOOKS` 覆盖 Codex 的 `~/.codex/hooks.json`。Claude 与 Codex 都注册 PreToolUse 与 SubagentStart。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。Codex 安装成功后提示去 `/hooks` 信任，不写 `config.toml` 或信任记录。
+目标表 `targets` 包含 Claude、Codex 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 的 `~/.claude/settings.json`；`CODEX_HOOKS` 覆盖 Codex 的 `~/.codex/hooks.json`。Claude 与 Codex 都注册 PreToolUse 与 SubagentStart；Codex 另注册 matcher 为 `Bash` 的 PostToolUse 组。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。Codex 安装成功后提示去 `/hooks` 信任，并说明新增 PostToolUse 组需重新信任；不写 `config.toml` 或信任记录。
 
-检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动或 Claude matcher 仍为旧值 `Edit|Write|MultiEdit` 时，检查报告 drift；获得配置写入授权后重新安装即可修正。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
+检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动、Claude matcher 仍为旧值 `Edit|Write|MultiEdit`，或 Codex 缺少 PostToolUse/Bash 注册组时，检查报告 drift；获得配置写入授权后重新安装即可修正。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
 
 `--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。JSON 沿用条目识别、变化前备份和原子替换；Pi 只备份并删除解析后指向本仓当前扩展的 symlink，保留其他链接和非 symlink 目标。目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 

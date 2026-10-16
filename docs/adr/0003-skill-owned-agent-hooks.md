@@ -44,6 +44,8 @@ Related: [#93](https://github.com/Dimon94/skills/issues/93)、[#101](https://git
 
 Claude `PreToolUse` 的 `Bash` 从 `tool_input.command` 提取目标，安装 matcher 加入 `Bash`；旧 matcher 由 `--check` 报 drift，用户授权后重装修复。多文件沿用一次注入与首个命中仓规范定位。识别边界是字面量路径，不识别变量路径、间接写入与代码生成；具体形态归 repo://skills/test-discipline/hooks/core.cjs 的 `extractWriteTargets` 与缝 1 测试。
 
+Codex shell 提醒采用 PostToolUse/Bash，按源码推断的 `tool_input.command` 复用共享解析；新增注册组后须在 `/hooks` 重新信任，源码定点与运行态 Unknown 归 repo://docs/research/test-discipline/codex.md「9. shell 写入的 PostToolUse 源码合同」。
+
 否决方案 B（调用前后 git 快照比对）：它要求启动子进程、存状态，并为每次 shell 增加开销，破坏现有只读、无状态合同。若 #107 真机验收发现间接写入的漏报，再另开票评估，不在解析器中补状态机制。回退保留本记录第 4 节的授权与卸载顺序。
 
 ## Consequences

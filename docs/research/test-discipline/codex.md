@@ -1,6 +1,6 @@
 # Codex hook 探针：事件、上下文与信任面
 
-调查记录，2026-10-16。范围：[#95](https://github.com/Dimon94/skills/issues/95)，对应 [#93](https://github.com/Dimon94/skills/issues/93) 的 Implementation Decisions 第 8、16 节。
+调查记录，2026-10-16。范围：[#95](https://github.com/Dimon94/skills/issues/95)，对应 [#93](https://github.com/Dimon94/skills/issues/93) 的 Implementation Decisions 第 8、16 节；第 9 项补充 [#109](https://github.com/Dimon94/skills/issues/109) 的 PostToolUse 源码合同。
 
 **结论：本机无法在禁止写入 `~/.codex/` 的条件下启动 `codex exec`。运行态验收项保持 Unknown，交 #107 真机验收。** 同版本源码支持部分设计假设，但不替代真实 hook 输入、模型复述或交互式信任验证。本记录不修改 Spec，不授权安装。
 
@@ -183,3 +183,15 @@ version_for_toml(&value)
 命令：`run.py` 在每轮启动前后计算 `config.toml`、`hooks.json` 的 SHA-256；写保护命令与结果见「隔离与启动结果」。
 
 原始观测：首轮出现无法归因的 `config.toml` 变化，不能宣称整段调查期间全局文件始终未变；首轮前后 SHA 的留存缺口保持 Unknown。写保护四轮均前后一致。没有主动编辑、还原全局配置或信任记录，没有复制凭据。保护范围内未能启动时明确停止，未以修改全局配置换取证据。
+
+### 9. shell 写入的 PostToolUse 源码合同
+
+源码核对沿用上文锁定的官方 commit，不启动真实 Codex。关键定点：
+
+- [`core/src/tools/handlers/unified_exec.rs`，`post_unified_exec_tool_use_payload`](https://github.com/openai/codex/blob/092d3acd6bec3e3a14bdc7e7a2810ab628ab759d/codex-rs/core/src/tools/handlers/unified_exec.rs#L81-L98)：只构造 PostToolUse payload，使用 `HookToolName::bash()`，输入取自工具结果的 `post_tool_use_input`；该文件没有 PreToolUse payload。
+- [`core/src/tools/context.rs`，`ExecCommandToolOutput::post_tool_use_input`](https://github.com/openai/codex/blob/092d3acd6bec3e3a14bdc7e7a2810ab628ab759d/codex-rs/core/src/tools/context.rs#L432-L436)：将 `hook_command` 序列化为 `{"command": command}`，不是 `exec_command` 原始参数中的 `cmd`。
+- [`hooks/src/events/post_tool_use.rs`，`command_input_json` 与 `parse_completed`](https://github.com/openai/codex/blob/092d3acd6bec3e3a14bdc7e7a2810ab628ab759d/codex-rs/hooks/src/events/post_tool_use.rs#L150-L283)：stdin 保留 `cwd`、canonical `tool_name` 与 `tool_input`；退出 0 时接受 `hookSpecificOutput.additionalContext`，退出 1 记为 Failed，退出 2 的独立分支可阻断。
+
+**推断**：Codex shell 事件形如 `{"hook_event_name":"PostToolUse","tool_name":"Bash","cwd":"<绝对路径>","tool_input":{"command":"<命令文本>"}}`。这不是实测输入。入口按此形状校验，提醒只用 additionalContext；不输出 systemMessage 或权限决定，永不退出 2。公开入口合同归 repo://skills/test-discipline/SKILL.md「Codex 入口」。
+
+缝 1 用临时仓与合成 stdin 事件验证提醒、静默与输入错误；缝 3 用临时 HOME 加三端路径覆盖验证注册、漂移修复与卸载。它们不能证明真实 shell 是否以 Bash 触发、codemode 内嵌套 exec_command 是否触发、真实 tool_input 字段或模型收到提醒的时机；这些运行态仍为 **Unknown**，交 #107。新增 PostToolUse 组改变信任定义，用户需在 `/hooks` 重新信任；仅修改脚本的信任推断与限制仍见第 6 项。

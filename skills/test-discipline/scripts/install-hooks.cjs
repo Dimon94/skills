@@ -11,7 +11,7 @@ const { isDeepStrictEqual } = require("node:util");
  * PARAM: 无参数安装；--check 只读；--uninstall 卸载，三者互斥。
  * PARAM: CLAUDE_SETTINGS 覆盖 ~/.claude/settings.json；CODEX_HOOKS 覆盖 ~/.codex/hooks.json。
  * PARAM: PI_EXTENSIONS_DIR 覆盖 ~/.pi/agent/extensions，目标名为 test-discipline.js。
- * INVARIANT: 不读写 Codex config.toml 或信任记录；安装成功提示用户在 /hooks 信任。
+ * INVARIANT: 不读写 Codex config.toml 或信任记录；安装成功提示用户在 /hooks 信任，新增 PostToolUse 组需重新信任。
  * INVARIANT: 按安装器命令中的绝对入口认领；他人配置保序；键序不影响检查；无变化不写。
  * CHAIN: 参数 -> 读取并校验全部目标 -> 清理本 Skill 条目与因此清空的组 -> 安装时追加 -> 变化前备份 -> 原子替换。
  * INVARIANT: Pi 安装拒绝覆盖非 symlink；检查缺失为 missing、指向当前扩展为 installed，其余为 drift。
@@ -34,6 +34,7 @@ const targets = [{
   const hook = { type: "command", command: `${command} ${mode}`, timeout: 5 };
   return { name, file, groups: {
     PreToolUse: [{ matcher, hooks: [hook] }],
+    ...(mode === "codex" ? { PostToolUse: [{ matcher: "Bash", hooks: [hook] }] } : {}),
     SubagentStart: [{ hooks: [hook] }],
   } };
 }).concat({
@@ -200,7 +201,7 @@ function main() {
     process.stdout.write(`${target.name}: ${status}\n`);
     if (args[0] === "--check" && status !== "installed") process.exitCode = 1;
   }
-  if (args.length === 0) process.stdout.write("Codex：请在 /hooks 中信任 test-discipline 条目\n");
+  if (args.length === 0) process.stdout.write("Codex：请在 /hooks 中信任 test-discipline 条目；新增 PostToolUse 组需重新信任\n");
 }
 
 try {

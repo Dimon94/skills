@@ -117,6 +117,45 @@ test("缝 1 #6：Codex Move to 命中，跨仓规范取首个命中文件的仓�
   assert.ok(text.includes("load/second.js"));
 });
 
+test("缝 1 Codex PostToolUse：Bash 写入命中，普通命令静默，多文件只注入一次", async (t) => {
+  const cwd = repository(t);
+  const env = { HOME: cwd, CLAUDE_SETTINGS: path.join(cwd, "settings.json"), CODEX_HOOKS: path.join(cwd, "hooks.json"), PI_EXTENSIONS_DIR: path.join(cwd, "extensions") };
+  fs.writeFileSync(path.join(cwd, "AGENTS.md"), "测试规范：repo://rules.md\n");
+  fs.writeFileSync(path.join(cwd, "rules.md"), "不应复制的规范正文\n");
+  const input = { hook_event_name: "PostToolUse", tool_name: "Bash", cwd };
+  for (const [command, heading] of [
+    ["cat > x_test.go <<'EOF'\npackage main\nEOF", "x_test.go"],
+    ["tee 'tests/unit case.ts' >> load/run.js; cp source 'tests/unit case.ts'; cat > src/app.ts", "tests/unit case.ts、load/run.js"],
+  ]) await t.test(command, () => {
+    const text = context(invoke({ ...input, tool_input: { command } }, entry, env, "codex"), "PostToolUse");
+    assert.equal(text.split("\n")[0], `[test-discipline] 命中测试文件：${heading}`);
+    assert.equal(text.split("[test-discipline]").length - 1, 1);
+    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+    assert.ok(text.includes("项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：AGENTS.md\n"));
+    assert.ok(!text.includes("不应复制的规范正文"));
+    assert.equal(fs.existsSync(path.join(cwd, "x_test.go")), false);
+    assert.equal(fs.existsSync(path.join(cwd, "tests")), false);
+  });
+  for (const command of ["cat x_test.go", "node --test x.test.cjs", "cat > src/app.ts", "echo ok 2>&1"]) {
+    silent(invoke({ ...input, tool_input: { command } }, entry, env, "codex"));
+  }
+  silent(invoke({ ...input, tool_input: { command: "cat > x.test.ts" } }, entry, { ...env, TEST_DISCIPLINE_HOOK: "0" }, "codex"));
+  silent(invoke({ ...input, tool_name: "apply_patch" }, entry, env, "codex"));
+  silent(invoke({ ...input, hook_event_name: "PreToolUse" }, entry, env, "codex"));
+  silent(invoke(input, entry, env, "claude"));
+});
+
+test("缝 1 Codex PostToolUse：输入形状不符显式退出 1，不阻断", (t) => {
+  const cwd = repository(t);
+  const env = { HOME: cwd, CLAUDE_SETTINGS: path.join(cwd, "settings.json"), CODEX_HOOKS: path.join(cwd, "hooks.json"), PI_EXTENSIONS_DIR: path.join(cwd, "extensions") };
+  for (const tool_input of [undefined, null, [], "cat > x.test.ts", {}, { cmd: "cat > x.test.ts" }, { command: 7 }, { command: " " }]) {
+    const result = invoke({ hook_event_name: "PostToolUse", tool_name: "Bash", cwd, tool_input }, entry, env, "codex");
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "test-discipline: PostToolUse 缺少 tool_input.command\n");
+  }
+});
+
 test("缝 1 Bash：字面量写入目标复用写前自检，读取与执行测试不注入", async (t) => {
   const cwd = repository(t);
   const input = (command) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } });

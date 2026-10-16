@@ -86,7 +86,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 ## Pi 入口
 
-用 `pi -e <本 Skill 绝对路径>/hooks/pi.js` 加载 ESM 扩展。扩展通过真实文件路径创建 `createRequire`，复用 `hooks/core.cjs`；模块解析证据见 repo://docs/research/test-discipline/pi.md「模块解析」。
+按「安装」注册 symlink 后由 Pi 自动发现 ESM 扩展；也可用 `pi -e <本 Skill 绝对路径>/hooks/pi.js` 单次加载。扩展通过真实文件路径创建 `createRequire`，复用 `hooks/core.cjs`；模块解析证据见 repo://docs/research/test-discipline/pi.md「模块解析」。
 
 只处理主会话成功的 `edit`、`write` 工具结果。命中测试或压测文件时，在原 `content` 后追加写前自检与规范定位；带 `structuredContent` 时原样回传。普通源码、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
 
@@ -106,10 +106,10 @@ node skills/test-discipline/scripts/install-hooks.cjs
 node skills/test-discipline/scripts/install-hooks.cjs --uninstall
 ```
 
-目标表 `targets` 只含 Claude。`CLAUDE_SETTINGS` 可覆盖目标路径；默认路径为 `~/.claude/settings.json`。注册包括 PreToolUse 与 SubagentStart；事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。SubagentStart 的提醒依赖 Claude 入口支持该事件。
+目标表 `targets` 包含 Claude 与 Pi。`CLAUDE_SETTINGS` 覆盖 Claude 配置路径，默认为 `~/.claude/settings.json`，注册包括 PreToolUse 与 SubagentStart。`PI_EXTENSIONS_DIR` 覆盖 Pi 扩展目录，默认为 `~/.pi/agent/extensions`；安装器在其中创建 `test-discipline.js` symlink，指向本仓 `hooks/pi.js`。参数与事件合同归 repo://skills/test-discipline/scripts/install-hooks.cjs 的安装边界。
 
-检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
+检查逐端输出 `installed`、`missing` 或 `drift`，不写文件；全部 installed 时退出 0，否则退出 1。仓库移动后，检查报告 drift，重新安装即可修正旧路径。安装保留其他配置及 hook 条目，变化前备份原文件到 `<原文件>.test-discipline.bak-<YYYYMMDDHHMMSS>`，再原子替换；内容不变时不写。原文件不存在时直接创建。Pi 检查将不存在的链接报告为 missing，指向当前扩展为 installed，其余为 drift；安装遇到非 symlink 目标时退出 1，保留原文件，移走冲突文件后再重试。Pi 链接变化前备份链接本身，再原子替换。JSON 或配置结构非法时退出 1，不写文件；修正报错路径后重试。
 
-`--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。沿用条目识别、变化前备份和原子替换；目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
+`--uninstall` 对目标表内所有目标生效，成功输出 `uninstalled`，退出 0。只移除本 Skill 的条目与因此清空的 matcher 组，保留混合组内他人 hook、原有空组、事件键与其他配置。JSON 沿用条目识别、变化前备份和原子替换；Pi 只备份并删除解析后指向本仓当前扩展的 symlink，保留其他链接和非 symlink 目标。目标不存在或已卸载时不写文件，也不产生备份。多端 hook 的取舍、信任面与完整回退归 repo://docs/adr/0003-skill-owned-agent-hooks.md。
 
-安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。
+安装测试归 `tests/install.test.cjs`，通过真实 CLI 读回配置。验证一律使用临时 HOME 加 `CLAUDE_SETTINGS`、`PI_EXTENSIONS_DIR` 覆盖；运行 `node --test skills/test-discipline/tests/install.test.cjs`。恢复时，先核对备份与其他工具的后续改动，再由用户批准恢复；不要直接覆盖后续配置。

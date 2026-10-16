@@ -207,20 +207,29 @@ function shellTokens(command) {
     .map((match) => ({ raw: match[0], index: match.index }));
 }
 
-function codeLiteral(raw) {
+function codeLiteral(raw, shellCommand = false) {
   if (!raw || !/^["'`]/.test(raw) || raw.at(-1) !== raw[0]) return null;
   const value = raw.slice(1, -1);
-  if (/\\(?![\\'"`])|\0/.test(value) || (raw[0] === "`" && value.includes("${"))) return null;
-  return value.replace(/\\([\\'"`])/g, "$1");
+  if (value.includes("\0") || (raw[0] === "`" && value.includes("${"))) return null;
+  const escapes = { "\\": "\\", "'": "'", '"': '"', "`": "`", ...(shellCommand ? { n: "\n", r: "\r", t: "\t" } : {}) };
+  let valid = true;
+  const decoded = value.replace(/\\([\s\S]?)/g, (_, escaped) => {
+    if (Object.hasOwn(escapes, escaped)) return escapes[escaped];
+    valid = false;
+    return "";
+  });
+  return valid ? decoded : null;
 }
 
-function objectPath(tokens, start) {
+function objectPath(tokens, start, key = "path") {
   let depth = 0;
   for (let index = start; index < tokens.length; index += 1) {
     const token = tokens[index].raw;
     if (token === "}" && depth === 0) return null;
-    if (depth === 0 && (token === "path" || codeLiteral(token) === "path")
-        && tokens[index + 1]?.raw === ":" && [",", "}"].includes(tokens[index + 3]?.raw)) return codeLiteral(tokens[index + 2]?.raw);
+    if (depth === 0 && (token === key || codeLiteral(token) === key)
+        && tokens[index + 1]?.raw === ":" && [",", "}"].includes(tokens[index + 3]?.raw)) {
+      return codeLiteral(tokens[index + 2]?.raw, key === "command");
+    }
     if (["{", "[", "("].includes(token)) depth += 1;
     if (["}", "]", ")"].includes(token)) depth -= 1;
   }
@@ -242,6 +251,10 @@ function codeTargets(code, offset = 0) {
         && [",", ")"].includes(tail[5])) target = codeLiteral(tail[2]);
     if (tail[0] === "tools" && tail[1] === "." && ["edit", "write"].includes(tail[2])
         && tail[3] === "(" && tail[4] === "{") target = objectPath(tokens, index + 5);
+    if (tail[0] === "tools" && tail[1] === "." && tail[2] === "bash" && tail[3] === "(" && tail[4] === "{") {
+      const command = objectPath(tokens, index + 5, "command");
+      if (command !== null) paths.push(...extractWriteTargets(command).map((path) => ({ path, index: tokens[index].index })));
+    }
     if (target) paths.push({ path: target, index: tokens[index].index });
   }
   return paths;
@@ -315,14 +328,16 @@ function shellTargets(shell) {
 }
 
 /* L4 -- 写入目标解析
- * IN: 已校验的命令或 codemode 文本；仅提取字面量，不解释 shell 或代码运行结果。
+ * IN: 已校验的命令或代码文本；syntax 默认 shell，Pi codemode 显式传 codemode。
+ * INVARIANT: codemode 只经代码扫描；仅 tools.bash 的字面量 command 进入 shell 分支。
  * OUT: 按文本顺序返回去重路径，测试文件判定仍归 buildContext；补丁块与 heredoc 数据不当命令。
  * INVARIANT: 不执行命令、不启动子进程、不读写状态；变量路径、间接写入与代码生成不识别。
  * INVARIANT: 按 shell 引用、转义与 heredoc 分隔符区分展开和字面量；续行结束后才消费 heredoc 数据。
- * TEST: repo://skills/test-discipline/tests/hook.test.cjs「缝 1 Bash」。
+ * INVARIANT: tools.bash 的字面量 command 按转义单元一次解码（含换行、回车与 tab），拒绝模板插值。
+ * TEST: repo://skills/test-discipline/tests/hook.test.cjs「缝 1 Bash」与 tests/pi.test.cjs「缝 2」。
  */
-function extractWriteTargets(command) {
-  const { shell, code } = commandLines(command);
+function extractWriteTargets(command, syntax = "shell") {
+  const { shell, code } = syntax === "codemode" ? { shell: "", code: [{ text: command, index: 0 }] } : commandLines(command);
   const targets = shellTargets(shell).concat(codeTargets(shell), code.flatMap(({ text, index }) => codeTargets(text, index)));
   targets.sort((left, right) => left.index - right.index);
   return [...new Set(targets.map(({ path }) => path).filter(Boolean))];

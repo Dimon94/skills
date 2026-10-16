@@ -175,3 +175,11 @@ PASS append: 三个随机口令复述、原 content/details 保留、structuredC
 - **待 coordinator 确认**：若第 1 节 Pi ESM 复用核心、第 9 节适配实现与第 11 节 symlink 安装依赖“裸 createRequire 自动按真实路径解析”，本次观测否定该假设。建议先显式解析扩展真实路径，再创建 require；该写法已在临时探针取得 `REAL_TARGET`。spec 未明确规定裸调用，不能据此宣称整个第 9 节失效。本票不改 spec、不实施该适配层；由 coordinator 把这一澄清带回用户确认。
 - 主会话、一个模型和 JSON 模式之外的行为为 Unknown。Pi 子 agent、嵌套调用、失败通知、全局自动发现、安装卸载和交互 TUI 不在本次实测结论内。
 - 本次只新增调查记录，不改变运行接口、schema 或 L1–L6 合同。无构建命令或适用的文档测试套件；以真实 CLI 探针、阴性对照和 `git diff --check` 验证。`docs/deferred-hardening.md` 无新增。
+
+## bash/codemode 入口合同
+
+[#110](https://github.com/Dimon94/skills/issues/110) 的入口实现归 repo://skills/test-discipline/hooks/pi.js 的 `register`，写入目标解析归 repo://skills/test-discipline/hooks/core.cjs 的 `extractWriteTargets`。`bash` 从 `event.input.command` 取命令；`codemode` 从 `event.input.code` 取代码，解析 `tools.edit/write` 的字面量 path 与 `tools.bash` 的字面量 command，再沿用共享的测试文件判定。嵌套工具结果带 `parentToolCallId`，仍不直接追加。
+
+一手合同为本机 Pi 文档 `docs/codemode.md`「Scripts」、`docs/extensions.md`「Tools」及 `dist/core/extensions/types.d.ts` 的 `ToolResultEventBase`、`ToolResultEventResult`。这些合同说明脚本通过工具调用访问文件，嵌套结果不进入对话，`tool_result` 可返回追加正文并保留 `structuredContent`。
+
+隔离检查归 repo://skills/test-discipline/tests/pi.test.cjs「缝 2」：通过注册后的真实 handler 验证 heredoc、codemode 多文件与内部 shell 命中，正文保留、结构化对象同引用、成功与嵌套过滤，以及只读和跑测试不追加。运行 `node --test skills/test-discipline/tests/pi.test.cjs`；测试使用临时仓、临时 HOME 与三端配置覆盖，不写用户全局配置。此检查不执行代码文本中的写入命令，不能替代 bash/codemode 真机追加可见性验收；该运行态为 Unknown，归 #107。

@@ -106,11 +106,13 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 按「安装」注册 symlink 后由 Pi 自动发现 ESM 扩展；也可用 `pi -e <本 Skill 绝对路径>/hooks/pi.js` 单次加载。扩展通过真实文件路径创建 `createRequire`，复用 `hooks/core.cjs`；模块解析证据见 repo://docs/research/test-discipline/pi.md「模块解析」。
 
-只处理主会话成功的 `edit`、`write` 工具结果。命中测试或压测文件时，在原 `content` 后追加写前自检与规范定位；带 `structuredContent` 时原样回传。普通源码、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
+只处理主会话 `isError === false` 的 `edit`、`write`、`bash`、`codemode` 工具结果：`edit/write` 读取 `input.path`，`bash` 读取 `input.command`，`codemode` 读取 `input.code`。命令与代码文本统一交给共享核心 `extractWriteTargets`；codemode 显式选择代码扫描，覆盖 `tools.edit/write({path})` 与 `tools.bash({command})` 的字面量参数。JS 注释、字符串与模板正文不作为 shell 命令；只有 `tools.bash` 的字面量 command 进入 shell 分支，模板插值不识别。
 
-`TEST_DISCIPLINE_HOOK=0` 在扩展加载时关闭提醒；运行中修改开关需重新加载扩展。处理异常时只发以 `test-discipline:` 开头的 error 级通知，不改工具结果；按通知修正事件路径或恢复「写前自检」小节后重试。
+命中测试或压测文件时，在原 `content` 后追加一份写前自检与规范定位；多个命中去重后列全，规范定位取首个命中文件的仓。带 `structuredContent` 时原样回传。普通源码、只读命令、单纯跑测试、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
 
-已知缺口：Pi 子 agent 与嵌套工具调用不覆盖，包括 codemode 内部的 edit/write。提醒在编辑成功后进入模型视野，作用于后续编辑；不处理 shell 写文件。
+`TEST_DISCIPLINE_HOOK=0` 在扩展加载时关闭提醒；运行中修改开关需重新加载扩展。处理异常时只发以 `test-discipline:` 开头的 error 级通知，不改工具结果；按通知修正事件输入或恢复「写前自检」小节后重试。
+
+已知缺口：Pi 子 agent 与嵌套工具结果不覆盖；codemode 内部写入依靠主会话 `input.code` 的字面量解析，不依靠嵌套结果。变量路径、非字面量 command、间接写入与代码生成不识别；shell 解析边界同「Claude 入口」的已知限制。codemode 扫描不区分正则字面量与注释：同一行内含 `//` 的正则（如 `/\//`）之后的调用会漏报。提醒在工具成功后进入模型视野，作用于后续编辑；bash/codemode 的真机可见性仍由 #107 验收。
 
 验证：`tests/pi.test.cjs` 穿过扩展注册的 `tool_result` 入口，使用临时仓与隔离进程验证缝 2。运行 `node --test skills/test-discipline/tests/pi.test.cjs`。本入口不负责安装或写入用户全局配置。
 

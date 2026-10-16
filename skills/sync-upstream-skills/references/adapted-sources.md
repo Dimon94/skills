@@ -13,7 +13,10 @@
 | no-comments | cursor/plugins | `pstack/skills/no-comments`、`pstack/agents/comment-sicko.md` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/no-comments/SKILL.md> |
 | in-your-own-words | cursor/plugins | `pstack/skills/in-your-own-words` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/in-your-own-words/SKILL.md> |
 | test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
+| test-discipline | Dimon94/project-template | `template/docs/agents/quality-standards.md`「测试质量」 | `be3d011` | <https://github.com/Dimon94/project-template/blob/be3d011/template/docs/agents/quality-standards.md#6-测试质量> |
 | epic-planner | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
+
+`test-discipline` 的基线测试规范通用正文改写自 `project-template` 的测试质量节；扩展库公开函数的 E2E 定义，并加入阶段相称与按目录填写的 TS/JS、Python、Go 语言节。本仓拥有模板与建档流程，生成的规范归目标项目所有；上游更新仅供人工对照。
 
 `test-review` 借鉴固定审查范围、Standards / Spec 独立分派与分轴报告的结构；测试审查内容由本仓维护，目标项目的测试规范在调用时读取。
 

@@ -23,6 +23,7 @@ Status: current
 | skills/avoid-overengineering | 手动调用的最简实现约束与交付前消融实验 | 不拥有全仓审计或自动触发 | SKILL.md | 无 | pi Skill 加载校验 + 人工审查 |
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/epic-planner | 远程史诗索引与决策票的持续寻路、调研/原型/拷问路由、深模块和共享 Interface 决策收敛、最终多地图 epic-plan 与集成验收计划 | 不拥有下游 Wayfinder 地图解票、通用调度器、产品实现或本地规划副本 | SKILL.md + references/ | investigate、show-me；调用环境的 codebase-design、research、prototype、grill-with-docs、wayfinder；项目 tracker 工具与后台 agent（可用时） | Skill 校验 + references/verification.md 的隔离生命周期前向案例 |
+| skills/vertical-slicing | 手动调用；把 spec、地图或单张票切成可逐片合入、部署、体验的垂直切片：业务主线、walking skeleton、加厚顺序、隐藏手法与收尾片、按 Interface 判定的依赖边；审查现有拆票是否垂直 | 不拥有拆票征询与发布（to-tickets）、token 预测（ticket-sizing）、逐票执行与合入授权（delivery-pipeline 独立票模式） | SKILL.md + references/ + agents/openai.yaml | to-tickets、ticket-sizing、delivery-pipeline（第三方 skill，可用时） | Skill 校验 + references/verification.md 的隔离前向案例 |
 | skills/git-commit | 本地提交边界与范围核验 | 不拥有合并、推送 | SKILL.md | git CLI | Skill 校验与人工审查 |
 | skills/git-rebase-main | 当前分支到本地 main 的 rebase 与快进 | 不拥有远程推送 | SKILL.md | git CLI；resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |
 | skills/git-push-pr | 推送已验证分支并建/更新唯一 GitHub PR | 不拥有 PR 正文模板、审批、合并、issue 关闭 | SKILL.md | git CLI、gh CLI；git-commit、git-rebase-main；mattpocock-skills:pr（正文模板，运行时入口：`~/.agents/skills/pr/SKILL.md`） | 无独立测试，经人工审查 |

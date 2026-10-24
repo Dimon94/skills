@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const skill = path.resolve(__dirname, "..");
 const entry = path.join(skill, "hooks/entry.cjs");
+const CHECKLIST = "哪个具体错误实现会让哪条断言失败";
 
 function sandbox(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "test-discipline-"));
@@ -56,8 +57,8 @@ function silent(result) {
 
 test("缝 1 #1：Claude Write 测试文件收到写前自检与深层说明", (t) => {
   const text = context(invoke(event(repository(t), "src/a.test.ts")));
-  assert.match(text, /^\[test-discipline\] 命中测试文件：src\/a\.test\.ts\n/);
-  assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  assert.match(text, /^\[test-discipline\] 命中测试文件：src\/a\.test\.ts\n本提醒只追加文本，不拦截、不改写工具调用或输出。\n/);
+  assert.ok(text.includes(CHECKLIST));
   assert.ok(text.includes(`深层说明：${path.resolve(skill, "../test-review/references/test-heuristics.md")}`));
 });
 
@@ -87,7 +88,7 @@ test("缝 1 #5：Codex 多文件补丁只注入一份，完整列出命中文件
   const text = context(invoke(input, entry, {}, "codex"));
   assert.equal(text.split("\n")[0], "[test-discipline] 命中测试文件：tests/x_test.go、tests/unit case.test.js、perf/old run.js");
   assert.equal(text.split("[test-discipline]").length - 1, 1);
-  assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  assert.ok(text.includes(CHECKLIST));
   silent(invoke({ ...input, tool_input: { command: "*** Update File: src/app.ts\n" } }, entry, {}, "codex"));
 });
 
@@ -130,7 +131,7 @@ test("缝 1 Codex PostToolUse：Bash 写入命中，普通命令静默，多文�
     const text = context(invoke({ ...input, tool_input: { command } }, entry, env, "codex"), "PostToolUse");
     assert.equal(text.split("\n")[0], `[test-discipline] 命中测试文件：${heading}`);
     assert.equal(text.split("[test-discipline]").length - 1, 1);
-    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+    assert.ok(text.includes(CHECKLIST));
     assert.ok(text.includes("项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：AGENTS.md\n"));
     assert.ok(!text.includes("不应复制的规范正文"));
     assert.equal(fs.existsSync(path.join(cwd, "x_test.go")), false);
@@ -193,7 +194,7 @@ test("缝 1 Bash：字面量写入目标复用写前自检，读取与执行测�
   for (const [command, filename] of writes) await t.test(command, () => {
     const text = context(invoke(input(command)));
     assert.equal(text.split("\n")[0], `[test-discipline] 命中测试文件：${filename}`, command);
-    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+    assert.ok(text.includes(CHECKLIST));
   });
   for (const command of [
     "cat x_test.go", "grep TODO x_test.go", "sed -n '1,20p' x_test.go", "rg TODO tests",
@@ -391,7 +392,7 @@ test("缝 1 #12：运行时原样读取写前自检小节，不注入相邻小�
   const text = context(invoke(event(repository(t), "test_a.py"), path.join(copy, "hooks/entry.cjs")));
   assert.ok(text.includes(body));
   assert.ok(!text.includes("不应注入"));
-  assert.ok(!text.includes("它验证哪个已接受的需求"));
+  assert.ok(!text.includes(CHECKLIST));
   assert.ok(!text.includes("深层说明："));
 });
 
@@ -410,7 +411,7 @@ test("缝 1 #14：非 JSON 有稳定错误，退出 1 而非 2", () => {
   }
 });
 
-test("缝 1 #15：SubagentStart 按会话 cwd 注入规范与自检，不依赖工具字段", (t) => {
+test("缝 1 #15：SubagentStart 只给规范与条件导航，不向只读任务展开自检", (t) => {
   const repo = repository(t);
   const cwd = path.join(repo, "module");
   fs.mkdirSync(cwd);
@@ -421,8 +422,10 @@ test("缝 1 #15：SubagentStart 按会话 cwd 注入规范与自检，不依赖�
   for (const mode of ["claude", "codex"]) {
     let text = context(invoke(input, entry, {}, mode), "SubagentStart");
     assert.ok(text.startsWith("[test-discipline]\n项目测试规范（来源：测试规范索引）：\n- rules.md\n最近 AGENTS.md：module/AGENTS.md\n"));
-    assert.ok(text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
-    assert.ok(text.includes("深层说明："));
+    assert.ok(text.includes(path.join(skill, "SKILL.md")));
+    assert.ok(text.includes("只读任务"));
+    assert.ok(!text.includes(CHECKLIST));
+    assert.ok(!text.includes("深层说明："));
     assert.ok(!text.includes("命中测试文件"));
     assert.ok(!text.includes("无项目测试规范"));
     text = context(invoke({ ...input, cwd: sandbox(t) }, entry, {}, mode), "SubagentStart");

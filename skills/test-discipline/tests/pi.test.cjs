@@ -7,23 +7,36 @@ const test = require("node:test");
 
 const skill = path.resolve(__dirname, "..");
 const extension = path.join(skill, "hooks/pi.js");
+const CHECKLIST = "哪个具体错误实现会让哪条断言失败";
 const original = [{ type: "text", text: "原工具结果" }, { type: "image", data: "AA==", mimeType: "image/png" }];
 const runner = `
   import { pathToFileURL } from "node:url";
   const { default: register } = await import(pathToFileURL(process.env.TEST_EXTENSION));
-  let handler;
+  const handlers = {};
   register({ on(name, callback) {
-    if (name !== "tool_result") throw new Error("错误的事件订阅");
-    handler = callback;
+    if (!["tool_result", "session_compact", "session_tree"].includes(name)) throw new Error("错误的事件订阅");
+    handlers[name] = callback;
   } });
+  const handler = handlers.tool_result;
   if (process.env.NEXT_SWITCH) process.env.TEST_DISCIPLINE_HOOK = process.env.NEXT_SWITCH;
   const event = JSON.parse(process.env.TEST_EVENT);
   const before = JSON.stringify(event);
   const notifications = [];
-  const result = await handler?.(event, {
+  const ctx = {
     cwd: process.env.TEST_CWD,
     ui: { notify: (message, level) => notifications.push({ message, level }) },
-  });
+  };
+  if (Array.isArray(event)) {
+    // 序列内 type 字段表示会话事件，其余按 tool_result 依次投递给同一运行时。
+    const results = [];
+    for (const step of event) {
+      if (step.type) await handlers[step.type]?.(step, ctx);
+      else results.push((await handler?.(step, ctx)) ?? null);
+    }
+    console.log(JSON.stringify({ results, notifications }));
+    process.exit(0);
+  }
+  const result = await handler?.(event, ctx);
   console.log(JSON.stringify({
     result: result ?? null, notifications, unchanged: before === JSON.stringify(event),
     sameStructured: result?.structuredContent === event.structuredContent,
@@ -63,7 +76,7 @@ test("缝 2 #1：write 测试文件保留原 content 与 structuredContent，追
   const appended = output.result.content.at(-1);
   assert.equal(appended.type, "text");
   assert.match(appended.text, /^\[test-discipline\] 命中测试文件：a\.test\.js\n/);
-  assert.ok(appended.text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+  assert.ok(appended.text.includes(CHECKLIST));
   assert.ok(appended.text.includes("项目测试规范（来源：测试规范索引）：\n- TESTING.md\n最近 AGENTS.md：AGENTS.md\n"));
   assert.ok(!appended.text.includes("项目规范正文不应注入"));
   assert.deepEqual(output.result.structuredContent, { answer: 7, nested: ["a"] });
@@ -87,7 +100,7 @@ for (const [name, toolName, input, files] of [
     const reminder = output.result.content.at(-1);
     assert.equal(reminder.type, "text");
     assert.equal(reminder.text.split("\n")[0], `[test-discipline] 命中测试文件：${files}`);
-    assert.ok(reminder.text.includes("1. 它验证哪个已接受的需求或具体缺陷？"));
+    assert.ok(reminder.text.includes(CHECKLIST));
     assert.ok(reminder.text.includes("项目测试规范（来源：测试规范索引）：\n- TESTING.md\n"));
     assert.equal(output.sameStructured, true);
     assert.deepEqual(output.result.structuredContent, { answer: 7 });
@@ -95,6 +108,28 @@ for (const [name, toolName, input, files] of [
     assert.deepEqual(output.notifications, []);
   });
 }
+
+test("缝 2 #5：同一运行时每个测试文件首次成功写入才提醒，压缩或切树后重新提醒", (t) => {
+  const write = (file, changes = {}) => ({ toolName: "write", isError: false, input: { path: file }, content: original, ...changes });
+  const { results, notifications } = invoke(sandbox(t), { toolName: "write" }, {
+    TEST_EVENT: JSON.stringify([
+      write("c.test.js", { isError: true }), write("c.test.js"),
+      write("a.test.js"), write("./a.test.js"),
+      { ...write("x"), toolName: "bash", input: { command: "echo x > a.test.js; echo y > b.test.js" } },
+      { type: "session_compact" }, write("a.test.js"),
+      { type: "session_tree" }, write("a.test.js"),
+    ]),
+  });
+  const headings = results.map((result) => result?.content.at(-1).text.split("\n")[0] ?? null);
+  assert.deepEqual(headings, [
+    null, "[test-discipline] 命中测试文件：c.test.js",
+    "[test-discipline] 命中测试文件：a.test.js", null,
+    "[test-discipline] 命中测试文件：b.test.js",
+    "[test-discipline] 命中测试文件：a.test.js",
+    "[test-discipline] 命中测试文件：a.test.js",
+  ]);
+  assert.deepEqual(notifications, []);
+});
 
 test("Pi 关闭开关只在扩展加载时读取，启用的 edit 同样追加", (t) => {
   const cwd = sandbox(t);

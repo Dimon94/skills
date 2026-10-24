@@ -5,32 +5,24 @@ description: 为项目建立或补齐测试规范，或用户主动要求写测�
 
 # Test Discipline
 
-用户明确要求建立或补齐项目测试规范时，执行「建档」。用户主动要求自检时，先读目标项目测试规范，再逐条回答「写前自检」。答不上的项按本节末尾动作处理。常规编辑由 hook 提醒，避免重复注入。
+用户明确要求建立或补齐项目测试规范时，执行「建档」。用户主动要求自检时，先读目标项目测试规范，再按「写前自检」核对实际测试。常规编辑由 hook 提醒；提醒已到达时直接处理，不重复加载全文。
 
 ## 写前自检
 
-先读上方列出的项目测试规范；它与本节冲突时，项目规范优先。
-新增、修改或删除测试前逐条回答，答不上的那条就是不写的理由：
-1. 它验证哪个已接受的需求或具体缺陷？
-2. 去掉它，现有测试是否就发现不了这次回归？
-3. 点名一个会让断言失败的错误实现。
-4. 预期值来自哪份独立依据（需求示例、手算、标准向量），而不是复制被测实现？
-5. 它穿过真实公开入口、观察业务结果，而不是镜像字面量、映射或内部结构？
-6. 它是否比被测实现更复杂？是则缩测试或缩装置。
-阶段相称（防错配测试）：
-7. 这项测试回答的问题，项目现在有证据需要回答吗？
-8. 规模、并发、数据量来自哪份已观测或已承诺的事实？
-9. 这个环境产出的结论能预测真实运行吗？
-10. 为它新增的设施，现在有人维护、有人看结果吗？
-任一项答不上：不写这项测试，回到当前验收所需的最小检查。
-按二八原则，把测试留给主要业务价值与高影响风险。
+先读上方列出的项目测试规范；冲突时项目规范优先。判断只回答一个问题：
+
+哪个具体错误实现会让哪条断言失败。写出来。
+
+写不出来就改测试，或者不写它。需要逐项深查时读 repo://skills/test-review/references/test-heuristics.md。
+
+断言观察公开入口上的业务结果，替身只放在外部边界。断言“没有发生”时，同一条测试要证明该发生的结果确实发生过。
 
 ## Claude 入口
 
 运行 `node <本 Skill 绝对路径>/hooks/entry.cjs claude`，从 stdin 接收 Claude Code 事件 JSON，输出 `hookSpecificOutput.additionalContext`：
 
 - `PreToolUse`：`Edit`、`Write`、`MultiEdit` 读取 `cwd` 与 `tool_input.file_path`；`Bash` 读取 `cwd` 与 `tool_input.command`，通过共享核心 `extractWriteTargets` 解析写入目标。命中测试或压测文件时注入；普通源码、只读命令与单纯跑测试不输出。一条命令只注入一次，列全命中文件，规范定位取首个命中文件的仓。
-- `SubagentStart`：只读取 `cwd`，按会话工作目录注入规范定位与写前自检。输出事件名为 `SubagentStart`，文本以 `[test-discipline]` 开头，不含“命中测试文件”行。
+- `SubagentStart`：只读取 `cwd`，按会话工作目录注入规范定位与「写前自检」的绝对路径；测试编辑前读取，只读任务按审查要求核对，不展开自检正文。输出事件名为 `SubagentStart`，文本以 `[test-discipline]` 开头，不含“命中测试文件”行。
 
 提醒从不拒绝或改写工具调用。设置 `TEST_DISCIPLINE_HOOK=0` 后入口不读 stdin、不输出，退出 0；其他输入与读取错误写入以 `test-discipline:` 开头的 stderr，退出 1。恢复方式：修正事件字段或恢复本文件的「写前自检」小节后重试。
 
@@ -42,7 +34,7 @@ description: 为项目建立或补齐测试规范，或用户主动要求写测�
 
 - `PreToolUse`：仅处理 `apply_patch`，读取 `cwd` 与 `tool_input.command` 补丁全文。逐行解析 `*** Add File: `、`*** Update File: `、`*** Delete File: `、`*** Move to: ` 后的路径，保留路径中的空格，去掉行尾空白。一份补丁只输出一份提醒，去重后列出全部命中文件；跨仓时以首个命中文件的仓根查找规范，命中路径相对该仓根展示。
 - `PostToolUse`：仅处理 `Bash`，读取 `cwd` 与 `tool_input.command` 命令文本，复用共享核心 `extractWriteTargets` 与既有测试文件判定。命中测试或压测文件时只注入一份提醒，去重后列全命中文件；普通命令不输出。解析边界同「Claude 入口」的 Bash 已知限制，提醒作用于工具调用结束后。
-- `SubagentStart`：按 `cwd` 注入规范定位与写前自检，不输出“命中测试文件”行。
+- `SubagentStart`：按 `cwd` 注入规范定位与条件导航，行为同「Claude 入口」，不输出“命中测试文件”行。
 
 三种事件都只输出 `hookSpecificOutput.hookEventName` 与 `additionalContext`，不输出 `systemMessage` 或权限决定。关闭开关与错误退出合同同 Claude 入口。
 
@@ -108,11 +100,11 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 
 只处理主会话 `isError === false` 的 `edit`、`write`、`bash`、`codemode` 工具结果：`edit/write` 读取 `input.path`，`bash` 读取 `input.command`，`codemode` 读取 `input.code`。命令与代码文本统一交给共享核心 `extractWriteTargets`；codemode 显式选择代码扫描，覆盖 `tools.edit/write({path})` 与 `tools.bash({command})` 的字面量参数。JS 注释、字符串与模板正文不作为 shell 命令；只有 `tools.bash` 的字面量 command 进入 shell 分支，模板插值不识别。
 
-命中测试或压测文件时，在原 `content` 后追加一份写前自检与规范定位；多个命中去重后列全，规范定位取首个命中文件的仓。带 `structuredContent` 时原样回传。普通源码、只读命令、单纯跑测试、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
+命中测试或压测文件时，在原 `content` 后追加一份写前自检与规范定位；多个命中去重后列全，规范定位取首个命中文件的仓。同一运行时内每个测试文件只在首次成功命中时提醒，重复编辑不再追加；`session_compact` 与 `session_tree` 清空已提醒集合，会话替换重建运行时后自然清空。该集合只存内存，不写文件、不跨会话；Claude 与 Codex 入口单进程运行，不做去重。带 `structuredContent` 时原样回传。普通源码、只读命令、单纯跑测试、失败结果和带 `parentToolCallId` 的嵌套调用返回 undefined，保持原结果。
 
 `TEST_DISCIPLINE_HOOK=0` 在扩展加载时关闭提醒；运行中修改开关需重新加载扩展。处理异常时只发以 `test-discipline:` 开头的 error 级通知，不改工具结果；按通知修正事件输入或恢复「写前自检」小节后重试。
 
-已知缺口：Pi 子 agent 与嵌套工具结果不覆盖；codemode 内部写入依靠主会话 `input.code` 的字面量解析，不依靠嵌套结果。变量路径、非字面量 command、间接写入与代码生成不识别；shell 解析边界同「Claude 入口」的已知限制。codemode 扫描不区分正则字面量与注释：同一行内含 `//` 的正则（如 `/\//`）之后的调用会漏报。提醒在工具成功后进入模型视野，作用于后续编辑；bash/codemode 的真机可见性仍由 #107 验收。
+已知缺口：去重只按绝对路径字面量，同一文件换 symlink 或相对路径写法会再提醒一次；Pi 子 agent 与嵌套工具结果不覆盖；codemode 内部写入依靠主会话 `input.code` 的字面量解析，不依靠嵌套结果。变量路径、非字面量 command、间接写入与代码生成不识别；shell 解析边界同「Claude 入口」的已知限制。codemode 扫描不区分正则字面量与注释：同一行内含 `//` 的正则（如 `/\//`）之后的调用会漏报。提醒在工具成功后进入模型视野，作用于后续编辑；bash/codemode 的真机可见性仍由 #107 验收。
 
 验证：`tests/pi.test.cjs` 穿过扩展注册的 `tool_result` 入口，使用临时仓与隔离进程验证缝 2。运行 `node --test skills/test-discipline/tests/pi.test.cjs`。本入口不负责安装或写入用户全局配置。
 

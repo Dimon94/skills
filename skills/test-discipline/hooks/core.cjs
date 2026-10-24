@@ -6,7 +6,7 @@ const path = require("node:path");
  * IN: buildPatchContext 接收已校验的补丁全文；extractWriteTargets 接收命令或 codemode 文本。
  * OUT: 写入目标解析只提取字面量路径；文件判定与多文件规范定位仍归 buildContext。
  * OUT: 多文件只组装一次，去重后列全命中项；规范与最近 AGENTS.md 取首个命中文件的仓。
- * OUT: 命中或子 agent 启动时返回文本，普通文件返回 null；只读本地文件，无状态。
+ * OUT: 命中时展开自检并声明本提醒只追加文本；子 agent 启动只给规范与条件导航，普通文件返回 null。
  * CHAIN: .git 仓根（无则 cwd）-> 根 AGENTS.md 首条索引 -> 无合法项时常见落点。
  * INVARIANT: 索引在此校验一次，拒绝绝对路径及词法或 symlink 越界；失效项只进诊断。
  * INVARIANT: 最近 AGENTS.md 不越过仓根；自检正文只由 SKILL.md 拥有。
@@ -129,10 +129,13 @@ function buildContext(cwd, filePath = null) {
   const { root, directory } = matches[0] || { root: repositoryRoot(cwd, cwd), directory: cwd };
   const filenames = matches.map(({ absolute }) => path.relative(root, absolute).split(path.sep).join("/"));
   const skillDirectory = path.dirname(path.dirname(fs.realpathSync(__filename)));
-  const body = readChecklist(skillDirectory);
   const explanation = path.resolve(skillDirectory, "../test-review/references/test-heuristics.md");
-  const heading = filePath === null ? "[test-discipline]\n" : `[test-discipline] 命中测试文件：${filenames.join("、")}\n`;
-  const text = heading + projectContext(root, directory) + body;
+  const heading = filePath === null
+    ? "[test-discipline]\n"
+    : `[test-discipline] 命中测试文件：${filenames.join("、")}\n本提醒只追加文本，不拦截、不改写工具调用或输出。\n`;
+  const location = heading + projectContext(root, directory);
+  if (filePath === null) return `${location}仅在新增、修改或删除测试时，先读 ${path.join(skillDirectory, "SKILL.md")}「写前自检」。只读任务按审查要求核对测试，无需逐条作答。\n`;
+  const text = location + readChecklist(skillDirectory);
   return fs.existsSync(explanation) ? `${text}\n深层说明：${explanation}` : text;
 }
 

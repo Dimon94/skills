@@ -44,6 +44,7 @@ Status: current
 | skills/blast-radius | 改动影响面分析与安全事实的代码取证（本仓自有，改写自上游，出处同上） | 不拥有寻路决策与产品修复 | SKILL.md | how、why；wayfinder（影响面起雾时） | Skill 校验与人工审查 |
 | skills/sync-upstream-skills | 上游快照的来源、锁定状态、检查与显式更新；改写自有 Skill 的出处清单（adapted-sources.md） | 不拥有快照内 Review 规则、运行时链接或独立项目更新 | SKILL.md + scripts/sync-upstream-skills.js | git CLI、Node.js、references/sources.json | node:test + `--check` |
 | skills/postmortem | 可复用失败教训的判定与落账 | 不拥有工作流状态、远程交付 | SKILL.md + scripts/postmortem-contract.js | Node.js | 契约脚本经单元测试（test 目录当前未迁入，待补） |
+| skills/pi-loop | pi 内的循环调度扩展：`/loop` 命令（自定节奏、固定间隔、cron）、`loop_next` / `loop_status` 工具、循环状态与会话条目持久化、暂停与恢复规则、状态行；安装器对 `~/.pi/agent/extensions/pi-loop` 的注册、`--check` 与 `--uninstall`。自建而非采用第三方包，取舍与状态模型见 repo://docs/pi-loop/technical-design.md | 不拥有模型对循环内容的判断、跨会话或后台守护调度、停机期间错过的轮次；不覆盖 print/rpc/json 模式与子 agent 会话的调度 | SKILL.md + lib/index.js（pi 扩展入口） + scripts/install.js + tests/ | Node.js；pi 扩展 API 与宿主提供的 typebox | `node --test skills/pi-loop/tests/*.test.js`；pi 1.4.0 TUI 端到端记录见 repo://docs/pi-loop/technical-design.md 第 7 节 |
 | scripts/link-skills.sh | 把 skills/ 链入 agent 目录并拒绝覆盖普通目录 | 不拥有 skill 内容 | CLI | bash | `bash -n` + 隔离 HOME 检查 |
 | scripts/install-development-workflow.sh | 链接本仓 Skill，并为独立第三方项目获取 clone 与建立链接依赖 | 不安装整套 Review Skill 套件、Agent CLI、Herdr 或 Second Opinion | CLI | bash、git、python3、独立第三方 Skill 仓库 | `bash -n` + 隔离 HOME 的 offline install/check |
 

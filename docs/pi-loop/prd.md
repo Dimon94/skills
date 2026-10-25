@@ -84,5 +84,5 @@ npm 上已有两个第三方实现，都不能直接采用：
 
 ## 7. Unknown
 
-- `issue-sweep` 在 pi 下完整跑一次 coordinator 循环（herdr pi pane 派工 + `SWEEP_DONE`）尚未实测。其节奏规则（有 worker 给 900 秒、都空给 1800 秒、前置门失败给 reason）已用本地替身 skill 验证映射正确。另外它现在放在 `.claude/skills/` 下，pi 不扫这个位置，要用需先迁到 `.agents/skills/`。
+- `issue-sweep` 在 pi 下完整跑一次 coordinator 循环（herdr pi pane 派工 + `SWEEP_DONE`）尚未实测。其节奏规则（有 worker 给 900 秒、都空给 1800 秒、前置门失败给 reason）已用本地替身 skill 验证映射正确。pi 只发现 `~/.agents/skills`、`.agents/skills`、`.pi/skills` 下的 skill；放在 `.claude/skills/` 的 skill 要迁到这些位置，`/loop` 才接受 `/skill:` 写法。
 - cron 在夏令时切换当天的行为未验证；本机时区无夏令时。

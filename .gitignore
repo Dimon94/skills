@@ -30,3 +30,6 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# archify 生成产物（可重新生成，不跟踪）
+.archify/

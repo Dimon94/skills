@@ -30,3 +30,4 @@
 - 2026-10-10：epic-planner 无新增加固条目。
 
 - 2026-10-24：test-discipline 回顾无新增加固条目；既有 Skill 格式提交守卫缺口仍为 Open，未扩入本次修改。
+- 2026-10-29：test-discipline 实现优先提醒，无新增。

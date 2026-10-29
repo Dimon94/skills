@@ -134,7 +134,7 @@ function buildContext(cwd, filePath = null) {
     ? "[test-discipline]\n"
     : `[test-discipline] 命中测试文件：${filenames.join("、")}\n本提醒只追加文本，不拦截、不改写工具调用或输出。\n`;
   const location = heading + projectContext(root, directory);
-  if (filePath === null) return `${location}仅在新增、修改或删除测试时，先读 ${path.join(skillDirectory, "SKILL.md")}「写前自检」。只读任务按审查要求核对测试，无需逐条作答。\n`;
+  if (filePath === null) return `${location}继续当前任务；仅在测试依据不足时，按需读 ${path.join(skillDirectory, "SKILL.md")}「写前自检」。已有上下文足够则直接推进，只读任务按审查要求核对测试，无需逐条作答。\n`;
   const text = location + readChecklist(skillDirectory);
   return fs.existsSync(explanation) ? `${text}\n深层说明：${explanation}` : text;
 }

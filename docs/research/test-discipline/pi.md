@@ -193,3 +193,5 @@ PASS append: 三个随机口令复述、原 content/details 保留、structuredC
 - 具体坐标：`~/.pi/agent/sessions/--Users-dimon-01-Personal-10-Projects-refresh-.worktrees-dd-176-issue-session-r1--/2026-11-01T04-16-21-271Z_01a19552-9b16-7101-81d5-45b15843f61b/da4c08ca-b9d8-48ee-9bac-e231d2a71e5f/run-0/session.jsonl` 第 86 行，`write` 的 toolResult 独立追加提醒。另一个子进程 `133b9b77-c189-47cf-acce-e5f440a926b2/run-0/session.jsonl` 第 69 行为 bash，第 133 行为 write 的追加。
 
 代码中的排除条件是 `parentToolCallId !== undefined`，并不识别“子 agent”身份。独立进程中的普通工具结果与父进程收到的嵌套结果是两种输入；后者仍返回 undefined。运行合同归 repo://skills/test-discipline/references/hooks.md「Pi 入口」。样本清点与效果边界归 repo://docs/research/test-discipline/2026-11-03-retro.md；其他子 agent 启动方式和所有工具的覆盖率为 Unknown。
+
+本机 Pi 1.5.0 的新版 Skill 加载、write/edit 去重、bash 压测提醒和两个负向对照已通过真实会话，见 repo://docs/research/test-discipline/2026-11-03-live.md「方法与结果」。默认 provider 的 HTTP 402 与显式选择 openai-codex 后的通过结果分别记录，不把模型配额故障算成 hook 失败，也不把无工具执行的退出 0 算成通过。

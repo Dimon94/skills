@@ -209,3 +209,7 @@ version_for_toml(&value)
 本轮实现归 repo://skills/test-discipline/hooks/codex.cjs。只认宿主 developer 消息中真实提醒附带的 `[test-discipline:files]` 绝对路径数组；不用历史展示路径猜仓根，不读用户或工具引用。旧版无标记提醒允许再次注入，以建立明确路径记录。无需改 hook 注册；回退恢复相应源码即可，已附加标记不拥有额外状态。
 
 新增两条 CLI 检查先失败后通过；`node --test skills/test-discipline/tests/*.test.cjs` 为 92/92。它们证明去重与异常合同；新去重的真实 stdin、日志持久化时序、真实宿主效果与延迟仍为 Unknown。完整样本口径归 repo://docs/research/test-discipline/2026-11-03-retro.md。
+
+## 11. 新版真实会话验收
+
+本轮本机 CLI 0.165.0 沿用现有注册与信任，已取得首次写入提醒、同文件二次修改去重、压测提醒、普通源码与跑测试不提醒，以及模型复述路径标记的真实证据。它取代上一节“新去重宿主效果 Unknown”的待验收状态；完整原始 stdin、并发时序与跨版本结论仍不扩大。命令、原生日志坐标和结果归 repo://docs/research/test-discipline/2026-11-03-live.md「方法与结果」。

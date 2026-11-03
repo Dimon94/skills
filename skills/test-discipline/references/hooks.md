@@ -29,7 +29,7 @@
 
 `transcript_path` 缺省或为 null 时照常提醒；有值时必须为绝对普通文件路径。坏路径、读取失败、完整坏记录与非法路径标记写 stderr、退出 1；正在写入的末尾未结束行留待下次读取。入口只读 transcript，不写状态文件；每次读取成本随日志长度增长。并发调用在提醒持久化前仍可能重复，symlink 别名不合并。
 
-2026-11-02 的真实日志已观察到 codemode 内 `tools.apply_patch` 对应的 developer 提醒；#107 历史真机探针已证明 shell 重定向的 PostToolUse 提醒可见、单纯跑测试不注入。证据与版本边界见 repo://docs/research/test-discipline/codex.md「10. 真实日志与 transcript 去重」。真实 stdin 的 `transcript_path` 值、新去重的宿主效果、退出码 1 的界面显示与信任持久性仍为 Unknown；不能保证同一次编辑前模型已读到提醒。
+被动日志已观察到 codemode 内 `tools.apply_patch` 对应的 developer 提醒；#107 历史真机探针已证明 shell 重定向的 PostToolUse 提醒可见、单纯跑测试不注入。证据与版本边界见 repo://docs/research/test-discipline/codex.md「10. 真实日志与 transcript 去重」。Codex 0.165.0 的真实提醒、同文件去重和模型复述已通过，见 repo://docs/research/test-discipline/2026-11-03-live.md「方法与结果」。完整原始 stdin、并发持久化时序、退出码 1 的界面显示和跨版本信任仍为 Unknown；不能保证同一次编辑前模型已读到提醒。
 
 ### Codex 信任面
 
@@ -45,7 +45,7 @@
 
 `TEST_DISCIPLINE_HOOK=0` 在扩展加载时关闭提醒；运行中修改开关需重新加载扩展。处理异常时只发以 `test-discipline:` 开头的 error 级通知，不改工具结果；按通知修正事件输入或恢复「写前自检」小节后重试。
 
-已知缺口：去重按规范化的绝对路径，不合并 symlink 别名；带 `parentToolCallId` 的嵌套结果不直接追加；codemode 内部写入依靠当前进程 `input.code` 的字面量解析，不依靠嵌套结果。变量路径、非字面量 command、间接写入与代码生成不识别；shell 解析边界同「Claude 入口」的已知限制。codemode 扫描不区分正则字面量与注释：同一行内含 `//` 的正则（如 `/\//`）之后的调用会漏报。提醒在工具成功后进入模型视野，作用于后续编辑；bash/codemode 与 pi-subagents 独立进程的已知观测见 repo://docs/research/test-discipline/pi.md「真实会话补充」。其余调用形态仍由 #107 验收。
+已知缺口：去重按规范化的绝对路径，不合并 symlink 别名；带 `parentToolCallId` 的嵌套结果不直接追加；codemode 内部写入依靠当前进程 `input.code` 的字面量解析，不依靠嵌套结果。变量路径、非字面量 command、间接写入与代码生成不识别；shell 解析边界同「Claude 入口」的已知限制。codemode 扫描不区分正则字面量与注释：同一行内含 `//` 的正则（如 `/\//`）之后的调用会漏报。提醒在工具成功后进入模型视野，作用于后续编辑；bash/codemode 与 pi-subagents 独立进程的已知观测见 repo://docs/research/test-discipline/pi.md「真实会话补充」。本机新会话的五步正负对照与去重结果见 repo://docs/research/test-discipline/2026-11-03-live.md「方法与结果」；其余调用形态仍由 #107 验收。
 
 验证：`tests/pi.test.cjs` 穿过扩展注册的 `tool_result` 入口，使用临时仓与隔离进程验证缝 2。运行 `node --test skills/test-discipline/tests/pi.test.cjs`。本入口不负责安装或写入用户全局配置。
 

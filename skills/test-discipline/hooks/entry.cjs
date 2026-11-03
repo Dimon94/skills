@@ -9,7 +9,8 @@ const path = require("node:path");
  * OUT: 两端都只输出 hookSpecificOutput，不输出 systemMessage；SubagentStart 按 cwd 注入。
  * OUT: 命中时输出 additionalContext JSON；跳过时静默退出 0，错误写 stderr 并退出 1。
  * PARAM: TEST_DISCIPLINE_HOOK 来自环境，仅值 0 关闭；关闭优先于参数和 stdin 读取。
- * CHAIN: 开关 -> 参数 -> JSON -> 事件字段校验 -> 共享核心 -> JSON 输出。
+ * PARAM: Codex 测试写入可从 transcript_path 读取既有提醒；缺省/null 时照常提醒，去重合同归 codex.cjs。
+ * CHAIN: 开关 -> 参数 -> JSON -> 事件字段校验 -> 目标解析 -> Codex transcript 去重 -> 共享核心 -> JSON 输出。
  * INVARIANT: 永不使用退出码 2，不输出权限决定，不改写调用参数，不写配置。
  * FAIL: 修正输入或恢复 SKILL.md「写前自检」小节后重试。
  * TEST: repo://skills/test-discipline/tests/hook.test.cjs
@@ -41,7 +42,7 @@ function hookInput(event, mode) {
   return { cwd, value, hookEventName, shell: event.tool_name === "Bash" };
 }
 
-function main() {
+async function main() {
   if (process.env.TEST_DISCIPLINE_HOOK === "0") return;
   const mode = process.argv[2];
   if (process.argv.length !== 3 || !["claude", "codex"].includes(mode)) throw new Error("用法：entry.cjs claude|codex");
@@ -54,16 +55,21 @@ function main() {
   }
   const input = hookInput(event, mode);
   if (!input) return;
-  const { buildContext, buildPatchContext, extractWriteTargets } = require("./core.cjs");
-  const build = mode === "codex" && input.hookEventName === "PreToolUse" ? buildPatchContext : buildContext;
-  const additionalContext = build(input.cwd, input.shell ? extractWriteTargets(input.value) : input.value);
+  const { buildContext, extractPatchTargets, extractWriteTargets } = require("./core.cjs");
+  let targets = input.value === null ? null : input.shell ? extractWriteTargets(input.value)
+    : mode === "codex" ? extractPatchTargets(input.value) : [input.value];
+  let marker = "";
+  if (mode === "codex" && targets !== null) {
+    const { FILES_MARKER, unseenFiles } = require("./codex.cjs");
+    targets = await unseenFiles(input.cwd, targets, event.transcript_path);
+    marker = `\n\n${FILES_MARKER}${JSON.stringify(targets)}\n`;
+  }
+  const additionalContext = buildContext(input.cwd, targets);
   if (additionalContext === null) return;
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: input.hookEventName, additionalContext } }) + "\n");
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: input.hookEventName, additionalContext: additionalContext + marker } }) + "\n");
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   process.stderr.write(`test-discipline: ${error.message}\n`);
   process.exitCode = 1;
-}
+});

@@ -157,6 +157,62 @@ test("缝 1 Codex PostToolUse：输入形状不符显式退出 1，不阻断", (
   }
 });
 
+test("缝 1 Codex 去重：只认历史 developer 提醒，同文件静默，新文件和跨仓同名仍提醒", (t) => {
+  const cwd = repository(t);
+  const other = repository(t);
+  const transcript = path.join(sandbox(t), "session.jsonl");
+  fs.writeFileSync(transcript, "");
+  const input = (files, directory = cwd) => ({
+    hook_event_name: "PreToolUse", tool_name: "apply_patch", cwd: directory,
+    transcript_path: transcript,
+    tool_input: { command: files.map((file) => `*** Update File: ${file}`).join("\n") },
+  });
+  const first = context(invoke(input(["src/a.test.ts", "src/app.ts"]), entry, {}, "codex"));
+  const append = (role, text) => fs.appendFileSync(transcript, JSON.stringify({
+    type: "response_item", payload: { type: "message", role, content: [{ type: "input_text", text }] },
+  }) + "\n");
+  append("user", first);
+  append("tool", first);
+  context(invoke(input(["src/a.test.ts"]), entry, {}, "codex"));
+  append("developer", first);
+  const before = fs.readFileSync(transcript, "utf8");
+  silent(invoke(input(["src/./a.test.ts"]), entry, {}, "codex"));
+  const next = context(invoke(input(["src/a.test.ts", "src/b.test.ts"]), entry, {}, "codex"));
+  assert.equal(next.split("\n")[0], "[test-discipline] 命中测试文件：src/b.test.ts");
+  context(invoke(input(["src/a.test.ts"], other), entry, {}, "codex"));
+  const shell = { hook_event_name: "PostToolUse", tool_name: "Bash", cwd,
+    transcript_path: transcript, tool_input: { command: "cat > src/a.test.ts" } };
+  silent(invoke(shell, entry, {}, "codex"));
+  assert.equal(fs.readFileSync(transcript, "utf8"), before);
+  const old = first.split("\n").filter((line) => !line.startsWith("[test-discipline:files]")).join("\n");
+  fs.writeFileSync(transcript, "");
+  append("developer", old);
+  context(invoke(input(["src/a.test.ts"]), entry, {}, "codex"));
+});
+
+test("缝 1 Codex 去重失败：无 transcript 仍提醒，坏输入与完整坏记录显式失败", (t) => {
+  const cwd = repository(t);
+  const input = { hook_event_name: "PreToolUse", tool_name: "apply_patch", cwd,
+    tool_input: { command: "*** Update File: a.test.ts" } };
+  for (const transcript_path of [undefined, null]) {
+    context(invoke({ ...input, transcript_path }, entry, {}, "codex"));
+  }
+  for (const transcript_path of [7, "relative.jsonl", cwd, path.join(cwd, "missing.jsonl")]) {
+    const result = invoke({ ...input, transcript_path }, entry, {}, "codex");
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /test-discipline:.*transcript_path/);
+  }
+  const transcript_path = path.join(cwd, "session.jsonl");
+  fs.writeFileSync(transcript_path, "not JSON\n");
+  const bad = invoke({ ...input, transcript_path }, entry, {}, "codex");
+  assert.equal(bad.status, 1);
+  assert.equal(bad.stdout, "");
+  assert.match(bad.stderr, /test-discipline:.*transcript_path/);
+  fs.writeFileSync(transcript_path, '{"type":');
+  context(invoke({ ...input, transcript_path }, entry, {}, "codex"));
+});
+
 test("缝 1 Bash：字面量写入目标复用写前自检，读取与执行测试不注入", async (t) => {
   const cwd = repository(t);
   const input = (command) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd, tool_input: { command } });

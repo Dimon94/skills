@@ -3,7 +3,7 @@ const path = require("node:path");
 
 /* L3-L6 -- 共享核心
  * IN: 已校验的绝对 cwd；filePath 为非空路径、路径数组或 null（按 cwd 注入子 agent 上下文）。
- * IN: buildPatchContext 接收已校验的补丁全文；extractWriteTargets 接收命令或 codemode 文本。
+ * IN: extractPatchTargets 接收已校验的补丁全文；extractWriteTargets 接收命令或 codemode 文本。
  * OUT: 写入目标解析只提取字面量路径；文件判定与多文件规范定位仍归 buildContext。
  * OUT: 多文件只组装一次，去重后列全命中项；规范与最近 AGENTS.md 取首个命中文件的仓。
  * OUT: 命中时展开自检并声明本提醒只追加文本；子 agent 启动只给规范与条件导航，普通文件返回 null。
@@ -121,10 +121,14 @@ function testFileLocation(cwd, absolute) {
   return isWithin(root, absolute) && isTestFile(relative) ? { absolute, root, directory } : null;
 }
 
+function testFileLocations(cwd, paths) {
+  const absolute = [...new Set(paths.map((file) => path.resolve(cwd, file)))];
+  return absolute.map((file) => testFileLocation(cwd, file)).filter(Boolean);
+}
+
 function buildContext(cwd, filePath = null) {
   const paths = filePath === null ? [] : Array.isArray(filePath) ? filePath : [filePath];
-  const absolutePaths = [...new Set(paths.map((file) => path.resolve(cwd, file)))];
-  const matches = absolutePaths.map((file) => testFileLocation(cwd, file)).filter(Boolean);
+  const matches = testFileLocations(cwd, paths);
   if (filePath !== null && matches.length === 0) return null;
   const { root, directory } = matches[0] || { root: repositoryRoot(cwd, cwd), directory: cwd };
   const filenames = matches.map(({ absolute }) => path.relative(root, absolute).split(path.sep).join("/"));
@@ -139,12 +143,11 @@ function buildContext(cwd, filePath = null) {
   return fs.existsSync(explanation) ? `${text}\n深层说明：${explanation}` : text;
 }
 
-function buildPatchContext(cwd, patch) {
-  const paths = patch.split(/\r?\n/).flatMap((line) => {
+function extractPatchTargets(patch) {
+  return patch.split(/\r?\n/).flatMap((line) => {
     const match = line.match(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$/);
     return match?.[1].trim() ? [match[1]] : [];
   });
-  return buildContext(cwd, paths);
 }
 
 function unquoteWord(raw, maskExpansions = false) {
@@ -346,4 +349,4 @@ function extractWriteTargets(command, syntax = "shell") {
   return [...new Set(targets.map(({ path }) => path).filter(Boolean))];
 }
 
-module.exports = { buildContext, buildPatchContext, extractWriteTargets };
+module.exports = { buildContext, extractPatchTargets, extractWriteTargets, testFileLocations };

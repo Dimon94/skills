@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Related: [#93](https://github.com/Dimon94/skills/issues/93)、[#101](https://github.com/Dimon94/skills/issues/101)、repo://skills/test-discipline/SKILL.md「安装」、repo://docs/research/test-discipline/codex.md
+Related: [#93](https://github.com/Dimon94/skills/issues/93)、[#101](https://github.com/Dimon94/skills/issues/101)、repo://skills/test-discipline/references/hooks.md「安装」、repo://docs/research/test-discipline/codex.md
 
 ## Context
 
@@ -50,11 +50,17 @@ Codex shell 提醒采用 PostToolUse/Bash，按源码推断的 `tool_input.comma
 
 ### 6. Pi 适配层按运行时去重，共享核心保持无状态
 
-Pi 扩展运行时在会话内常驻，同一测试文件的重复编辑只提醒一次；`session_compact` 与 `session_tree` 清空已提醒集合，会话替换重建运行时后自然清空。集合只存内存，不写文件、不跨会话。共享核心 `core.cjs` 仍不持有状态，Claude 与 Codex 入口单进程运行，不做去重。
+Pi 扩展运行时在会话内常驻，同一测试文件的重复编辑只提醒一次；`session_compact` 与 `session_tree` 清空已提醒集合，会话替换重建运行时后自然清空。集合只存内存，不写文件、不跨会话。共享核心 `core.cjs` 仍不持有状态，Claude 入口不去重；Codex 入口的只读去重归下节。
 
 依据是 2026-10-16 至 10-24 的会话清点：Pi 913 次写入提醒中只有 364 次是该会话内该文件的首次命中，重复占 60%；单个会话最高 185 次，其中仍有假绿未被阻止。重复注入没有可证收益，只消耗上下文。记录归 repo://docs/research/test-discipline/2026-10-24-retro.md。
 
 不采用持久化状态文件：那会把只读合同变成可写合同，并引入并发写与清理责任，收益仅为跨进程去重。
+
+### 7. Codex 从 transcript 读取已提醒文件
+
+Codex 入口在提醒中附加绝对路径数组，通过 `transcript_path` 读取历史 developer 提醒以跨进程去重；共享核心仍只拥有目标解析、文件判定与正文组装。路径数组独立于展示仓根，避免跨仓同名文件或多仓补丁误去重；旧版无标记提醒继续提醒一次。读取与错误合同归 repo://skills/test-discipline/hooks/codex.cjs。
+
+此方案复用宿主已有日志，不建立第二份状态。代价是每次读取成本随 transcript 长度增长；日志尚未持久化时无法消除并发重复，缺省 transcript 时继续提醒。采用流式读取限制内存占用，实际宿主输入与性能验收见 repo://docs/research/test-discipline/codex.md「10. 真实日志与 transcript 去重」。若成本在真实会话中成为瓶颈，再评估宿主原生状态；当前不新增持久缓存。
 
 ## Consequences
 
@@ -72,6 +78,6 @@ Pi 扩展运行时在会话内常驻，同一测试文件的重复编辑只提�
 
 ### 边界
 
-本决定冻结 Skill 自带多端 hook 的交付形态、注册所有权与回退顺序，不授权本次写入用户全局配置。实际支持目标以 `targets` 为准；三端真实运行验证归 #107，Pi 子 agent 与嵌套调用缺口归 repo://skills/test-discipline/SKILL.md「Pi 入口」。
+本决定冻结 Skill 自带多端 hook 的交付形态、注册所有权与回退顺序，不授权本次写入用户全局配置。实际支持目标以 `targets` 为准；三端真实运行验证归 #107，Pi 独立子进程与嵌套调用的区分归 repo://skills/test-discipline/references/hooks.md「Pi 入口」。
 
 在本仓以 Skill 为模块、无需插件分发的前提下，否决方案为终审。引入独立 hook owner、插件分发或改变信任与回退边界时，新建 ADR supersede 本记录；运行证据推翻信任推断时，保留本记录并以新 ADR 记录裁决。

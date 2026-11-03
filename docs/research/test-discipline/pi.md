@@ -182,4 +182,14 @@ PASS append: 三个随机口令复述、原 content/details 保留、structuredC
 
 一手合同为本机 Pi 文档 `docs/codemode.md`「Scripts」、`docs/extensions.md`「Tools」及 `dist/core/extensions/types.d.ts` 的 `ToolResultEventBase`、`ToolResultEventResult`。这些合同说明脚本通过工具调用访问文件，嵌套结果不进入对话，`tool_result` 可返回追加正文并保留 `structuredContent`。
 
-隔离检查归 repo://skills/test-discipline/tests/pi.test.cjs「缝 2」：通过注册后的真实 handler 验证 heredoc、codemode 多文件与内部 shell 命中，正文保留、结构化对象同引用、成功与嵌套过滤，以及只读和跑测试不追加。运行 `node --test skills/test-discipline/tests/pi.test.cjs`；测试使用临时仓、临时 HOME 与三端配置覆盖，不写用户全局配置。此检查不执行代码文本中的写入命令，不能替代 bash/codemode 真机追加可见性验收；该运行态为 Unknown，归 #107。
+隔离检查归 repo://skills/test-discipline/tests/pi.test.cjs「缝 2」：通过注册后的真实 handler 验证 heredoc、codemode 多文件与内部 shell 命中，正文保留、结构化对象同引用、成功与嵌套过滤，以及只读和跑测试不追加。运行 `node --test skills/test-discipline/tests/pi.test.cjs`；测试使用临时仓、临时 HOME 与三端配置覆盖，不写用户全局配置。真实可见性由下节证据补充；其余形态归 #107。
+
+## 真实会话补充
+
+2026-11-03 补充。早期探针中的“Pi 子 agent 未验证”和 bash/codemode 可见性 Unknown 只适用于当时范围：
+
+- [#107 的 2026-10-16 真机探针](https://github.com/Dimon94/skills/issues/107#issuecomment-6220009899) 已记录真实 Pi bash 和 codemode `tools.write` 各一次追加，模型可复述提醒；单纯跑测试不注入。
+- 最新 50 个命中会话里有 48 个 Pi 日志，其中 5 个来自 pi-subagents 的 `run-0/session.jsonl`。这证明独立 Pi 子进程加载扩展后可以收到提醒，不能再把“Pi 子 agent”整体列为未覆盖。
+- 具体坐标：`~/.pi/agent/sessions/--Users-dimon-01-Personal-10-Projects-refresh-.worktrees-dd-176-issue-session-r1--/2026-11-01T04-16-21-271Z_01a19552-9b16-7101-81d5-45b15843f61b/da4c08ca-b9d8-48ee-9bac-e231d2a71e5f/run-0/session.jsonl` 第 86 行，`write` 的 toolResult 独立追加提醒。另一个子进程 `133b9b77-c189-47cf-acce-e5f440a926b2/run-0/session.jsonl` 第 69 行为 bash，第 133 行为 write 的追加。
+
+代码中的排除条件是 `parentToolCallId !== undefined`，并不识别“子 agent”身份。独立进程中的普通工具结果与父进程收到的嵌套结果是两种输入；后者仍返回 undefined。运行合同归 repo://skills/test-discipline/references/hooks.md「Pi 入口」。样本清点与效果边界归 repo://docs/research/test-discipline/2026-11-03-retro.md；其他子 agent 启动方式和所有工具的覆盖率为 Unknown。

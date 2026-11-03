@@ -8,15 +8,15 @@ const require = createRequire(realpathSync(fileURLToPath(import.meta.url)));
 const { buildContext, extractWriteTargets } = require("./core.cjs");
 
 /* L3-L6 -- Pi 适配
- * INPUT: 主会话成功的 edit/write input.path、bash input.command、codemode input.code 与 ctx.cwd。
+ * INPUT: 当前进程成功且非嵌套的 edit/write input.path、bash input.command、codemode input.code 与 ctx.cwd。
  * INVARIANT: 命令写入目标归共享核心 extractWriteTargets，测试文件判定与文本归 buildContext。
- * OUT: 多文件只追加一份 content 并原样保留 structuredContent；不处理子 agent 或嵌套调用。
+ * OUT: 多文件只追加一份 content 并原样保留 structuredContent；独立子进程加载后同样处理，嵌套调用不追加。
  * STATE: 当前运行时内按绝对路径记忆已提醒的测试文件；session_compact 与 session_tree 清空。
  * STATE: 只存内存，不写文件、不跨会话；会话替换重建运行时后自然清空。
  * PARAM: TEST_DISCIPLINE_HOOK，扩展加载时读一次；仅值 0 关闭，默认启用。
  * FAIL: 处理异常只发 test-discipline: error 通知并返回 undefined，原结果不变；失败路径不记入已提醒。
  * TEST: repo://skills/test-discipline/tests/pi.test.cjs
- * PROTOCOL: 入口或过滤合同变化时同步 repo://skills/test-discipline/SKILL.md 的 Pi 小节。
+ * PROTOCOL: 入口或过滤合同变化时同步 repo://skills/test-discipline/references/hooks.md「Pi 入口」。
  */
 export default function register(pi) {
   if (process.env.TEST_DISCIPLINE_HOOK === "0") return;

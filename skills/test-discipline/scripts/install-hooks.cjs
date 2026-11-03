@@ -19,7 +19,7 @@ const { isDeepStrictEqual } = require("node:util");
  * OUT: 卸载不创建缺失配置；重复卸载无写入；保留原有空组、事件与其他配置。
  * FAIL: 输入或写入失败退出 1；修正报错路径的配置或权限后重试。
  * TEST: repo://skills/test-discipline/tests/install.test.cjs
- * PROTOCOL: 公开参数变更同步 repo://skills/test-discipline/SKILL.md「安装」。
+ * PROTOCOL: 公开参数变更同步 repo://skills/test-discipline/references/hooks.md「安装」。
  */
 
 const hooksDirectory = fs.realpathSync(path.resolve(__dirname, "../hooks"));

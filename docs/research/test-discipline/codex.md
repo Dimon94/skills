@@ -2,7 +2,7 @@
 
 调查记录，2026-10-16。范围：[#95](https://github.com/Dimon94/skills/issues/95)，对应 [#93](https://github.com/Dimon94/skills/issues/93) 的 Implementation Decisions 第 8、16 节；第 9 项补充 [#109](https://github.com/Dimon94/skills/issues/109) 的 PostToolUse 源码合同。
 
-**结论：本机无法在禁止写入 `~/.codex/` 的条件下启动 `codex exec`。运行态验收项保持 Unknown，交 #107 真机验收。** 同版本源码支持部分设计假设，但不替代真实 hook 输入、模型复述或交互式信任验证。本记录不修改 Spec，不授权安装。
+**原探针结论：本机无法在禁止写入 `~/.codex/` 的条件下启动 `codex exec`。当时运行态验收项为 Unknown。** 后续 #107 的真实探针与被动日志观测见「10. 真实日志与 transcript 去重」。 同版本源码支持部分设计假设，但不替代真实 hook 输入、模型复述或交互式信任验证。本记录不修改 Spec，不授权安装。
 
 ## 环境与证据坐标
 
@@ -192,6 +192,20 @@ version_for_toml(&value)
 - [`core/src/tools/context.rs`，`ExecCommandToolOutput::post_tool_use_input`](https://github.com/openai/codex/blob/092d3acd6bec3e3a14bdc7e7a2810ab628ab759d/codex-rs/core/src/tools/context.rs#L432-L436)：将 `hook_command` 序列化为 `{"command": command}`，不是 `exec_command` 原始参数中的 `cmd`。
 - [`hooks/src/events/post_tool_use.rs`，`command_input_json` 与 `parse_completed`](https://github.com/openai/codex/blob/092d3acd6bec3e3a14bdc7e7a2810ab628ab759d/codex-rs/hooks/src/events/post_tool_use.rs#L150-L283)：stdin 保留 `cwd`、canonical `tool_name` 与 `tool_input`；退出 0 时接受 `hookSpecificOutput.additionalContext`，退出 1 记为 Failed，退出 2 的独立分支可阻断。
 
-**推断**：Codex shell 事件形如 `{"hook_event_name":"PostToolUse","tool_name":"Bash","cwd":"<绝对路径>","tool_input":{"command":"<命令文本>"}}`。这不是实测输入。入口按此形状校验，提醒只用 additionalContext；不输出 systemMessage 或权限决定，永不退出 2。公开入口合同归 repo://skills/test-discipline/SKILL.md「Codex 入口」。
+**推断**：Codex shell 事件形如 `{"hook_event_name":"PostToolUse","tool_name":"Bash","cwd":"<绝对路径>","tool_input":{"command":"<命令文本>"}}`。这不是实测输入。入口按此形状校验，提醒只用 additionalContext；不输出 systemMessage 或权限决定，永不退出 2。公开入口合同归 repo://skills/test-discipline/references/hooks.md「Codex 入口」。
 
-缝 1 用临时仓与合成 stdin 事件验证提醒、静默与输入错误；缝 3 用临时 HOME 加三端路径覆盖验证注册、漂移修复与卸载。它们不能证明真实 shell 是否以 Bash 触发、codemode 内嵌套 exec_command 是否触发、真实 tool_input 字段或模型收到提醒的时机；这些运行态仍为 **Unknown**，交 #107。新增 PostToolUse 组改变信任定义，用户需在 `/hooks` 重新信任；仅修改脚本的信任推断与限制仍见第 6 项。
+缝 1 用临时仓与合成 stdin 事件验证提醒、静默与输入错误；缝 3 用临时 HOME 加三端路径覆盖验证注册、漂移修复与卸载。它们不能单独证明真实 hook 输入或模型时序。后续真实观测见下节。新增 PostToolUse 组改变信任定义，用户需在 `/hooks` 重新信任；仅修改脚本的信任推断与限制仍见第 6 项。
+
+## 10. 真实日志与 transcript 去重
+
+2026-11-03 补充，分开记录实测与推断：
+
+- [#107 的 2026-10-16 真机探针](https://github.com/Dimon94/skills/issues/107#issuecomment-6220009899) 已记录 Codex shell 重定向的 PostToolUse/Bash developer 提醒，模型能复述正文，单纯跑测试不注入。该证据覆盖 shell 提醒可见性，不覆盖任意 shell 补丁的事件名、完整原始 stdin 或退出码 1 的 TUI 表现。
+- 最新 50 个命中会话中有 2 个 Codex 日志，共 12 次提醒、15 次文件命中，11 次重复。同一文件 `refund_reconciliation_test.go` 在一个日志内出现 9 次。样本按已命中筛选，不能据此计算漏报率。
+- 原始日志：`~/.codex/sessions/2026/11/01/rollout-2026-11-01T20-11-41-01a199cf-dc33-7333-89e5-d947c9feed06.jsonl`。第 1 行为 CLI `0.166.0-alpha.5.1`；第 300 行 codemode 调用 `tools.apply_patch`，第 301 行为实际 developer 提醒；第 316–319、1233–1234 行有同类证据。它证明嵌套补丁的提醒可见，不证明所有 codemode 工具都触发，也不证明同次编辑前模型已读提醒。
+
+去重输入的源码依据：[`rust-v0.165.0/schema.rs` 的 PreToolUseCommandInput / PostToolUseCommandInput](https://github.com/openai/codex/blob/rust-v0.165.0/codex-rs/hooks/src/schema.rs#L287) 均含可空 `transcript_path`；早期锁定 commit 的同名 schema 也有该字段。该 tag 对应本轮本机 `codex --version` 的 `0.165.0`，不冒充日志中 alpha 版本的完整源码验收。
+
+本轮实现归 repo://skills/test-discipline/hooks/codex.cjs。只认宿主 developer 消息中真实提醒附带的 `[test-discipline:files]` 绝对路径数组；不用历史展示路径猜仓根，不读用户或工具引用。旧版无标记提醒允许再次注入，以建立明确路径记录。无需改 hook 注册；回退恢复相应源码即可，已附加标记不拥有额外状态。
+
+新增两条 CLI 检查先失败后通过；`node --test skills/test-discipline/tests/*.test.cjs` 为 92/92。它们证明去重与异常合同；新去重的真实 stdin、日志持久化时序、真实宿主效果与延迟仍为 Unknown。完整样本口径归 repo://docs/research/test-discipline/2026-11-03-retro.md。

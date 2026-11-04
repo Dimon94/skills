@@ -23,6 +23,7 @@
 | 2026-09-04 | git-push-pr 与 gh-merge-pr 为通用重写版，尚无一次真实 PR 生命周期验证；首次真实使用后按实际证据更新本行 | 深度测试 | skill 步骤与实际 gh 行为偏差无法在仓内暴露 | repo://skills/git-push-pr/SKILL.md；repo://skills/gh-merge-pr/SKILL.md | P3 | Open |
 | 2026-10-10 | 核对并修正 issue-tracker.md 中过期的项目坐标 | 文档一致性 | 文档仍指向 Dimon94/dverity，与 AGENTS.md 和 Git remote 的 Dimon94/skills 冲突，按旧文档发布可能选错仓库 | repo://docs/agents/issue-tracker.md 首段；repo://AGENTS.md forge；`git remote get-url origin` | P2 | Done：2026-10-16 改为 Dimon94/skills；`grep -rn Dimon94/dverity docs/agents` 无结果 |
 | 2026-10-10 | 为 Skill 格式校验接入提交守卫 | 脚本健壮性 | 当前仅手动校验，格式错误可未经检查进入提交；该守卫不能替代寻路行为重放 | `git config --get core.hooksPath` 无值；`.git/hooks` 无非 sample 钩子；`.github/workflows` 不存在；skill-creator 的 `quick_validate.py` 可手动运行 | P3 | Open |
+| 2026-11-04 | 对 to-epic 重放独立 MVP 规划与局部反馈重切案例 | 深度测试 | 格式、指针和链接安装已验证；真实任务中的切分、并发与授权行为效果仍为 Unknown | repo://skills/to-epic/references/verification.md「主路径」「关键失败路径」；本次未执行行为重放 | P3 | Open |
 
 ## 收口记录
 

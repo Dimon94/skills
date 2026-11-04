@@ -10,7 +10,7 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 
 | Task type | Workflow |
 | --- | --- |
-| Large requirement | Use `research`, Second Opinion, `grill-with-docs`, `brainstorming-only`, or `office-hours-only` as needed → create a shared Map with `wayfinder` → let `delivery-pipeline` advance it automatically |
+| Large requirement | 用 `to-epic` 划分 Epic 与 Spec 候选 → 用 `to-spec` 细化当前候选 → 用 `to-tickets` 拆实施票；每份 Spec 对应一个 MR，执行方式自选 |
 | Small requirement | `grill-with-docs` → `to-spec` → `to-tickets` → hand the published Spec to `delivery-pipeline` |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
 | Bug | isolated Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |

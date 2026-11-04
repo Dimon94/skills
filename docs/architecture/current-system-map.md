@@ -23,7 +23,7 @@ Status: current
 | skills/avoid-overengineering | 手动调用的最简实现约束、动手前减法与交付前消融实验 | 不拥有全仓审计或自动触发 | SKILL.md | 无 | pi Skill 加载校验 + 人工审查 |
 | skills/best-practice-scout | 技术决策调研编排：本地语境、行业主流方案与盲点识别、针对盲点的跨学科垂直深挖、分场景推荐 | 不拥有代码变更、最终决策或通用调研机制 | SKILL.md | investigate；调用环境的 research 与后台 agent（可用时） | Skill 校验与人工审查 |
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
-| skills/epic-planner | 远程史诗索引与决策票的持续寻路、调研/原型/拷问路由、深模块和共享 Interface 决策收敛、最终多地图 epic-plan 与集成验收计划 | 不拥有下游 Wayfinder 地图解票、通用调度器、产品实现或本地规划副本 | SKILL.md + references/ | investigate、show-me；调用环境的 codebase-design、research、prototype、grill-with-docs、wayfinder；项目 tracker 工具与后台 agent（可用时） | Skill 校验 + references/verification.md 的隔离生命周期前向案例 |
+| skills/to-epic | 整体目标与 Spec 候选、先验证后交付、当前 Module/Interface 设计、依赖与并发、获批范围内滚动细化 | 不拥有正式 Spec、实施 tickets、产品实现、MR 或部署；不依赖特定执行方 | SKILL.md + agents/openai.yaml + references/verification.md | codebase-design；按需 investigate、research、prototype；to-spec/to-tickets（交接）；目标项目 tracker | YAML/调用元数据检查 + 隔离链接安装；行为案例见 references/verification.md |
 | skills/vertical-slicing | 手动调用；把 spec、地图或单张票切成可逐片合入、部署、体验的垂直切片：业务主线、walking skeleton、加厚顺序、隐藏手法与收尾片、按 Interface 判定的依赖边；审查现有拆票是否垂直 | 不拥有拆票征询与发布（to-tickets）、token 预测（ticket-sizing）、逐票执行与合入授权（delivery-pipeline 独立票模式） | SKILL.md + references/ + agents/openai.yaml | to-tickets、ticket-sizing、delivery-pipeline（第三方 skill，可用时） | Skill 校验 + references/verification.md 的隔离前向案例 |
 | skills/git-commit | 本地提交边界与范围核验 | 不拥有合并、推送 | SKILL.md | git CLI | Skill 校验与人工审查 |
 | skills/git-rebase-main | 当前分支到本地 main 的 rebase 与快进 | 不拥有远程推送 | SKILL.md | git CLI；resolving-merge-conflicts（第三方 skill） | 无独立测试，经人工审查 |

@@ -11,7 +11,8 @@
 | 任务类型 | 链路 |
 | --- | --- |
 | 大型需求 | 按需使用 `research`、Second Opinion、`grill-with-docs`、`brainstorming-only` 或 `office-hours-only` → `wayfinder` 建共享 Map → `delivery-pipeline` 自动推进 |
-| 小型需求 | `grill-with-docs` → `to-spec` → `to-tickets` → `delivery-pipeline` 接管 Spec |
+| 常规需求 | 模型写最小计划 → `grill-with-docs` 拷问计划 → `implement` |
+| 小改动 | 直接 `implement`，由 `tdd` 按需决定是否先红后绿 |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
 | Bug | 独立 Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | 理解既有代码 | `investigate` 做只读调研：机制问题路由到 `how`，动机问题叠加 `why`，方案决策给推荐与取舍表 |
@@ -40,8 +41,8 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 
 | 仓库 | 链路职责 | 独立安装 |
 | --- | --- | --- |
-| [Dimon94/skills](https://github.com/Dimon94/skills) | `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
-| [mattpocock/skills](https://github.com/mattpocock/skills) | Research、Grilling、架构分析、Wayfinder、Spec、Tickets、实现与 Review | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
+| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`、`tdd`、`code-review` 与 `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | Research、Grilling、架构分析、Wayfinder、Spec 与 Tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | 精选 `productionize-app-with-services` 上游快照的来源 | 由本仓安装脚本一并安装 |
 | [cursor/plugins](https://github.com/cursor/plugins) | `thermo-nuclear-code-quality-review` 快照及改写的 `how`、`why`、`blast-radius`、`investigate` 与 verification 一对的上游来源 | 由本仓安装脚本一并安装 |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | 精选 `show-me` 上游快照的来源 | 由本仓安装脚本一并安装 |

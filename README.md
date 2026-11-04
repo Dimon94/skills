@@ -11,7 +11,8 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 | Task type | Workflow |
 | --- | --- |
 | Large requirement | 用 `to-epic` 划分 Epic 与 Spec 候选 → 用 `to-spec` 细化当前候选 → 用 `to-tickets` 拆实施票；每份 Spec 对应一个 MR，执行方式自选 |
-| Small requirement | `grill-with-docs` → `to-spec` → `to-tickets` → hand the published Spec to `delivery-pipeline` |
+| Regular requirement | the model drafts a minimal plan → `grill-with-docs` stress-tests it → `implement` |
+| Small change | `implement` directly; `tdd` decides per change whether a failing check comes first |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
 | Bug | isolated Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | Understand existing code | `investigate` runs a read-only investigation: it routes mechanism questions to `how`, adds `why` for motivation, and answers decisions with a recommendation and tradeoffs |
@@ -40,8 +41,8 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 
 | Repository | Workflow responsibility | Standalone install |
 | --- | --- | --- |
-| [Dimon94/skills](https://github.com/Dimon94/skills) | Local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
-| [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, specs, tickets, implementation, and review | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
+| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`, `tdd`, `code-review`, and local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, specs, and tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | Upstream source for the curated `productionize-app-with-services` snapshot | Included by this repository's installer |
 | [cursor/plugins](https://github.com/cursor/plugins) | Upstream source for the `thermo-nuclear-code-quality-review` snapshot and the adapted `how`, `why`, `blast-radius`, `investigate`, and verification-skill pair | Included by this repository's installer |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | Upstream source for the curated `show-me` snapshot | Included by this repository's installer |

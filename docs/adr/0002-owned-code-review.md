@@ -1,6 +1,6 @@
 # code-review 转为本仓自有 Skill
 
-Status: accepted
+Status: superseded by [0005](0005-code-review-upstream-severity.md)
 
 ## 决定
 

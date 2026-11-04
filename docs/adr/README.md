@@ -7,9 +7,10 @@
 ## 索引
 
 - [精选上游 Skill 快照](0001-curated-upstream-skill-snapshots.md)
-- [code-review 转为本仓自有 Skill](0002-owned-code-review.md)
+- [code-review 转为本仓自有 Skill](0002-owned-code-review.md)（已被 0005 取代）
 - [Skill 自带多端 agent hook](0003-skill-owned-agent-hooks.md)
 - [Epic 按 Spec 划分交付边界](0004-epic-spec-delivery-boundary.md)
+- [code-review 以上游原版为基础，只加严重度](0005-code-review-upstream-severity.md)
 
 ## 命名
 

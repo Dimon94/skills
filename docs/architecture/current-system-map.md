@@ -13,7 +13,7 @@ Status: current
 - 运行入口：`skills/<name>/SKILL.md` 由 agent 运行时（Claude Code / Codex / pi 等）读取；脚本由 SKILL.md 显式调用。
 - 部署拓扑：无部署；`~/.agents/skills` 与 `~/.claude/skills` 经 symlink 消费本仓。
 - 持久状态 owner：skill 文档与脚本本身；运行期状态归调用方项目。
-- 外部系统：GitHub（Dimon94/skills 及 repo://skills/sync-upstream-skills/references/sources.json 声明的上游来源）。
+- 外部系统：GitHub（Dimon94/skills 及 repo://skills/sync-upstream-skills/references/sources.json 声明的上游来源）；Linear（Issue 归档与回读）。
 - CI：GitHub Actions 当前未配置，状态为 absent。
 
 当前模块清单：
@@ -25,6 +25,7 @@ Status: current
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/to-epic | 整体目标与 Spec 候选、先验证后交付、当前 Module/Interface 设计、依赖与并发、获批范围内滚动细化 | 不拥有正式 Spec、实施 tickets、产品实现、MR 或部署；不依赖特定执行方 | SKILL.md + agents/openai.yaml + references/verification.md | codebase-design；按需 investigate、research、prototype；to-spec/to-tickets（交接）；目标项目 tracker | YAML/调用元数据检查 + 隔离链接安装；行为案例见 references/verification.md |
 | skills/vertical-slicing | 手动调用；把 spec、地图或单张票切成可逐片合入、部署、体验的垂直切片：业务主线、walking skeleton、加厚顺序、隐藏手法与收尾片、按 Interface 判定的依赖边；审查现有拆票是否垂直 | 不拥有拆票征询与发布（to-tickets）、token 预测（ticket-sizing）、逐票执行与合入授权（delivery-pipeline 独立票模式） | SKILL.md + references/ + agents/openai.yaml | to-tickets、ticket-sizing、delivery-pipeline（第三方 skill，可用时） | Skill 校验 + references/verification.md 的隔离前向案例 |
+| skills/linear-archive-issues | 授权目标核对、Linear Issue 归档与持久结果回读 | 不拥有工作流验收、状态关闭或删除 | SKILL.md | Linear MCP、GraphQL API、Python 3；macOS 钥匙串（本机凭证） | SKILL.md「验证锚点」与内嵌命令语法检查 |
 | skills/git-commit | 本地提交边界与范围核验 | 不拥有合并、推送 | SKILL.md | git CLI | Skill 校验与人工审查 |
 | skills/git-rebase-main | 当前任务到本地 main 的 rebase、快进与收尾；共享收尾合同拥有直接 Issue、源分支与临时工作树的完成条件 | 不拥有目标分支远程推送或其他任务清理 | SKILL.md + references/closeout.md | git CLI、目标 tracker；git-commit、resolving-merge-conflicts（第三方 skill） | Skill 校验、收尾场景审查与隔离 Git 演练 |
 | skills/git-push-pr | 推送已验证分支并建/更新唯一 GitHub PR | 不拥有 PR 正文模板、审批、合并、issue 关闭 | SKILL.md | git CLI、gh CLI；git-commit、resolving-merge-conflicts；mattpocock-skills:pr（正文模板，运行时入口：`~/.agents/skills/pr/SKILL.md`） | 无独立测试，经人工审查 |

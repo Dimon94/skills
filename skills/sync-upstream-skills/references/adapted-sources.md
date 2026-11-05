@@ -30,9 +30,9 @@
 
 `no-comments` 保留注释清理、必要例外、独立审查与根因修复流程；将 Comment Sicko 规则收进 Skill 的只读 reference，用宿主子 agent 替代 Cursor Task 类型。移除 poteto-mode、architect 与 principle Skill 的安装依赖，结构推演留在入口；how/why 复用现有 Skill。疑义项按 Unknown 保留，正确性抑制先修根因再删除，有效约束待编码时保留。`in-your-own-words` 保留只复述目标与问题的职责。两者使用中文，保留上游的 `disable-model-invocation: true`；Codex 显式调用策略归各自 `agents/openai.yaml`。均由本仓维护，不进入快照锁定清单。
 
-`code-review` 正文照抄上游，只增加调用方证据包与 WIP 范围、P0–P3 严重度与两值 verdict、审查中断不算完成三处；取舍见 repo://docs/adr/0005-code-review-upstream-severity.md。
+`code-review` 以上游为基础，增加调用方证据包与 WIP 范围、P0–P3 严重度与两值 verdict、审查中断不算完成、最多三轮，并删除坏味道基线；取舍见 repo://docs/adr/0008-review-round-limit.md。
 
-`tdd` 保留红绿循环、vertical slice、穿过公开入口测试与重构不进循环；改为按改动分流、独立预期、按缺陷位置选层与真跑探针，seam 不再逐个找用户确认，不携带上游 tests.md、mocking.md。`implement` 保留读票、调用 tdd、类型检查与全量测试、code-review 与提交；加入验收独立预期、相关 E2E 与形式验证、P0/P1 修复与 P2 issue、对账。取舍见 repo://docs/adr/0006-owned-tdd-implement.md。
+`tdd` 保留红绿循环、vertical slice、穿过公开入口测试与重构不进循环；改为按改动分流、独立预期、按缺陷位置选层与真跑探针，seam 不再逐个找用户确认，不携带上游 tests.md、mocking.md。`implement` 保留读票、调用 tdd、类型检查与全量测试、code-review 与提交；加入验收独立预期、失败方式、入口清单、相关 E2E 与形式验证、审查前对账、P0/P1 修复与 P2 issue。取舍见 repo://docs/adr/0006-owned-tdd-implement.md 与 repo://docs/adr/0008-review-round-limit.md。
 
 `to-epic` 借鉴目标负责制、深 Module 词汇、context pointer 写法，以及同 commit 的 `skills/engineering/to-spec`、`skills/engineering/to-tickets` 的产物与发布设计；本仓拥有 Epic → Spec 候选的切分、依赖和滚动细化合同。表中 commit 保留来源基线，当前行为按本仓维护，不参与快照更新。codebase-design、research、prototype、to-spec 与 to-tickets 按需从运行时定位，不复制内容；执行方独立选择。交付层级决定见 repo://docs/adr/0004-epic-spec-delivery-boundary.md。
 

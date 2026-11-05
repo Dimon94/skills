@@ -1,6 +1,6 @@
 # code-review 以上游原版为基础，只加严重度
 
-Status: accepted
+Status: superseded by repo://docs/adr/0008-review-round-limit.md（复审范围与上游差异；严重度与阻断线不变）
 
 Related: supersedes repo://docs/adr/0002-owned-code-review.md；repo://skills/code-review/SKILL.md；repo://skills/sync-upstream-skills/references/adapted-sources.md
 

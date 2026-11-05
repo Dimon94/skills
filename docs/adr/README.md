@@ -12,6 +12,7 @@
 - [Epic 按 Spec 划分交付边界](0004-epic-spec-delivery-boundary.md)
 - [code-review 以上游原版为基础，只加严重度](0005-code-review-upstream-severity.md)
 - [tdd 与 implement 转为本仓自有 Skill](0006-owned-tdd-implement.md)
+- [Review 最多三轮，只报具体反例](0008-review-round-limit.md)
 
 ## 命名
 

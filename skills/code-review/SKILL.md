@@ -37,25 +37,7 @@ Look for the originating spec, in this order:
 
 Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
 
-On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
-
-- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
-- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation. Like any standard here, skip anything tooling already enforces.
-
-Each smell reads *what it is* → *how to fix*; match it against the diff:
-
-- **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
-- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
-- **Feature Envy**: a method that reaches into another object's data more than its own. → move the method onto the data it envies.
-- **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
-- **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
-- **Repeated Switches**: the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
-- **Shotgun Surgery**: one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
-- **Divergent Change**: one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
-- **Speculative Generality**: abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
-- **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
-- **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real target direct.
-- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
+A finding needs a concrete trigger and an observable impact. Taste, naming, YAGNI and speculative refactors are out of scope.
 
 ### 4. Spawn both sub-agents in parallel
 
@@ -64,18 +46,18 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.
-- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
-- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
+- The list of standards-source files you found in step 3.
+- The brief: "Find every P0/P1 now: trace main paths, permissions, persisted state and external contracts. For each one, check the same class elsewhere in the diff. Report it with the standard it breaks (file + rule). Mention P2/P3 only when you meet them; do not hunt for them. Skip anything tooling enforces. P0/P1 are uncapped; everything else stays under 200 words."
 
 **Spec sub-agent prompt** should include:
 
 - The diff command and commit list.
 - The path or fetched contents of the spec.
-- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
+- The brief: "Find every P0/P1 now. Report: (a) requirements the spec asked for that are missing or partial; (b) unrequested behaviour that changes what users or callers observe; (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. For each P0/P1, check the same class elsewhere in the diff. P0/P1 are uncapped; everything else stays under 200 words."
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
-两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景与可观察影响。
+两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景、可观察影响与能走通的具体反例；证据不足写 Unknown，不算 finding。
 
 ### 5. Aggregate
 
@@ -83,7 +65,7 @@ Present the two reports under `## Standards` and `## Spec` headings, verbatim or
 
 End with a one-line summary: per axis, the verdict, the finding count by severity, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
 
-每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。审查中断、超时或缺少 verdict 时为未完成，不以实现者自评或测试通过代替。
+每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口写进报告，不改变 verdict。审查中断、超时或缺少 verdict 时为未完成，不计轮次，不以实现者自评或测试通过代替。
 
 ## 严重度
 
@@ -94,9 +76,17 @@ End with a one-line summary: per axis, the verdict, the finding count by severit
 - P2：特定条件下出错、恢复失败、明显性能回归或高扩散维护风险。
 - P3：局部清晰度或一致性问题，当前不破坏行为。
 
-只有 P0/P1 阻断；调用方所说的 blocker、blocking finding 都指 P0/P1。P2 交调用方登记 issue，P3 只留在报告里。基线坏味道默认 P3，有高扩散证据才升到 P2。级别由审查者给出，实现者不能降级。
+只有 P0/P1 阻断；调用方所说的 blocker、blocking finding 都指 P0/P1。P2 交调用方登记 issue，P3 只留在报告里，两者都不触发下一轮。级别由审查者给出，实现者不能降级。
 
-P0/P1 修复后，复审只覆盖修复 diff 及其影响到的行为，其余部分沿用原结论。修复引入新行为、改动公开 Interface 或依赖时，按新改动重新划定审查范围。
+## 轮次
+
+同一审查 scope 最多 3 轮。调用方给出轮次，并在 prompt 写明“第 N 轮，共 3 轮”。没有 P0/P1 就立刻结束。
+
+- **R1**：完整 diff，一次找全 P0/P1。
+- **R2、R3**：只看修复 diff 及其影响到的行为，确认问题已关闭、修复没有引入新的 P0/P1。其余部分沿用上轮结论，不再找新的 P2。只重跑报过 P0/P1 的轴；修复改动公开 Interface 或依赖时两轴都跑。
+- **R3 后仍有 P0/P1**：报告 `REVIEW_EXHAUSTED`，不开第 4 轮，不给放行结论。交调用方对实现链路运行 `retro`。
+
+scope 由调用方定义；delivery-pipeline 链路按其 Review 预算计。
 
 ## Why two axes
 

@@ -20,10 +20,16 @@ gh pr view <n> --json number,title,body,url,headRefOid,headRefName,headRepositor
 
 Fetch base 与 PR head，在隔离 checkout 中记录固定的三点 diff 命令和 commit list。
 所有 Review SubAgent 必须收到同一个 Review Packet；缺失 PR 身份、不可解析的 base/head
-或空 diff 立即阻断。head SHA 变化会使整个 Packet 及其 Review 结果失效。记录主工作区、
+或空 diff 立即阻断。head SHA 变化时重建 Packet，Review 结论不直接沿用。记录主工作区、
 源分支与远端、本次创建的 Review 工作树和任务工作树，供收尾定位。
 
 完成标准：Packet 能唯一标识 repo、PR、base、head、diff、Spec 与标准来源，收尾对象可定位。
+
+## Review 轮次
+
+本 PR 的 Review 最多 3 轮，定义归 `code-review`；一轮包含主审和命中的专项。调用方已有相同 base 与 head 的 Review 结果时直接引用，不重跑。
+
+head 变化时，修复提交按 `code-review` 的复审范围占下一轮。干净的 merge 不占轮：Packet 重建后沿用结论。改变语义的冲突解决占一轮；预算用尽时靠测试验证，并在报告里注明。R3 后仍有 blocker 时返回 `REVIEW_EXHAUSTED` 和未解决项，不进入落地。
 
 ## 2. 固定主 Review
 
@@ -39,8 +45,8 @@ Standards 来源必须覆盖仓库的 Coding 与 Architecture 规则。Spec 缺�
 
 ## 3. 按证据启动专项 Review
 
-只根据用户请求、Spec、changed paths 和主 Review finding 选择专项。每个命中的 Skill
-使用独立只读 SubAgent，并绑定同一 Review Packet：
+只在第 1 轮运行专项。只根据用户请求、Spec、changed paths 和主 Review finding 选择专项。
+每个命中的 Skill 使用独立只读 SubAgent，并绑定同一 Review Packet：
 
 | Skill | 触发证据 |
 | --- | --- |
@@ -74,6 +80,7 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 - 每个所选专项完成且无未解决 blocker；
 - 必需检查终态成功，讨论已解决，PR 可合并；
 - PR head 仍等于 Review Packet 的 head SHA。
+- P2 已在 tracker 查重登记，或已列为待登记项报告给用户；P2、P3 不触发下一轮。
 
 任一状态 pending、unknown、failed 或不一致都返回 `BLOCKED` 和恢复动作。Review 阶段不
 修改产品文件，不 stage、commit、push、approve、merge 或变更 issue。

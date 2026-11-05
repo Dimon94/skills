@@ -134,7 +134,7 @@ done
 
 for name in \
   wayfinder research grill-with-docs improve-codebase-architecture \
-  to-spec to-tickets diagnosing-bugs \
+  to-tickets diagnosing-bugs \
   domain-modeling prototype
 do
   link_named_skill "$name" "$MATTPOCOCK_SKILLS_DIR/skills/engineering/$name"

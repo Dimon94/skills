@@ -1,0 +1,5 @@
+interface:
+  display_name: "To Spec"
+  short_description: "把对话整理成 Spec：按需画业务状态图，按 codebase-design 写 Module 与 Interface"
+policy:
+  allow_implicit_invocation: false

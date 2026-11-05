@@ -41,8 +41,8 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 
 | Repository | Workflow responsibility | Standalone install |
 | --- | --- | --- |
-| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`, `tdd`, `code-review`, and local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
-| [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, specs, and tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
+| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`, `tdd`, `code-review`, `to-spec`, and local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, and tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | Upstream source for the curated `productionize-app-with-services` snapshot | Included by this repository's installer |
 | [cursor/plugins](https://github.com/cursor/plugins) | Upstream source for the `thermo-nuclear-code-quality-review` snapshot and the adapted `how`, `why`, `blast-radius`, `investigate`, and verification-skill pair | Included by this repository's installer |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | Upstream source for the curated `show-me` snapshot | Included by this repository's installer |

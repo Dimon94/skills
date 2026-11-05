@@ -20,6 +20,9 @@
 | tdd | mattpocock/skills | `skills/engineering/tdd` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/tdd/SKILL.md> |
 | implement | mattpocock/skills | `skills/engineering/implement` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/implement/SKILL.md> |
 | to-epic | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
+| to-spec | mattpocock/skills | `skills/engineering/to-spec` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md> |
+
+`to-spec` 保留上游正文与模板，增加 Business Flow、codebase-design 约束和发布前覆盖核对；取舍见 repo://docs/adr/0007-owned-to-spec.md。
 
 `test-discipline` 的基线测试规范通用正文改写自 `project-template` 的测试质量节；扩展库公开函数的 E2E 定义，并加入阶段相称与按目录填写的 TS/JS、Python、Go 语言节。本仓拥有模板与建档流程，生成的规范归目标项目所有；上游更新仅供人工对照。
 

@@ -12,9 +12,10 @@ checks below read-only and report what would happen.
 ## 1. Prove the branch
 
 - Worktree is clean. Dirty → commit per `git-commit` first, or stop.
-- Fetch the target (`git fetch origin <target>`), then prove the branch is
-  ahead of `origin/<target>` and not behind it (behind → route to
-  `git-rebase-main` or rebase onto the fetched target first).
+- Fetch 目标分支（`git fetch origin <target>`），确认源分支领先且不落后于
+  `origin/<target>`。落后时直接 rebase 到 `origin/<target>`；冲突调用
+  `resolving-merge-conflicts`。保留源分支供推送；`git-rebase-main` 会合入并回收源分支，
+  仅更新待发 PR 的分支时不调用它。
 - The smallest verification for the diff has run. Unverified work does not
   get pushed.
 

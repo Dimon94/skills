@@ -1,12 +1,13 @@
 ---
 name: gh-merge-pr
-description: 审查并在独立授权后合并一个 GitHub PR。用于单 PR 的 current-head SubAgent Review、按证据调用专项 Review、落地与 parity readback；裸分支或缺失 PR 转交 git-push-pr。
+description: 审查并合并单个 GitHub PR，读回落地结果、关闭对应 Issue、删除源分支并回收临时工作树。用于 current-head Review 或完整合入收尾；仅 Review 保持只读，裸分支转交 git-push-pr。
 ---
 
 # GH Merge PR
 
-负责一个 GitHub PR 从 current-head Review 到落地读回。Review 只允许读取远端、
-准备隔离 checkout 和生成报告；合并与 issue closeout 分别需要点名目标的新授权。
+负责一个 GitHub PR 从 current-head Review 到完整收尾。Review 只允许读取远端、
+准备隔离 checkout 和生成报告。用户明确要求合并该 PR 时，执行落地及收尾；沿用会话中
+已有授权，范围与完成条件归 [收尾合同](../git-rebase-main/references/closeout.md)。
 
 ## 1. 绑定 Review Packet
 
@@ -14,14 +15,15 @@ description: 审查并在独立授权后合并一个 GitHub PR。用于单 PR �
 评审状态和未解决讨论：
 
 ```bash
-gh pr view <n> --json number,title,body,url,headRefOid,headRefName,baseRefName,state,isDraft,mergeable,reviewDecision,statusCheckRollup
+gh pr view <n> --json number,title,body,url,headRefOid,headRefName,headRepository,headRepositoryOwner,isCrossRepository,baseRefName,state,isDraft,mergeable,reviewDecision,statusCheckRollup,closingIssuesReferences
 ```
 
 Fetch base 与 PR head，在隔离 checkout 中记录固定的三点 diff 命令和 commit list。
 所有 Review SubAgent 必须收到同一个 Review Packet；缺失 PR 身份、不可解析的 base/head
-或空 diff 立即阻断。head SHA 变化会使整个 Packet 及其 Review 结果失效。
+或空 diff 立即阻断。head SHA 变化会使整个 Packet 及其 Review 结果失效。记录主工作区、
+源分支与远端、本次创建的 Review 工作树和任务工作树，供收尾定位。
 
-完成标准：Packet 能唯一标识 repo、PR、base、head、diff、Spec 与标准来源。
+完成标准：Packet 能唯一标识 repo、PR、base、head、diff、Spec 与标准来源，收尾对象可定位。
 
 ## 2. 固定主 Review
 
@@ -80,14 +82,17 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 
 ## 5. 落地
 
-落地需要新授权点名 PR 与目标分支。
+落地需要用户明确要求合并该 PR，目标分支以 Packet 为准；已有授权继续有效。
+仅 Review 的请求在第 4 步报告后停止。
 
 1. 重读 head SHA；变化则回到第 1 步。
-2. 使用用户指定的策略执行 `gh pr merge <n>`；未指定时使用 `--merge`。
+2. 使用用户指定的策略执行 `gh pr merge <n> --match-head-commit <reviewed-head>`；未指定时
+   使用 `--merge`。分支与工作树统一在第 7 步清理，此处不加 `--delete-branch`。
 3. branch protection 或 merge queue 拒绝时保持 `BLOCKED`；只有用户明确授权才可使用
    `--admin` 绕过保护。
 
-完成标准：Provider 返回 `MERGED` 与 merge SHA。
+完成标准：Provider 读回 `MERGED` 与 merge SHA；进入 merge queue 或启用 auto-merge 仍为
+等待状态，尚不关闭 Issue 或删除源分支。
 
 ## 6. Parity readback
 
@@ -95,24 +100,27 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 
 - PR 为 `MERGED` 且具有 merge SHA；
 - `git fetch origin <target>` 后 remote target 包含 merge SHA；
-- 本地 `main` 通过 `git pull --ff-only` 到达相同 SHA，active worktree 保持 clean；
+- 在目标分支的工作树通过 `git pull --ff-only` 同步到读回的 remote target HEAD，保持 clean；
+  `main` 只有在它就是目标分支时才同步，主工作区的既有无关改动按收尾合同保留并报告；
 - 最小 post-merge check 通过。
 
 任一 SHA 缺失或不一致都保持 `BLOCKED`，即使 Provider 已显示 merged。
 
 完成标准：Provider、remote target、本地 target 与 active worktree parity 成立。
 
-## 7. Issue closeout
+## 7. Issue、分支与工作树收尾
 
-只处理 PR 正文以 `Closes #n` 点名且 close authority 覆盖的 direct issue。Parent、sibling、
-blocker 和其他关联 issue 只读回，不递归关闭。每次变更后再次读回 closed state。
+执行 [收尾合同](../git-rebase-main/references/closeout.md) 的全部步骤。输入同一 Packet 的
+已审 head、PR merge SHA、parity 与 post-merge check 证据，以及第 1 步记录的对象清单。
 
-完成标准：每个获授权 direct issue 都有 mutation 与 closed-state readback；其他 issue 未变。
+完成标准：合同返回 `COMPLETE`；直接 Issue 均已关闭，源分支与本次临时工作树均有清理
+读回或明确不适用 / 保留依据。只有 `MERGED` 或 parity 成功不能代替收尾完成。
 
 ## 8. 报告
 
 报告 Review Packet 的 base/head、主 Review、专项选择及原因、Verdict、merge SHA、parity
-证据、closed issues、未运行检查和剩余风险。
+证据、收尾合同的逐项结果、未运行检查和剩余风险。`REVIEWED`、`MERGED` 与收尾 `COMPLETE`
+分别报告；已合并但收尾未完成仍报告 `BLOCKED` 和恢复动作。
 
 Review finding 中的已确认产品缺陷转调试流程；需求或产品意图缺口转新 issue。本 Skill
 不修复产品代码。发生真实 merge/rebase conflict 时调用 `resolving-merge-conflicts`。

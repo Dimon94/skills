@@ -40,6 +40,7 @@ Status: current
 | skills/how | 代码机制讲解与子系统走读（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有动机溯源 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
 | skills/no-comments | 显式调用的注释清理、必要例外与范围内根因修复（本仓自有，改写自 pstack，出处同上） | 不拥有范围外重构、提交或发布 | SKILL.md + references/comment-sicko.md + agents/openai.yaml | how、why；宿主子 agent（可用时） | Skill 校验 + 隔离案例前向验证 |
 | skills/in-your-own-words | 显式调用时复述用户目标与问题（本仓自有，改写自 pstack，出处同上） | 不拥有实现或文件修改 | SKILL.md + agents/openai.yaml | 无 | Skill 校验 + 隔离案例前向验证 |
+| skills/ticket-split-100k | 显式调用时把执行预算超过 100k 的候选票沿独立验收边界拆开，并确认发布的 Issue 不含估算字眼 | 不拥有逐票预测口径（归 ticket-sizing）或批准与发布（归 to-tickets） | SKILL.md + agents/openai.yaml | ticket-sizing 的逐票表 | Skill 校验 + DD-289 拆票实例 |
 | skills/why | 代码与决策的动机溯源（本仓自有，改写自上游，出处同上） | 不拥有机制讲解 | SKILL.md + references/ | git CLI、gh CLI；环境可用的证据类 MCP | Skill 校验与人工审查 |
 | skills/create-verification-skill | 生成项目本地 verify skill 与 feature map（本仓自有，改写自上游，出处同上） | 不拥有生成物的运行节奏与产品修复 | SKILL.md + references/ | 无 | Skill 校验与人工审查 |
 | skills/maintain-verification-skill | 项目本地 verify skill 与 feature map 的漂移审计（本仓自有，改写自上游，出处同上） | 不拥有产品代码修复 | SKILL.md | 无 | Skill 校验与人工审查 |

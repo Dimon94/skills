@@ -12,7 +12,7 @@ ADR-0005 之后，Review 仍然过度。最近 30 天 2673 条审查会话去重
 
 ## Decision
 
-1. `code-review` 同一 scope 最多三轮：R1 找全 P0/P1，R2、R3 只看修复。没有 P0/P1 就结束。
+1. `code-review` 同一 scope 最多三轮：R1 找全 P0/P1，R2、R3 只看修复。没有 P0/P1 就结束，scope 终结后的改动不再开轮（delivery-pipeline DD-291 曾在 R1 PASS 后续开 R2、R3）。
 2. 删除 Fowler 坏味道基线。finding 必须有触发场景、可观察影响和能走通的反例。
 3. `implement` 从 spec 逐条拆验收，列失败方式和入口清单，对账移到审查之前。
 4. 验证分层：约束和类型、测试和真实运行、需要时的形式验证。模型检查的路径要在真实代码上复现。

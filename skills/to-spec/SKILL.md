@@ -18,7 +18,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-4. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都写明 Interface 和 Seam。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+4. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都写明 Interface 和 Seam，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
 <spec-template>
 
@@ -87,6 +87,7 @@ Use `codebase-design` terms. For each Module built or modified, state:
 - Its Interface, including invariants, ordering constraints and error modes
 - Its Seam: reuse an existing one first; justify a new one by the Adapter rule in `codebase-design`
 - For a new Module, the result of the deletion test
+- Its data shape decision, when the requirement would add one more branch to an existing if/else or switch chain, or a second flag that must stay in sync with an existing one: read `principle-model-the-domain` and `principle-redesign-from-first-principles` in full from the runtime skill directory, then record the changed shape or why the branch stays
 
 Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
 

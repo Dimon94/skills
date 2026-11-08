@@ -74,7 +74,3 @@ Module、Interface、Seam 的定义沿用目标项目的架构词汇；目标项
 ## 执行交接
 
 切片发布后，按依赖并发执行与逐票上线交给 delivery-pipeline 的独立票模式（`delivery_mode: ticket_release`）。ready 只看本票阻塞边，一票一 MR，部署读回后关票。合入授权与部署读回按该模式的 `release_stage` 规则执行；它的状态止于 `deployed`。里程碑的放量与对外节点按里程碑表执行，可映射到 tracker 的 milestone。宿主没有 delivery-pipeline 时，按目标项目自己的分支与发布合同逐票合入。
-
-## 维护验证
-
-修改切片检查、步骤或完成条件时，运行 [前向验证案例](references/verification.md)。研究来源与访问限制见 [研究记录](../../docs/research/2026-10-20-vertical-slicing-heuristics.md)。

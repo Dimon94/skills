@@ -112,7 +112,3 @@ A description of the things that are out of scope for this spec.
 Any further notes about the feature.
 
 </spec-template>
-
-## 维护验证
-
-修改 Business Flow 或 Module 规则时，按 [前向验证案例](references/verification.md) 检查实际产物；格式与安装检查只证明 Skill 可读取。

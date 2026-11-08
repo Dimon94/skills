@@ -58,6 +58,7 @@ main 只接收已验证提交；票收口即删树删分支。
 本仓的模块是 skill。一个 skill 必须有明确 owner、公开 interface（SKILL.md）、依赖方向和验证方式。
 状态只能有一个 canonical owner。agent 目录的投影、文档转述和来源清单外副本不能成为第二真相。上游快照的来源、commit 与内容 hash 由 sync-upstream-skills 清单拥有。
 跨 skill 复用只经指针，不复制内容。
+SKILL.md 只写运行时行为。维护规则、上游来源和验证方式写在本文件、README 或 docs，不写进 SKILL.md。修改某个 skill 的行为规则时，若它有 references/verification.md，按其中的前向验证案例检查实际产物。原则叶子的维护见 README「原则叶子」节。
 公开合同（SKILL.md frontmatter、契约脚本接口）发生变化时，先检查调用方、回滚和 ADR。
 详细规则见 repo://docs/agents/architecture-standards.md。触发：新增 skill、改变依赖、公开 interface、契约脚本接口。
 </architecture>

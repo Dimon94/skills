@@ -128,6 +128,30 @@
           "treeSha256": "3b78f9dc6d8e2b23fb1c8e82c36608096f42b75f66c73cd54bd9cc610309cee7"
         }
       ]
+    },
+    {
+      "id": "cursor-pstack",
+      "repository": "https://github.com/cursor/plugins.git",
+      "ref": "main",
+      "commit": "6b0300214a09fd6029cfb7077043125758cd1fd2",
+      "license": "MIT (pstack, Lauren Tan)",
+      "skills": [
+        {
+          "name": "principle-model-the-domain",
+          "sourcePath": "pstack/skills/principle-model-the-domain",
+          "treeSha256": "c55ec4d5f4a15bfcef681feec8e924d4afcc91caf6cd2d83acc56e9cb43e71c1"
+        },
+        {
+          "name": "principle-redesign-from-first-principles",
+          "sourcePath": "pstack/skills/principle-redesign-from-first-principles",
+          "treeSha256": "94567cfdc4cf35c3fb0eca0cbf4eb998eb6236b041d266a336768e79a757d2cd"
+        },
+        {
+          "name": "principle-fix-root-causes",
+          "sourcePath": "pstack/skills/principle-fix-root-causes",
+          "treeSha256": "86388a2a6a21e4834da03d9d0bb483465f40124f3b164b6070380d5e85f55957"
+        }
+      ]
     }
   ]
 }

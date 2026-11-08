@@ -67,3 +67,15 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 - `skills/sync-upstream-skills/references/adapted-sources.md`: upstream source and base commit for repo-owned Skills adapted from upstream.
 
 Run `$sync-upstream-skills` to check curated snapshots; it writes only after an explicit update request. Standalone single-Skill projects still update through their upstream clone, and symlinks consume the result immediately.
+
+## Principle Leaves
+
+`skills/principle-*` are pstack principle snapshots, locked by the `cursor-pstack` source in `sources.json`. Host Skills and docs point to a leaf at the decision it governs and never copy its text. See `docs/adr/0009-principle-leaves-and-index.md`.
+
+| Leaf | Host |
+| --- | --- |
+| `principle-model-the-domain` | `to-spec` (Implementation Decisions) |
+| `principle-redesign-from-first-principles` | `to-spec` (Implementation Decisions) |
+| `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
+
+Adding a leaf changes four places: the `cursor-pstack` source, the `dimon-model` table, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

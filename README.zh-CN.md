@@ -67,3 +67,15 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 - `skills/sync-upstream-skills/references/adapted-sources.md`：改写自上游的自有 Skill 的出处与基于 commit。
 
 运行 `$sync-upstream-skills` 检查精选快照；明确要求更新后才写入。独立单-Skill 项目仍更新对应上游 clone，symlink 会立即读取新内容。
+
+## 原则叶子
+
+`skills/principle-*` 是 pstack 原则快照，由 `sources.json` 的 `cursor-pstack` 来源锁定。宿主 Skill 和 docs 在对应决策点指向叶子，不复制正文。见 `docs/adr/0009-principle-leaves-and-index.md`。
+
+| 叶子 | 宿主 |
+| --- | --- |
+| `principle-model-the-domain` | `to-spec`（Implementation Decisions） |
+| `principle-redesign-from-first-principles` | `to-spec`（Implementation Decisions） |
+| `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
+
+新增叶子同改四处：`cursor-pstack` 来源、`dimon-model` 索引表、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

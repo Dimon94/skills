@@ -116,3 +116,10 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 重复规则和并行机制出现时，读取 repo://docs/agents/entropy-governance.md。
 根因诊断、互斥方案和落地推演时，读取 repo://docs/agents/thinking-model.md。
 </principles>
+
+<principle_index>
+原则叶子在 skills/principle-*，命中触发时先完整读叶子再动手。完整索引见 repo://skills/dimon-model/SKILL.md（仅显式调用）。
+- principle-model-the-domain：写有状态逻辑；新需求要给分支链再加一支或加一个要同步的标志位。
+- principle-redesign-from-first-principles：把新需求接进现有设计。
+- principle-fix-root-causes：调试；要用防护挡住症状前。
+</principle_index>

@@ -128,4 +128,5 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-laziness-protocol：重构、评估 diff 大小，或想加抽象、分层、层层传参。
 - principle-subtract-before-you-add：安排新增、重构或重写的顺序。
 - principle-minimize-reader-load：审阅或整理难追的代码；想加一层或一个状态前。
+- principle-test-behavior-not-implementation：写、改或保留一条测试。
 </principle_index>

@@ -161,6 +161,11 @@
           "name": "principle-minimize-reader-load",
           "sourcePath": "pstack/skills/principle-minimize-reader-load",
           "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac"
+        },
+        {
+          "name": "principle-test-behavior-not-implementation",
+          "sourcePath": "pstack/skills/principle-test-behavior-not-implementation",
+          "treeSha256": "c8b25ca3336056109d6eaf5a973e676945b389ab3d03a12ae8c8ba360869ee21"
         }
       ]
     }

@@ -49,6 +49,7 @@ disable-model-invocation: true
 | 叶子 | 什么时候读 |
 | --- | --- |
 | `principle-fix-root-causes` | 调试；要用防护挡住一个症状前 |
+| `principle-test-behavior-not-implementation` | 写、改或保留一条测试时 |
 
 ## 自主权
 

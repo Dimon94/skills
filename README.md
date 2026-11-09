@@ -89,5 +89,11 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-build-the-lever` | `implement` (step 2, non-trivial slice gets a rerunnable script) |
 | `principle-encode-lessons-in-structure` | `retro` (step 1 recurrence, step 4 structural pass) |
 | `principle-never-block-on-the-human` | `dimon-mode` (自主权) |
+| `principle-boundary-discipline` | `AGENTS.md` `<principle_index>` (replaces the boundary line in `<constraints>`) |
+| `principle-sequence-verifiable-units` | `AGENTS.md` `<principle_index>` (replaces the minimal-slice line in `<principles>`) |
+| `principle-type-system-discipline` | `dimon-mode` (原则·架构) |
+| `principle-make-operations-idempotent` | `dimon-mode` (原则·架构) |
+| `principle-outcome-oriented-execution` | `dimon-mode` (原则·核心) |
+| `principle-explain-the-number` | `dimon-mode` (原则·验证) |
 
 Adding a leaf changes four places: the `cursor-pstack` source, the principle section of `dimon-mode`, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

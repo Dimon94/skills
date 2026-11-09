@@ -37,6 +37,7 @@ disable-model-invocation: true
 | `principle-subtract-before-you-add` | 安排新增、重构或重写的顺序时 |
 | `principle-minimize-reader-load` | 审阅或整理难追的代码；想加一层或一个状态前 |
 | `principle-build-the-lever` | 非琐碎的编辑、迁移、分析或验证，准备手工逐处做时 |
+| `principle-outcome-oriented-execution` | 计划好的重写或迁移，想为中间态写兼容代码时 |
 
 **架构**
 
@@ -45,6 +46,9 @@ disable-model-invocation: true
 | `principle-model-the-domain` | 写有状态的逻辑；新需求要给分支链再加一支，或加一个要同步的标志位 |
 | `principle-separate-before-serializing-shared-state` | 多个并发方（进程、worker、并行 agent）可能写同一个文件、分支、键或状态对象 |
 | `principle-migrate-callers-then-delete-legacy-apis` | 引入新的内部 API，旧调用方还在 |
+| `principle-boundary-discipline` | 写校验、错误处理或框架适配时 |
+| `principle-type-system-discipline` | 设计类型或审函数签名时 |
+| `principle-make-operations-idempotent` | 设计会崩溃、重启或重试的命令、步骤和循环时 |
 
 **验证**
 
@@ -53,6 +57,8 @@ disable-model-invocation: true
 | `principle-fix-root-causes` | 调试；要用防护挡住一个症状前 |
 | `principle-test-behavior-not-implementation` | 写、改或保留一条测试时 |
 | `principle-prove-it-works` | 宣告完成前 |
+| `principle-sequence-verifiable-units` | 多步工作、批量改动，或安排提交顺序时 |
+| `principle-explain-the-number` | 测量前，以及信任、报告或依据一个数字行动前 |
 
 **元**
 

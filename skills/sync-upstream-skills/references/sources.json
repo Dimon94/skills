@@ -194,6 +194,39 @@
           "name": "principle-never-block-on-the-human",
           "sourcePath": "pstack/skills/principle-never-block-on-the-human",
           "treeSha256": "7c81b7559df6cbe1594a6bac2433e063105b1ffa58676fae7c912a41a35852e1"
+        },
+        {
+          "name": "principle-boundary-discipline",
+          "sourcePath": "pstack/skills/principle-boundary-discipline",
+          "treeSha256": "55d63ee9d377c4a518339a648526878d27133f305ca00d519be95a729c8dbd44"
+        },
+        {
+          "name": "principle-type-system-discipline",
+          "sourcePath": "pstack/skills/principle-type-system-discipline",
+          "treeSha256": "098982c080f2fcdaf857ef2946a37eefe0ba01c4b7959d42b3910d611643d58f"
+        },
+        {
+          "name": "principle-make-operations-idempotent",
+          "sourcePath": "pstack/skills/principle-make-operations-idempotent",
+          "treeSha256": "47c79e3166f30c4d3bf26125c8ea529b127fc468ecf94809ab5aba1ebe79aed0"
+        },
+        {
+          "name": "principle-sequence-verifiable-units",
+          "sourcePath": "pstack/skills/principle-sequence-verifiable-units",
+          "treeSha256": "d1719c7e3d8b4b9a2fd0a8561ca36a5d7c708f8d248b8b02dca664b59bfc74c4"
+        },
+        {
+          "name": "principle-outcome-oriented-execution",
+          "sourcePath": "pstack/skills/principle-outcome-oriented-execution",
+          "treeSha256": "234c15fa31f1184c078936e45b3097f5b917882eb877201de62003638626c571"
+        },
+        {
+          "name": "principle-explain-the-number",
+          "sourcePath": "pstack/skills/principle-explain-the-number",
+          "treeSha256": "0000a3e34badb21f104774780386e1b0b80671cff3697ae9ab599f771c2c43cb",
+          "knownBrokenLinks": [
+            "../benchmark-checklist/SKILL.md"
+          ]
         }
       ]
     }

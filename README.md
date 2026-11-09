@@ -95,5 +95,9 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-make-operations-idempotent` | `dimon-mode` (原则·架构) |
 | `principle-outcome-oriented-execution` | `dimon-mode` (原则·核心) |
 | `principle-explain-the-number` | `dimon-mode` (原则·验证) |
+| `principle-attack-the-premise` | `dimon-mode` `playbooks/bug-fix.md` (step 5, two failed fixes on one premise) |
+| `principle-foundational-thinking` | `dimon-mode` (原则·核心) |
+| `principle-exhaust-the-design-space` | `AGENTS.md` `<principle_index>` (index line carries the rule; upstream 08bd59b cut the body) |
+| `principle-experience-first` | `dimon-mode` (原则·核心) |
 
 Adding a leaf changes four places: the `cursor-pstack` source, the principle section of `dimon-mode`, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

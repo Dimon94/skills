@@ -227,6 +227,26 @@
           "knownBrokenLinks": [
             "../benchmark-checklist/SKILL.md"
           ]
+        },
+        {
+          "name": "principle-attack-the-premise",
+          "sourcePath": "pstack/skills/principle-attack-the-premise",
+          "treeSha256": "c61a6fabdec7954f4c5565056e659f8947d4a1f6ea29161f973e5d95c2359b0a"
+        },
+        {
+          "name": "principle-foundational-thinking",
+          "sourcePath": "pstack/skills/principle-foundational-thinking",
+          "treeSha256": "1d23c9a69f71d4b49a77cff4f3460faf589a0822a44f163ddabbe70fc3815a79"
+        },
+        {
+          "name": "principle-exhaust-the-design-space",
+          "sourcePath": "pstack/skills/principle-exhaust-the-design-space",
+          "treeSha256": "eeb910839e9847405f32a6c751d20370934c681a895958c105d079873bd35013"
+        },
+        {
+          "name": "principle-experience-first",
+          "sourcePath": "pstack/skills/principle-experience-first",
+          "treeSha256": "3755ab3288a053dd3bf42f4851a605f8ab4a734ca37ac8345148bdff67fba511"
         }
       ]
     }

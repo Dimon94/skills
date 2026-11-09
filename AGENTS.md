@@ -121,10 +121,14 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 原则叶子在 skills/principle-*，命中触发时先完整读叶子再动手。完整入口见 repo://skills/dimon-mode/SKILL.md（仅显式调用）。
 - principle-model-the-domain：写有状态逻辑；新需求要给分支链再加一支或加一个要同步的标志位。
 - principle-redesign-from-first-principles：把新需求接进现有设计。
+- principle-foundational-thinking：写逻辑前定核心类型和数据结构；排脚手架与功能的顺序。
+- principle-exhaust-the-design-space：没有先例的交互或架构决定；做 2-3 个形状不同的原型并排比，再定；已有模式和 bug 修复不适用。
+- principle-experience-first：产品、体验或功能范围取舍；选用户体验，少做做好；下一个维护者也是用户。
 - principle-boundary-discipline：写校验、错误处理或框架适配；外部输入在边界校验一次，内部信任已校验的类型。
 - principle-type-system-discipline：设计类型或审函数签名；让非法状态写不出来。
 - principle-make-operations-idempotent：设计会崩溃、重启或重试的命令、步骤和循环。
 - principle-fix-root-causes：调试；要用防护挡住症状前。
+- principle-attack-the-premise：共享同一前提的两次修复栽在同一关口；先写下并验证前提，再写下一个修复。
 - principle-separate-before-serializing-shared-state：多个并发方可能写同一个文件、分支、键或状态对象。
 - principle-migrate-callers-then-delete-legacy-apis：引入新的内部 API，旧调用方还在。
 - principle-laziness-protocol：重构、评估 diff 大小，或想加抽象、分层、层层传参。

@@ -33,6 +33,9 @@ disable-model-invocation: true
 | 叶子 | 什么时候读 |
 | --- | --- |
 | `principle-redesign-from-first-principles` | 把新需求接进现有设计 |
+| `principle-foundational-thinking` | 写逻辑前定核心类型和数据结构；排脚手架与功能的顺序时 |
+| `principle-exhaust-the-design-space` | 没有先例的交互或架构决定：做 2-3 个形状不同的原型并排比，再定 |
+| `principle-experience-first` | 产品、体验或功能范围取舍时 |
 | `principle-laziness-protocol` | 重构、评估 diff 大小，或想加抽象、分层、层层传参时 |
 | `principle-subtract-before-you-add` | 安排新增、重构或重写的顺序时 |
 | `principle-minimize-reader-load` | 审阅或整理难追的代码；想加一层或一个状态前 |
@@ -55,6 +58,7 @@ disable-model-invocation: true
 | 叶子 | 什么时候读 |
 | --- | --- |
 | `principle-fix-root-causes` | 调试；要用防护挡住一个症状前 |
+| `principle-attack-the-premise` | 共享同一前提的两次修复栽在同一关口，准备写第三个修复前 |
 | `principle-test-behavior-not-implementation` | 写、改或保留一条测试时 |
 | `principle-prove-it-works` | 宣告完成前 |
 | `principle-sequence-verifiable-units` | 多步工作、批量改动，或安排提交顺序时 |

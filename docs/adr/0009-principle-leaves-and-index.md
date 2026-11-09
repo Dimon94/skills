@@ -1,8 +1,8 @@
 # 原则以叶子快照进入套件，宿主只放指针
 
-Status: accepted
+Status: accepted；§4 superseded by repo://docs/adr/0010-dimon-mode-entry.md
 
-Related: repo://skills/dimon-model/SKILL.md；repo://skills/sync-upstream-skills/references/sources.json；repo://docs/adr/0001-curated-upstream-skill-snapshots.md
+Related: repo://skills/dimon-mode/SKILL.md；repo://skills/sync-upstream-skills/references/sources.json；repo://docs/adr/0001-curated-upstream-skill-snapshots.md
 
 ## Context
 

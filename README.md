@@ -70,7 +70,7 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 
 ## Principle Leaves
 
-`skills/principle-*` are pstack principle snapshots, locked by the `cursor-pstack` source in `sources.json`. Host Skills and docs point to a leaf at the decision it governs and never copy its text. See `docs/adr/0009-principle-leaves-and-index.md`.
+`skills/principle-*` are pstack principle snapshots, locked by the `cursor-pstack` source in `sources.json`. Host Skills and docs point to a leaf at the decision it governs and never copy its text. See `docs/adr/0009-principle-leaves-and-index.md`. `dimon-mode` is the explicit-only working-style entry that lists every leaf (`docs/adr/0010-dimon-mode-entry.md`).
 
 | Leaf | Host |
 | --- | --- |
@@ -80,4 +80,4 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-separate-before-serializing-shared-state` | `vertical-slicing` (step 5, dependency edges) |
 | `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing` (check 6, hiding has a deadline) |
 
-Adding a leaf changes four places: the `cursor-pstack` source, the `dimon-model` table, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.
+Adding a leaf changes four places: the `cursor-pstack` source, the principle section of `dimon-mode`, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

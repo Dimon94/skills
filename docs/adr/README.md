@@ -13,7 +13,8 @@
 - [code-review 以上游原版为基础，只加严重度](0005-code-review-upstream-severity.md)
 - [tdd 与 implement 转为本仓自有 Skill](0006-owned-tdd-implement.md)
 - [Review 最多三轮，只报具体反例](0008-review-round-limit.md)
-- [原则以叶子快照进入套件，宿主只放指针](0009-principle-leaves-and-index.md)
+- [原则以叶子快照进入套件，宿主只放指针](0009-principle-leaves-and-index.md)（§4 已被 0010 取代）
+- [dimon-mode 是工作方式入口，原则索引是其中一节](0010-dimon-mode-entry.md)
 
 ## 命名
 

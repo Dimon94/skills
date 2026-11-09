@@ -70,7 +70,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 
 ## 原则叶子
 
-`skills/principle-*` 是 pstack 原则快照，由 `sources.json` 的 `cursor-pstack` 来源锁定。宿主 Skill 和 docs 在对应决策点指向叶子，不复制正文。见 `docs/adr/0009-principle-leaves-and-index.md`。
+`skills/principle-*` 是 pstack 原则快照，由 `sources.json` 的 `cursor-pstack` 来源锁定。宿主 Skill 和 docs 在对应决策点指向叶子，不复制正文。见 `docs/adr/0009-principle-leaves-and-index.md`。`dimon-mode` 是只能显式调用的工作方式入口，列出全部叶子（`docs/adr/0010-dimon-mode-entry.md`）。
 
 | 叶子 | 宿主 |
 | --- | --- |
@@ -80,4 +80,4 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-separate-before-serializing-shared-state` | `vertical-slicing`（第 5 步连依赖边） |
 | `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing`（检查 6 隐藏有期限） |
 
-新增叶子同改四处：`cursor-pstack` 来源、`dimon-model` 索引表、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。
+新增叶子同改四处：`cursor-pstack` 来源、`dimon-mode` 原则节、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

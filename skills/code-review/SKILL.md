@@ -57,7 +57,7 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
-两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景、可观察影响与能走通的具体反例；证据不足写 Unknown，不算 finding。
+两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景、可观察影响与能走通的具体反例；证据不足写 Unknown，不算 finding。P0/P1 先在 fixed point 上核对同一问题是否已存在，按「严重度」节的基线规则定级。
 
 ### 5. Aggregate
 
@@ -77,6 +77,8 @@ End with a one-line summary: per axis, the verdict, the finding count by severit
 - P3：局部清晰度或一致性问题，当前不破坏行为。
 
 只有 P0/P1 阻断；调用方所说的 blocker、blocking finding 都指 P0/P1。P2 交调用方登记 issue，P3 只留在报告里，两者都不触发下一轮。级别由审查者给出，实现者不能降级。
+
+fixed point 上已存在的问题不由本次承担：记为 P2，标「基线已有，原级 P0/P1」，交调用方登记 issue。本次 diff 复制了它，或让新的调用方、入口走到它时，按原级别处理。审查者核对不了 fixed point 时，按本次引入处理。
 
 ## 轮次
 

@@ -1,6 +1,6 @@
 # Review 最多三轮，只报具体反例
 
-Status: accepted
+Status: accepted（末段“不改阻断线”被 0011 修订）
 
 Related: supersedes repo://docs/adr/0005-code-review-upstream-severity.md 的复审范围与上游差异；repo://skills/code-review/SKILL.md；repo://skills/implement/SKILL.md；delivery-pipeline 仓 `docs/adr/0017-review-budget.md`
 

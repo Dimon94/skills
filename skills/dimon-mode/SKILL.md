@@ -102,5 +102,6 @@ disable-model-invocation: true
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
 | 建树、看在做清单、回收工作树 | `git-worktree` |
+| 写或改 Skill | 按 `playbooks/authoring-a-skill.md` |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |

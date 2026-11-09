@@ -106,7 +106,7 @@ disable-model-invocation: true
 | 大需求拆成多个 Spec | `to-epic` |
 | 写 Spec | `to-spec` |
 | 拆成可交付的片 | `vertical-slicing` |
-| 把片发成票 | `to-tickets` |
+| 把片发成票 | 由用户调用 `to-tickets`：模型不能自调。规划时就说明这一步要用户调用；交出切片清单后停下等用户 |
 | 多阶段交付编排 | `delivery-pipeline` |
 | 按 Spec 或票实现 | `implement`；测试先行用 `tdd` |
 | 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md` |

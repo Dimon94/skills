@@ -1,0 +1,5 @@
+interface:
+  display_name: "Git Worktree"
+  short_description: "一个写任务一棵树：建树、暂停、接手、收尾与回收"
+policy:
+  allow_implicit_invocation: true

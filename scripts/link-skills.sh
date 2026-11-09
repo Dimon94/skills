@@ -7,6 +7,11 @@ set -euo pipefail
 # 每个条目都是指向本仓库的 symlink。普通目录可能含用户改造，拒绝覆盖。
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# 运行时链接只能指向主工作树；任务工作树会随收尾删除，链接会悬空
+if [ "$(git -C "$REPO" rev-parse --absolute-git-dir)" != "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)" ]; then
+  echo "error: run link-skills.sh from the main worktree, not a task worktree ($REPO)." >&2
+  exit 1
+fi
 AGENTS_SKILLS_DIR="${AGENTS_SKILLS_DIR:-$HOME/.agents/skills}"
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 DESTS=("$CLAUDE_SKILLS_DIR" "$AGENTS_SKILLS_DIR")

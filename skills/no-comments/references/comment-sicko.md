@@ -9,6 +9,7 @@
 - 法律、许可头和工具实际消费的指令。
 - 无法通过改造自身代码消除的外部依赖、浏览器、平台、供应方或协议怪癖。
 - 公开 API 的非显然合同。
+- 项目合同层规范（如 `docs/agents/layer-contracts.md`）定义的 L1–L6 合同块，如 COORD、IN/OUT、INVARIANT、PARAM、CHAIN。它们是给 agent 的索引，不按叙述注释删除；只报告过期或逐句翻译代码的条目，修法是按当前代码改写，不是删除。
 - 解释代码无法表达的约束的 Issue 或 RFC 链接。
 - `prettier-ignore`，以及规则有误或仅约束风格的 lint 抑制。
 

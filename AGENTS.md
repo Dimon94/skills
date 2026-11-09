@@ -129,4 +129,5 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-subtract-before-you-add：安排新增、重构或重写的顺序。
 - principle-minimize-reader-load：审阅或整理难追的代码；想加一层或一个状态前。
 - principle-test-behavior-not-implementation：写、改或保留一条测试。
+- principle-prove-it-works：宣告完成前。
 </principle_index>

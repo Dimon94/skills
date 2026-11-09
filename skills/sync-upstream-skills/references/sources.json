@@ -166,6 +166,11 @@
           "name": "principle-test-behavior-not-implementation",
           "sourcePath": "pstack/skills/principle-test-behavior-not-implementation",
           "treeSha256": "c8b25ca3336056109d6eaf5a973e676945b389ab3d03a12ae8c8ba360869ee21"
+        },
+        {
+          "name": "principle-prove-it-works",
+          "sourcePath": "pstack/skills/principle-prove-it-works",
+          "treeSha256": "e411e390703f8dfa987dc8a19ecde9b4dc14a623b5543d76f65b6c4a94bde1e1"
         }
       ]
     }

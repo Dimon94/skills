@@ -83,5 +83,6 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-subtract-before-you-add` | `implement` (step 2, subtract first) |
 | `principle-minimize-reader-load` | `implement` (step 4, ablation before reconciliation) |
 | `principle-test-behavior-not-implementation` | `tdd` (step 3, assertions survive internal changes) |
+| `principle-prove-it-works` | `implement` (step 3 exit, results read from the real artifact) |
 
 Adding a leaf changes four places: the `cursor-pstack` source, the principle section of `dimon-mode`, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

@@ -83,5 +83,6 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-subtract-before-you-add` | `implement`（第 2 步先做减法） |
 | `principle-minimize-reader-load` | `implement`（第 4 步对账前消融） |
 | `principle-test-behavior-not-implementation` | `tdd`（第 3 步断言扛得过只改内部） |
+| `principle-prove-it-works` | `implement`（第 3 步完成条件，结果读自真产物） |
 
 新增叶子同改四处：`cursor-pstack` 来源、`dimon-mode` 原则节、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

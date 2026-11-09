@@ -50,6 +50,7 @@ disable-model-invocation: true
 | --- | --- |
 | `principle-fix-root-causes` | 调试；要用防护挡住一个症状前 |
 | `principle-test-behavior-not-implementation` | 写、改或保留一条测试时 |
+| `principle-prove-it-works` | 宣告完成前 |
 
 ## 自主权
 

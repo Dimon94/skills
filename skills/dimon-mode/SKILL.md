@@ -20,7 +20,7 @@ disable-model-invocation: true
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
 - 提交用 `git-commit`，推送或建 PR 用 `git-push-pr`，合回 main 用 `git-rebase-main`，合并 PR 用 `gh-merge-pr`。都只在用户明确要求时执行。
-- 已确认、可复用的失败教训：用 `postmortem`。
+- 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。
 - 任务中途发现某个 skill 坏了：单独报告位置和原因，不悄悄绕过。
 
 ## 原则
@@ -88,5 +88,6 @@ disable-model-invocation: true
 | 把片发成票 | `to-tickets` |
 | 多阶段交付编排 | `delivery-pipeline` |
 | 按 Spec 或票实现 | `implement`；测试先行用 `tdd` |
+| 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md` |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |

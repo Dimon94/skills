@@ -9,7 +9,8 @@ metadata:
 # Postmortem
 
 `postmortem` owns reusable failure memory. It does not own workflow state,
-review findings, remote delivery, or ordinary failure logs.
+review findings, remote delivery, ordinary failure logs, or environment change
+proposals (those belong to `retro`).
 
 Use exactly one mode:
 

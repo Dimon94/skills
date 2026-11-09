@@ -87,7 +87,7 @@ scope 即终结：之后的改动靠测试验证，需要重审时由调用方�
 
 - **R1**：完整 diff，一次找全 P0/P1。
 - **R2、R3**：上一轮有 P0/P1 且已修复时才开。只看修复 diff 及其影响到的行为，确认问题已关闭、修复没有引入新的 P0/P1。其余部分沿用上轮结论，不再找新的 P2。只重跑报过 P0/P1 的轴；修复改动公开 Interface 或依赖时两轴都跑。
-- **R3 后仍有 P0/P1**：报告 `REVIEW_EXHAUSTED`，不开第 4 轮，不给放行结论。交调用方对实现链路运行 `retro`。
+- **R3 后仍有 P0/P1**：报告 `REVIEW_EXHAUSTED`，不开第 4 轮，不给放行结论。交调用方对实现链路运行 `postmortem` 与 `retro`。
 
 scope 由调用方定义；delivery-pipeline 链路按其 Review 预算计。
 

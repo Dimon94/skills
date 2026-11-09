@@ -1,0 +1,6 @@
+interface:
+  display_name: "Retro"
+  short_description: "Turn a failed chain into environment change proposals"
+  default_prompt: "Use $retro to propose environment changes from this failed chain."
+policy:
+  allow_implicit_invocation: false

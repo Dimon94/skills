@@ -1,6 +1,6 @@
 # dimon-mode 是工作方式入口，原则索引是其中一节
 
-Status: accepted
+Status: accepted（§2 被 0012 修订：入口可拥有只放指针的剧本）
 
 Related: repo://skills/dimon-mode/SKILL.md；repo://docs/adr/0009-principle-leaves-and-index.md；repo://skills/no-comments/references/comment-sicko.md
 

@@ -22,6 +22,8 @@
 | to-epic | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
 | to-spec | mattpocock/skills | `skills/engineering/to-spec` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md> |
 | resolving-merge-conflicts | mattpocock/skills | `skills/engineering/resolving-merge-conflicts` | `c55ee46073ed923f86ce59a5eb3b6d895095d1b7` | <https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/resolving-merge-conflicts/SKILL.md> |
+| retro | mattpocock/skills、cursor/plugins | `skills/engineering/retro`、`pstack/skills/reflect` | `a7d038f6bf7f01b516408e95e2fb56e0b338fa6f`、`6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/mattpocock/skills/blob/a7d038f6bf7f01b516408e95e2fb56e0b338fa6f/skills/engineering/retro/SKILL.md> |
+| dimon-mode（`playbooks/bug-fix.md`） | cursor/plugins | `pstack/skills/poteto-mode/playbooks/bug-fix.md` | `6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/poteto-mode/playbooks/bug-fix.md> |
 
 `resolving-merge-conflicts` 原文照抄上游快照。上游在 `daa01d8`（Remove resolving-merge-conflicts）删除了该 Skill；本仓继续保留，git-rebase-main、git-push-pr 与 gh-merge-pr 依赖它处理真实冲突。不再有上游可对照，退出快照锁定。
 
@@ -40,3 +42,7 @@
 `to-epic` 借鉴目标负责制、深 Module 词汇、context pointer 写法，以及同 commit 的 `skills/engineering/to-spec`、`skills/engineering/to-tickets` 的产物与发布设计；本仓拥有 Epic → Spec 候选的切分、依赖和滚动细化合同。表中 commit 保留来源基线，当前行为按本仓维护，不参与快照更新。codebase-design、research、prototype、to-spec 与 to-tickets 按需从运行时定位，不复制内容；执行方独立选择。交付层级决定见 repo://docs/adr/0004-epic-spec-delivery-boundary.md。
 
 改写内容：how/why 仅把 Cursor 专属点位通用化（模型路由段、Task 子 agent 参数字段、`mcps/` 目录发现方式、cursor location 措辞），正文与 references 原文照抄。create-verification-skill 与 maintain-verification-skill 仅把生成/定位路径从 `.cursor/skills/` 改为 `.agents/skills/`（pi 原生发现项目级 `.agents/skills/`），其余原文照抄。create-formal-verification-skill 只把生成位置钉为 `.agents/skills/formal-verify-<area>/`（上游未指定位置），maintain-formal-verification-skill 原文照抄。blast-radius 把第 6 步的 `arena` 多模型并发改为建议用 `wayfinder` 画寻路图，并把收尾的 `unslop` 引用改为内联的去 AI 腔要求（本仓不引入该 skill），其余原文照抄。investigate 去掉 Cursor 专属点位（throughput checkpoint、unslop、architect、babysit），路由目标换成本仓已有的 how / why，其余语义照抄。
+
+`retro` 合并两个上游：mattpocock `retro` 的改进类别、检查优先、无防护即发现与“实现 / 审查”文件放置规则（`references/environment.md`）；pstack `reflect` 的会话定位、三视角清单、只路由到用过的 Skill、筛选标准与三段输出、批准后按路由应用（`references/lenses.md`、`synthesis.md`）。本仓改动：agent 可调用，供 implement、code-review 的 R3 出口使用；三视角默认由当前 agent 依次执行，用户要求时才派子代理，模型按调用方配置，不写默认模型；Backlog 经用户授权才登记；`writing-for-agents` 改为可用时才用，`create-skill` 不引入；不改插件缓存一条推广为不改运行时投影与上游快照；先用 postmortem recall，记录归 postmortem。
+
+`dimon-mode` 的 `playbooks/bug-fix.md` 保留上游的六步顺序与回复格式；去掉默认修复模型、子代理委派、`architect` 与 PR 步骤，改为指向本仓已有的 how、why、tdd、code-review 与 principle-fix-root-causes。

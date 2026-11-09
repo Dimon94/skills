@@ -65,7 +65,7 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 - `skills/`: the canonical source for repository-owned Skills and curated upstream snapshots.
 - `scripts/link-skills.sh`: links repository-owned Skills and upstream snapshots from `skills/`.
 - `scripts/install-development-workflow.sh`: installs the complete development-workflow Skill Bundle.
-- `skills/sync-upstream-skills/references/sources.json`: source, path, commit, and content hash for every upstream snapshot.
+- `skills/sync-upstream-skills/references/sources.json`: source, path, commit, and content hash for every upstream snapshot, plus `knownBrokenLinks` for links inside a snapshot that this repo does not import.
 - `skills/sync-upstream-skills/references/adapted-sources.md`: upstream source and base commit for repo-owned Skills adapted from upstream.
 
 Run `$sync-upstream-skills` to check curated snapshots; it writes only after an explicit update request. Standalone single-Skill projects still update through their upstream clone, and symlinks consume the result immediately.

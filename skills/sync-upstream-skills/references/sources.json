@@ -69,7 +69,12 @@
         {
           "name": "vercel-react-best-practices",
           "sourcePath": "skills/react-best-practices",
-          "treeSha256": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+          "treeSha256": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212",
+          "knownBrokenLinks": [
+            "./async-defer-await.md",
+            "./async-cheap-condition-before-await.md",
+            "./server-hoist-static-io.md"
+          ]
         }
       ]
     },
@@ -160,7 +165,10 @@
         {
           "name": "principle-minimize-reader-load",
           "sourcePath": "pstack/skills/principle-minimize-reader-load",
-          "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac"
+          "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac",
+          "knownBrokenLinks": [
+            "../principle-guard-the-context-window/SKILL.md"
+          ]
         },
         {
           "name": "principle-test-behavior-not-implementation",

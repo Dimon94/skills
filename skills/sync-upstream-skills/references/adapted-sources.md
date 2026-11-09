@@ -24,6 +24,8 @@
 | resolving-merge-conflicts | mattpocock/skills | `skills/engineering/resolving-merge-conflicts` | `c55ee46073ed923f86ce59a5eb3b6d895095d1b7` | <https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/resolving-merge-conflicts/SKILL.md> |
 | retro | mattpocock/skills、cursor/plugins | `skills/engineering/retro`、`pstack/skills/reflect` | `a7d038f6bf7f01b516408e95e2fb56e0b338fa6f`、`6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/mattpocock/skills/blob/a7d038f6bf7f01b516408e95e2fb56e0b338fa6f/skills/engineering/retro/SKILL.md> |
 | dimon-mode（`playbooks/bug-fix.md`） | cursor/plugins | `pstack/skills/poteto-mode/playbooks/bug-fix.md` | `6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/poteto-mode/playbooks/bug-fix.md> |
+| dimon-mode（`playbooks/pause-safely.md`）、git-worktree 第 3 节 | cursor/plugins | `pstack/skills/poteto-mode/playbooks/pause-safely.md` | `6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/poteto-mode/playbooks/pause-safely.md> |
+| dimon-mode（`playbooks/session-pickup.md`）、git-worktree 第 4 节 | cursor/plugins | `pstack/skills/poteto-mode/playbooks/session-pickup.md` | `6b0300214a09fd6029cfb7077043125758cd1fd2` | <https://github.com/cursor/plugins/blob/6b0300214a09fd6029cfb7077043125758cd1fd2/pstack/skills/poteto-mode/playbooks/session-pickup.md> |
 
 `resolving-merge-conflicts` 原文照抄上游快照。上游在 `daa01d8`（Remove resolving-merge-conflicts）删除了该 Skill；本仓继续保留，git-rebase-main、git-push-pr 与 gh-merge-pr 依赖它处理真实冲突。不再有上游可对照，退出快照锁定。
 

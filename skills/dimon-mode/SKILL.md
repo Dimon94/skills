@@ -19,6 +19,7 @@ disable-model-invocation: true
 - 动手前：按 `principle-subtract-before-you-add` 先做减法；交付前按 `principle-minimize-reader-load` 做消融。要新增可复用的代码、规则或流程前：用 `do-not-repeat-yourself`。
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
+- 改任何仓库文件前：按 `git-worktree` 建任务树，在树里写；主工作树只做集成。一行文档也不例外。
 - 提交用 `git-commit`，推送或建 PR 用 `git-push-pr`，合回 main 用 `git-rebase-main`，合并 PR 用 `gh-merge-pr`。都只在用户明确要求时执行。
 - 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。
 - 任务中途发现某个 skill 坏了：单独报告位置和原因，不悄悄绕过。
@@ -58,11 +59,13 @@ disable-model-invocation: true
 | 叶子 | 什么时候读 |
 | --- | --- |
 | `principle-encode-lessons-in-structure` | 发现自己第二次写同一条指令，或同一个纠正反复出现 |
+| `principle-never-block-on-the-human` | 想问“要不要做 X”，而 X 是可逆的 |
 
 ## 自主权
 
-- 可逆的工作直接做：读、搜、跑测试、看 diff、本地编辑、生成计划。
-- 不可逆操作先停：删除数据、强推共享分支、部署、对外发消息、远程写。等用户回复其指定的确认口令；没有口令或口令不符就不做。
+可逆的工作按 `principle-never-block-on-the-human` 直接做，并在它之上加两条：
+
+- 不可逆操作（删除数据、强推共享分支、部署、对外发消息、远程写）等用户回复其指定的确认口令；没有口令或口令不符就不做。
 - “不”是可以的回答。被问要不要做、被邀请扩大范围、被展示方案时，给真实判断；不值得做就直说。
 
 ## 子代理
@@ -96,5 +99,8 @@ disable-model-invocation: true
 | 多阶段交付编排 | `delivery-pipeline` |
 | 按 Spec 或票实现 | `implement`；测试先行用 `tdd` |
 | 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md` |
+| 用户说暂停 | 按 `playbooks/pause-safely.md` |
+| 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
+| 建树、看在做清单、回收工作树 | `git-worktree` |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |

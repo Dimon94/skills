@@ -181,6 +181,11 @@
           "name": "principle-build-the-lever",
           "sourcePath": "pstack/skills/principle-build-the-lever",
           "treeSha256": "fb9a78644ecef92490324b805db63a6813509d19991dbd1bfa2f794a95cfd262"
+        },
+        {
+          "name": "principle-never-block-on-the-human",
+          "sourcePath": "pstack/skills/principle-never-block-on-the-human",
+          "treeSha256": "7c81b7559df6cbe1594a6bac2433e063105b1ffa58676fae7c912a41a35852e1"
         }
       ]
     }

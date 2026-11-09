@@ -133,4 +133,5 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-prove-it-works：宣告完成前。
 - principle-build-the-lever：非琐碎的编辑、迁移、分析或验证，准备手工逐处做时。
 - principle-encode-lessons-in-structure：第二次写同一条指令，或同一个纠正反复出现。
+- principle-never-block-on-the-human：想问“要不要做 X”，而 X 是可逆的。
 </principle_index>

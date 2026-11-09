@@ -21,6 +21,9 @@
 | implement | mattpocock/skills | `skills/engineering/implement` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/implement/SKILL.md> |
 | to-epic | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
 | to-spec | mattpocock/skills | `skills/engineering/to-spec` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md> |
+| resolving-merge-conflicts | mattpocock/skills | `skills/engineering/resolving-merge-conflicts` | `c55ee46073ed923f86ce59a5eb3b6d895095d1b7` | <https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/resolving-merge-conflicts/SKILL.md> |
+
+`resolving-merge-conflicts` 原文照抄上游快照。上游在 `daa01d8`（Remove resolving-merge-conflicts）删除了该 Skill；本仓继续保留，git-rebase-main、git-push-pr 与 gh-merge-pr 依赖它处理真实冲突。不再有上游可对照，退出快照锁定。
 
 `to-spec` 保留上游正文与模板，增加 Business Flow、codebase-design 约束和发布前覆盖核对；取舍见 repo://docs/adr/0007-owned-to-spec.md。
 

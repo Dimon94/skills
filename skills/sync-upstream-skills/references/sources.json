@@ -2,20 +2,6 @@
   "schemaVersion": 1,
   "sources": [
     {
-      "id": "mattpocock-skills",
-      "repository": "https://github.com/mattpocock/skills.git",
-      "ref": "main",
-      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
-      "license": "MIT",
-      "skills": [
-        {
-          "name": "resolving-merge-conflicts",
-          "sourcePath": "skills/engineering/resolving-merge-conflicts",
-          "treeSha256": "310fa72a34cddd1dd1a9790f9ebc17bf2c83caeae5cdf87e2485be8b1abec90e"
-        }
-      ]
-    },
-    {
       "id": "cursor-plugins",
       "repository": "https://github.com/cursor/plugins.git",
       "ref": "main",

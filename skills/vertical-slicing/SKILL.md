@@ -34,7 +34,7 @@ Module、Interface、Seam 的定义沿用目标项目的架构词汇；目标项
 3. **small batch**：开发加检查目标为数小时到两天，上限一周；分支是 short-lived branch，约两天内合回 main。
 4. **INVEST**：重点答 Independent、Valuable、Testable。体验结果写成「谁 · 从哪个入口 · 做什么 · 看到什么」。
 5. **一种变更**：结构变更和行为变更分开，各占一片。
-6. **隐藏有期限**：用了 toggle、dark launch、branch by abstraction 或 expand-contract，就要有对应收尾片。release toggle 的收尾片紧跟所属里程碑的放量。
+6. **隐藏有期限**：用了 toggle、dark launch、branch by abstraction 或 expand-contract，就要有对应收尾片。release toggle 的收尾片紧跟所属里程碑的放量。被替换的是内部 Interface、没有外部调用方时，按运行时目录完整读取 `principle-migrate-callers-then-delete-legacy-apis/SKILL.md`，把迁移调用方和删除旧 Interface 放进同一波，不留中间态。
 7. **挂在主线上**：能指出这片加厚的是哪个 backbone 活动。
 
 ## 切分 spec 或地图
@@ -43,7 +43,7 @@ Module、Interface、Seam 的定义沿用目标项目的架构词汇；目标项
 2. **切 walking skeleton。** 核心闭环里的每个活动取最简单的一条路径；硬编码、单一用户、单一数据形态都可以。需要新建或改动的 Interface 尽量集中在骨架里，因为 Interface 后改最贵。骨架超出 small batch 时，先硬编码非核心的一段，仍超出再把核心闭环缩到更短的业务结果。Interface 形状或技术可行性还答不上来时，先切 spike 片，产出答案而非生产代码。完成条件：骨架的体验结果写成一句完整的「谁 · 入口 · 做什么 · 看到什么」，small batch 判断为上限内，并通过切片检查。
 3. **加厚。** 核心闭环外的每个 backbone 活动各成一片；每片从骨架的 seam 后补一个变体或一个活动，拆法见 [拆法库](references/splitting-patterns.md)。先做强制规则和价值最大的路径；拆法优先选能让低价值部分被延后或丢弃的那种。完成条件：输入里每条验收标准都落到某一片，或明确列入「延后」「丢弃」并写理由。
 4. **补结构片与收尾片。** 某片需要先加深一个 Module，才能把改动变小，就在它前面放一个结构片。未完成部分合入时需要隐藏，按拆法库的隐藏手法表选手法，并补收尾片。完成条件：每个隐藏手法都有收尾片；每个结构片都点名它服务的行为片。
-5. **连依赖边。** 只在两种情况下连阻塞边：后片调用前片新建或改动的 Interface；或者后片依赖前片提供的能力（服务、配置、数据）。两片只改同一 Module 的 Implementation，是合并冲突风险，不是依赖。完成条件：每条边写明它依赖的 Interface 或能力；没有入边的片可以并发开工。
+5. **连依赖边。** 只在两种情况下连阻塞边：后片调用前片新建或改动的 Interface；或者后片依赖前片提供的能力（服务、配置、数据）。两片只改同一 Module 的 Implementation，是合并冲突风险，不是依赖。同波次的两片要写同一个写入目标（同一张表、注册表、配置键、状态文件、迁移序号）时，按运行时目录完整读取 `principle-separate-before-serializing-shared-state/SKILL.md`：先改切法，让每片写自己拥有的目标、在读取边界汇总；单一写者是真不变量时，才连一条阻塞边或把两片合成一片，并写明这个不变量。不在票里写「注意另一片也在改」代替结构。完成条件：每条边写明它依赖的 Interface、能力或单写者不变量；同波次的片没有共享写入目标；没有入边的片可以并发开工。
 6. **排波次与里程碑。** 按阻塞边给每片标波次号。再沿业务主线画 release 切线：
    - 里程碑 1 是骨架，加上让目标用户第一次能真正使用所需的最少加厚片。缺了会让流程不可用、或会造成资损与数据错误的规则，归进同一里程碑；没有刹车的车不发。
    - 之后每个里程碑只多交付一个对外可感知的业务结果，并配一个自己的 release toggle。

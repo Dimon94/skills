@@ -123,4 +123,6 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-model-the-domain：写有状态逻辑；新需求要给分支链再加一支或加一个要同步的标志位。
 - principle-redesign-from-first-principles：把新需求接进现有设计。
 - principle-fix-root-causes：调试；要用防护挡住症状前。
+- principle-separate-before-serializing-shared-state：多个并发方可能写同一个文件、分支、键或状态对象。
+- principle-migrate-callers-then-delete-legacy-apis：引入新的内部 API，旧调用方还在。
 </principle_index>

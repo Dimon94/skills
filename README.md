@@ -77,5 +77,7 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-model-the-domain` | `to-spec` (Implementation Decisions) |
 | `principle-redesign-from-first-principles` | `to-spec` (Implementation Decisions) |
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
+| `principle-separate-before-serializing-shared-state` | `vertical-slicing` (step 5, dependency edges) |
+| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing` (check 6, hiding has a deadline) |
 
 Adding a leaf changes four places: the `cursor-pstack` source, the `dimon-model` table, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

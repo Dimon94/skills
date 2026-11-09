@@ -150,6 +150,16 @@
           "name": "principle-fix-root-causes",
           "sourcePath": "pstack/skills/principle-fix-root-causes",
           "treeSha256": "86388a2a6a21e4834da03d9d0bb483465f40124f3b164b6070380d5e85f55957"
+        },
+        {
+          "name": "principle-separate-before-serializing-shared-state",
+          "sourcePath": "pstack/skills/principle-separate-before-serializing-shared-state",
+          "treeSha256": "d44b58f1b770b1855326864a5502ce8e627de278ac2f65edabea5aa1d14b5ba9"
+        },
+        {
+          "name": "principle-migrate-callers-then-delete-legacy-apis",
+          "sourcePath": "pstack/skills/principle-migrate-callers-then-delete-legacy-apis",
+          "treeSha256": "b38b42c5a972a39c64795afb8eea1be5f7715f023f93cdf444b5f88af8f7f2fe"
         }
       ]
     }

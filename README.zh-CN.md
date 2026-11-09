@@ -77,5 +77,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-model-the-domain` | `to-spec`（Implementation Decisions） |
 | `principle-redesign-from-first-principles` | `to-spec`（Implementation Decisions） |
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
+| `principle-separate-before-serializing-shared-state` | `vertical-slicing`（第 5 步连依赖边） |
+| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing`（检查 6 隐藏有期限） |
 
 新增叶子同改四处：`cursor-pstack` 来源、`dimon-model` 索引表、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

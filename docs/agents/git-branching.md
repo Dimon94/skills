@@ -1,15 +1,18 @@
 # 分支与工作树纪律
 
-主词：**主目录永远是 main；一票一树一写者**。
+主词：**主目录只做集成；一个写任务一棵树一个写者**。
+
+建树、列在做清单、回收都用 repo://skills/git-worktree/scripts/worktree.sh（`new`、`ls`、`gc`），操作顺序见 repo://skills/git-worktree/SKILL.md。
 
 ## 分支纪律
 
-1. **主目录永远只 checkout main。** 不在主目录切分支。单会话的改动（bug、需求、文档）直接在主目录的 main 上改。
-2. **一票一树只在 herdr 分派任务时启用。** 通过 herdr 把票分派给并行 agent 执行时，才走下方工作树流程。不分派就不建树、不开分支。
-3. **分支随树创建，一票一分支。** 先建 worktree（`git worktree add`，从本地 main 最新 commit 切出），任务分支只存在于该 worktree 里。命名 `<type>/<scope>`：`fix/`、`feat/`、`research/`、`chore/`、`docs/`。禁止从任务分支再开任务分支。
-4. **main 只接收已验证提交。** 验证证据先于合并。研究分支的结论先落 `docs/research/`，再决定合并或废弃。
-5. **收口即删。** 票合并或废弃后，移除 worktree 并删除本地和远端分支。
-6. **一票一写者。** 同一分支同一时刻只有一个写者。并行 agent 只读；需要写入的用独立 worktree。任何 agent 不得删除仍有写者的分支或 worktree。
+1. **主目录永远只 checkout main，只做集成。** 不在主目录切分支，也不在主目录写文件。主目录出现未提交改动即违规：逐路径盘点，属于某个任务的用 `git diff` 补丁搬进该任务的新树，不 stash（stash 跨工作树共享）。
+2. **每个写任务一棵树。** bug、需求、文档都一样，一行改动也不例外；herdr 分派的票同样一票一树。只读任务（调研、审查、看 diff）不建树。
+3. **分支随树创建，一任务一分支。** 用 `worktree.sh new <type>/<scope>` 从本地 main 最新 commit 建树，任务分支只存在于该 worktree 里。命名 `<type>/<scope>`：`fix/`、`feat/`、`research/`、`chore/`、`docs/`。禁止从任务分支再开任务分支。
+4. **main 只接收已验证提交，一次合一棵树。** 验证证据先于合并；多棵树就绪时逐棵经 `git-rebase-main` 合入，后一棵在前一棵合完后再 rebase。研究分支的结论先落 `docs/research/`，再决定合并或废弃。
+5. **收口即删。** 票合并后在主目录跑 `worktree.sh gc --apply` 回收；票废弃时经用户授权移除 worktree 并删除本地和远端分支。
+6. **暂停即 wip 提交。** 用户说“暂停”即授权在任务分支上提交一个 `wip:`，恢复说明写进提交正文；不 push、不碰 main。接手时读 `worktree.sh ls` 和 `git log main..<branch>` 的正文。
+7. **一票一写者。** 同一分支同一时刻只有一个写者。并行 agent 只读；需要写入的用独立 worktree。任何 agent 不得删除仍有写者的分支或 worktree。
 
 ## 推送与合并授权
 
@@ -18,10 +21,10 @@
 
 ## 工作树流程
 
-herdr 分派的票按以下顺序执行；后一步不能替代前一步。
+带票的任务按以下顺序执行；后一步不能替代前一步。无票的小改从第 2 步开始。
 
 1. **开票。** 把现象或需求收敛为一个可独立验收的票。根因 Unknown 时保持方案中立：验收标准只写可观察结果和设计不变量，实现猜想只进调查记录。票落本仓 GitHub issue（`gh issue create`）并保留 issue 编号。完成标准：票含用户现象、可检查验收标准和真实依赖关系。
-2. **建树。** 从目标 main commit 用 `git worktree add` 为该票创建独立 worktree，任务分支随树创建、只存在于树内；主目录保持 main 不动。执行"一票一树一写者"。主 agent 写本树时，后台研究只读；需要写文件的研究使用独立 worktree，或等主 agent 交出写权。完成标准：只过滤本票的 `git worktree list --porcelain` 可确认唯一 branch/path/HEAD，主目录仍是 main 且无本票差异。
+2. **建树。** 用 `worktree.sh new <type>/<scope>` 为该票创建独立 worktree，任务分支随树创建、只存在于树内；主目录保持 main 不动。达到 `WT_MAX` 时先收尾或暂停一棵在做的树，不调高上限。执行"一票一树一写者"。主 agent 写本树时，后台研究只读；需要写文件的研究使用独立 worktree，或等主 agent 交出写权。完成标准：只过滤本票的 `git worktree list --porcelain` 可确认唯一 branch/path/HEAD，主目录仍是 main 且无本票差异。
 3. **诊断与实现。** 缺陷按 repo://docs/agents/debugging.md、需求按 repo://docs/agents/development-workflow.md 的证据闭环执行。新增测试前先跑最近现有测试。完成标准：同一最小检查先红后绿，focused tests 和 build 通过，一次性 harness 已清理。
 4. **留存。** 把已通过检查的单一语义边界保存为本地候选提交。无关 dirty path 不被吸收。工具增量（formatter churn、lockfile 更新、生成产物）逐项解释归属，否则丢弃；合并后与意图无法区分。完成标准：候选提交狭且可审计；未经下一步验证不得进入 main。
 5. **真实环境验证。** 按下方 Worktree 环境合同执行，走真实公开入口，同时断言 transport 和业务字段。行为变更对照未改动的主目录基线：行为差异新旧路径各跑一次，视觉差异同一视图各截一次；"应该等价"是声明，基线对照才是证据。完成标准：业务状态、输出身份和外部副作用计数同时通过。
@@ -33,13 +36,7 @@ Worktree 只检出 git 跟踪的源码，这部分开销小。真正的成本在
 
 ### 引用 main 的只读产物
 
-建树后不复制、不重装，直接用软链引用 main 已生成好的文件：
-
-```bash
-MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-ln -s "$MAIN/node_modules" node_modules        # 各 package 的依赖目录同理
-ln -s "$MAIN/.env" .env                        # 环境变量只有一份真相，在 main
-```
+`worktree.sh new` 建树后自动软链 main 里已生成的 `node_modules`、`.env`、`.venv`（三层目录内，`WT_SHARE` 可改），不复制、不重装。`gc` 判断干净时不把这些软链算作改动，删树前先删软链。
 
 - `.env` 只有 main 一份。本树不复制、不改写。本票需要覆盖个别变量时，在启动命令前显式 `VAR=value` 传参，不落地成第二份 env 文件。
 - 依赖目录软链 main。例外：本票改动了 lockfile 或依赖版本，必须在本树独立安装，并断掉软链——两棵树各跑各的版本。
@@ -54,15 +51,15 @@ ln -s "$MAIN/.env" .env                        # 环境变量只有一份真相�
 
 ### 及时清理
 
-Worktree 是短期隔离，不是长期资产。三个清理时点：
+Worktree 是短期隔离，不是长期资产。磁盘和内存的上限靠三件事：
 
-1. 票收口时（流程第 6 步）：`git worktree remove` + 删本地和远端分支。
-2. 票废弃时：同样移除，不留"以后可能有用"的树。
-3. 每次建树前：先 `git worktree list --porcelain` 和 `git branch` 盘点，发现无主的树和分支先清理再开工。
+1. **上限。** `WT_MAX`（默认 4）限制同时存在的树；满了 `new` 退出 3 并打印在做清单。
+2. **自动回收。** `new` 先跑 `gc --apply`：只删同时满足无改动、有过提交、已并入 main、无进程 cwd 在树内的树和分支，从不 `--force`；其余写明 `dirty`、`empty`、`unmerged`、`in-use:N` 保留。
+3. **人工收口。** 票废弃时经用户授权移除，不留“以后可能有用”的树。`gc` 报告的 `prunable` 行是目录已删的旧记录，清理要单独决定。
 
 完成标准：`git worktree list` 只剩主树和活跃票的树；`git branch` 只剩 main 和活跃票分支。单票任务不执行全局 `git worktree prune`。
 
 ## 检查
 
-- 看到主目录不在 main，或看到没有 worktree 承载的任务分支 = 违反纪律，停下来盘点。
+- 看到主目录不在 main、主目录有未提交改动，或看到没有 worktree 承载的任务分支 = 违反纪律，停下来盘点。
 - 完成标准：主目录 checkout 永远是 main；`git worktree list` 只剩主目录和活跃票的树；`git branch` 的任务分支都能说出绑定的票和所在的树。

@@ -48,10 +48,11 @@ Issue、代码和 CI/CD 归 GitHub，项目坐标 Dimon94/skills。Issue 约定�
 </forge>
 
 <branching>
-主目录永远只 checkout main，单会话改动直接在 main。只有 herdr 分派并行任务时才一票一树：`git worktree add` 从 main 最新 commit 建树，任务分支随树创建、只存在于树内。
-main 只接收已验证提交；票收口即删树删分支。
+主目录永远只 checkout main，只做集成，不直接写。每个写任务（一行文档也算）先用 repo://skills/git-worktree/SKILL.md 的 `worktree.sh new` 建树，任务分支随树创建、只存在于树内。主目录出现未提交改动即违规：盘点后用 diff 补丁搬进新树，不 stash。
+用户说“暂停”即授权在任务分支上提交一个 `wip:`，恢复说明写进提交正文；不 push、不碰 main。
+main 只接收已验证提交，一次合一棵树；合完在主目录跑 `worktree.sh gc --apply` 回收。
 分支任务回 main 的手法由 repo://skills/git-rebase-main/SKILL.md 承载。
-详细规则见 repo://docs/agents/git-branching.md。触发：开/切/合/删分支、push、合并 PR、worktree、herdr 分派、并行 agent 写入。
+详细规则见 repo://docs/agents/git-branching.md。触发：改任何文件前、开/切/合/删分支、暂停、接手会话、push、合并 PR、worktree、herdr 分派、并行 agent 写入。
 </branching>
 
 <architecture>

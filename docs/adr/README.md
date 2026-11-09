@@ -17,6 +17,7 @@
 - [dimon-mode 是工作方式入口，原则索引是其中一节](0010-dimon-mode-entry.md)（§2 已被 0012 修订）
 - [基线已有的问题不阻断本次](0011-baseline-findings-do-not-block.md)
 - [dimon-mode 用剧本串联已有 Skill](0012-dimon-mode-playbooks.md)
+- [每个写任务一棵工作树，暂停落成 wip 提交](0013-worktree-per-write-task.md)
 
 ## 命名
 

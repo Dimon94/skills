@@ -176,6 +176,11 @@
           "name": "principle-encode-lessons-in-structure",
           "sourcePath": "pstack/skills/principle-encode-lessons-in-structure",
           "treeSha256": "39456efdd2bfc042495115c4b226eb11da09bdb5ca6ffc5edd40d527ad8e53ce"
+        },
+        {
+          "name": "principle-build-the-lever",
+          "sourcePath": "pstack/skills/principle-build-the-lever",
+          "treeSha256": "fb9a78644ecef92490324b805db63a6813509d19991dbd1bfa2f794a95cfd262"
         }
       ]
     }

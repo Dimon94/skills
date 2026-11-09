@@ -35,6 +35,7 @@ disable-model-invocation: true
 | `principle-laziness-protocol` | 重构、评估 diff 大小，或想加抽象、分层、层层传参时 |
 | `principle-subtract-before-you-add` | 安排新增、重构或重写的顺序时 |
 | `principle-minimize-reader-load` | 审阅或整理难追的代码；想加一层或一个状态前 |
+| `principle-build-the-lever` | 非琐碎的编辑、迁移、分析或验证，准备手工逐处做时 |
 
 **架构**
 

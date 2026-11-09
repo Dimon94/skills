@@ -28,6 +28,8 @@ disable-model-invocation: true
 
 按 vertical slice 推进，每片调用 Skill `tdd`。常跑类型检查和单个测试文件。
 
+这一片不是一眼能看完的几处编辑时（批量修改、迁移、分析、验证），按运行时目录完整读取 `principle-build-the-lever/SKILL.md`，先写能重跑的脚本、codemod 或生成器，用它完成或证明这片工作。
+
 完成条件：每条验收都走完 `tdd`，留下运行记录或不写测试的理由；已删项列出，没有可删项时写“无”并列出检查过的范围。
 
 ## 3. 真实运行

@@ -52,6 +52,12 @@ disable-model-invocation: true
 | `principle-test-behavior-not-implementation` | 写、改或保留一条测试时 |
 | `principle-prove-it-works` | 宣告完成前 |
 
+**元**
+
+| 叶子 | 什么时候读 |
+| --- | --- |
+| `principle-encode-lessons-in-structure` | 发现自己第二次写同一条指令，或同一个纠正反复出现 |
+
 ## 自主权
 
 - 可逆的工作直接做：读、搜、跑测试、看 diff、本地编辑、生成计划。

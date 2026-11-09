@@ -130,4 +130,5 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-minimize-reader-load：审阅或整理难追的代码；想加一层或一个状态前。
 - principle-test-behavior-not-implementation：写、改或保留一条测试。
 - principle-prove-it-works：宣告完成前。
+- principle-encode-lessons-in-structure：第二次写同一条指令，或同一个纠正反复出现。
 </principle_index>

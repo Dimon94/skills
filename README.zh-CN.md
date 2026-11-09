@@ -79,5 +79,8 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
 | `principle-separate-before-serializing-shared-state` | `vertical-slicing`（第 5 步连依赖边） |
 | `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing`（检查 6 隐藏有期限） |
+| `principle-laziness-protocol` | `implement`（第 2 步先做减法） |
+| `principle-subtract-before-you-add` | `implement`（第 2 步先做减法） |
+| `principle-minimize-reader-load` | `implement`（第 4 步对账前消融） |
 
 新增叶子同改四处：`cursor-pstack` 来源、`dimon-mode` 原则节、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

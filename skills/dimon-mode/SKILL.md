@@ -16,7 +16,7 @@ disable-model-invocation: true
 - 要问用户“选哪种方案、该怎么做”之前：先分类。答案能靠运行观察到（行为、输出、性能、布局），就自己跑，让结果决定。只把实验定不了的产品或偏好决定留给用户，问时给推荐和理由。
 - 写任何代码：先点名数据形状，按 `principle-model-the-domain` 选组织结构。
 - 非琐碎改动、架构决定、“确定吗”：用 `how`。只读调研要带引用的答案：用 `investigate`。问动机和历史：用 `why`。
-- 动手前：用 `avoid-overengineering` 先做减法。要新增可复用的代码、规则或流程前：用 `do-not-repeat-yourself`。
+- 动手前：按 `principle-subtract-before-you-add` 先做减法；交付前按 `principle-minimize-reader-load` 做消融。要新增可复用的代码、规则或流程前：用 `do-not-repeat-yourself`。
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
 - 提交用 `git-commit`，推送或建 PR 用 `git-push-pr`，合回 main 用 `git-rebase-main`，合并 PR 用 `gh-merge-pr`。都只在用户明确要求时执行。
@@ -32,6 +32,9 @@ disable-model-invocation: true
 | 叶子 | 什么时候读 |
 | --- | --- |
 | `principle-redesign-from-first-principles` | 把新需求接进现有设计 |
+| `principle-laziness-protocol` | 重构、评估 diff 大小，或想加抽象、分层、层层传参时 |
+| `principle-subtract-before-you-add` | 安排新增、重构或重写的顺序时 |
+| `principle-minimize-reader-load` | 审阅或整理难追的代码；想加一层或一个状态前 |
 
 **架构**
 

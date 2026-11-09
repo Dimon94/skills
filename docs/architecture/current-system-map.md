@@ -20,7 +20,6 @@ Status: current
 
 | Module | Owns | Does not own | Public interface | Depends on | Verification |
 | --- | --- | --- | --- | --- | --- |
-| skills/avoid-overengineering | 手动调用的最简实现约束、动手前减法与交付前消融实验 | 不拥有全仓审计或自动触发 | SKILL.md | 无 | pi Skill 加载校验 + 人工审查 |
 | skills/best-practice-scout | 技术决策调研编排：本地语境、行业主流方案与盲点识别、针对盲点的跨学科垂直深挖、分场景推荐 | 不拥有代码变更、最终决策或通用调研机制 | SKILL.md | investigate；调用环境的 research 与后台 agent（可用时） | Skill 校验与人工审查 |
 | skills/do-not-repeat-yourself | 复用判定与重复审计 | 不拥有具体实现选择 | SKILL.md | repo://docs/agents/coding-standards.md | 无独立测试，经人工审查 |
 | skills/dimon-mode | 显式调用的跨项目工作方式入口：硬规则触发、原则叶子索引、自主权、子代理、回复、注释、任务路由（ADR 0010） | 不拥有原则正文（归上游快照叶子）、常驻索引（归 AGENTS.md `<principle_index>`）、各阶段流程（归被路由的 Skill）或本仓特有规则（归 AGENTS.md） | SKILL.md + agents/openai.yaml | principle-* 快照；被路由的运行时 Skill | 人工审查：原则节与叶子、AGENTS.md、README 一致；路由目标在运行时目录存在 |

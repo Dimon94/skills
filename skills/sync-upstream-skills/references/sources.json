@@ -146,6 +146,21 @@
           "name": "principle-migrate-callers-then-delete-legacy-apis",
           "sourcePath": "pstack/skills/principle-migrate-callers-then-delete-legacy-apis",
           "treeSha256": "b38b42c5a972a39c64795afb8eea1be5f7715f023f93cdf444b5f88af8f7f2fe"
+        },
+        {
+          "name": "principle-laziness-protocol",
+          "sourcePath": "pstack/skills/principle-laziness-protocol",
+          "treeSha256": "9c35100a4c9a1c36b9b9d69c4abcbef2bbb783132799b8fc1e5831c7b0bc7313"
+        },
+        {
+          "name": "principle-subtract-before-you-add",
+          "sourcePath": "pstack/skills/principle-subtract-before-you-add",
+          "treeSha256": "420ad76d27b8f376125bbc7827d69524ca79b6f98c709d40fed952590efddad8"
+        },
+        {
+          "name": "principle-minimize-reader-load",
+          "sourcePath": "pstack/skills/principle-minimize-reader-load",
+          "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac"
         }
       ]
     }

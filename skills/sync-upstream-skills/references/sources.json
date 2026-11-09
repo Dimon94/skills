@@ -165,10 +165,7 @@
         {
           "name": "principle-minimize-reader-load",
           "sourcePath": "pstack/skills/principle-minimize-reader-load",
-          "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac",
-          "knownBrokenLinks": [
-            "../principle-guard-the-context-window/SKILL.md"
-          ]
+          "treeSha256": "b0b560e53f6a4b44a125437925dbe1202a000a20703cff3b8280e438b5cf95ac"
         },
         {
           "name": "principle-test-behavior-not-implementation",
@@ -247,6 +244,11 @@
           "name": "principle-experience-first",
           "sourcePath": "pstack/skills/principle-experience-first",
           "treeSha256": "3755ab3288a053dd3bf42f4851a605f8ab4a734ca37ac8345148bdff67fba511"
+        },
+        {
+          "name": "principle-guard-the-context-window",
+          "sourcePath": "pstack/skills/principle-guard-the-context-window",
+          "treeSha256": "6d3f22c0677acf3a5dd6b0dd7b9d61a0fbf5e52e21e75e1970f7990fd86c9afa"
         }
       ]
     }

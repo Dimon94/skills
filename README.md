@@ -99,5 +99,6 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-foundational-thinking` | `dimon-mode` (原则·核心) |
 | `principle-exhaust-the-design-space` | `AGENTS.md` `<principle_index>` (index line carries the rule; upstream 08bd59b cut the body) |
 | `principle-experience-first` | `dimon-mode` (原则·核心) |
+| `principle-guard-the-context-window` | `dimon-mode` (子代理; `session-pickup` step 2) |
 
 Adding a leaf changes four places: the `cursor-pstack` source, the principle section of `dimon-mode`, the `<principle_index>` block in `AGENTS.md`, and this table. Import a leaf only when a host points to it.

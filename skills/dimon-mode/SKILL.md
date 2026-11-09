@@ -39,6 +39,7 @@ disable-model-invocation: true
 | `principle-laziness-protocol` | 重构、评估 diff 大小，或想加抽象、分层、层层传参时 |
 | `principle-subtract-before-you-add` | 安排新增、重构或重写的顺序时 |
 | `principle-minimize-reader-load` | 审阅或整理难追的代码；想加一层或一个状态前 |
+| `principle-guard-the-context-window` | 上下文在涨：大输出、长文件、反复读、扇出规划时 |
 | `principle-build-the-lever` | 非琐碎的编辑、迁移、分析或验证，准备手工逐处做时 |
 | `principle-outcome-oriented-execution` | 计划好的重写或迁移，想为中间态写兼容代码时 |
 
@@ -80,7 +81,7 @@ disable-model-invocation: true
 
 ## 子代理
 
-用户没要求就不拉子代理，单线做完。拉了就自己审它的产物，写自己的总结，不转述。
+大块读取、长输出、调研扇出交给子代理，主线只收摘要，按 `principle-guard-the-context-window`。子代理在当前任务的树里执行；同一时刻只有一个写者：并行的子代理只读，要写文件的子代理串行跑，它写时主线不写；真要并行写，就拆成票，各走各的树。拉了就自己审它的产物，写自己的总结，不转述。
 
 ## 回复
 

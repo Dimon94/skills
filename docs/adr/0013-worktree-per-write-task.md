@@ -1,6 +1,6 @@
 # 每个写任务一棵工作树，暂停落成 wip 提交
 
-Status: accepted
+Status: accepted（边界节“不导入 principle-guard-the-context-window”被 0014 取代）
 
 Related: repo://docs/agents/git-branching.md；repo://skills/git-worktree/SKILL.md；repo://skills/dimon-mode/playbooks/pause-safely.md；repo://skills/dimon-mode/playbooks/session-pickup.md；repo://skills/principle-separate-before-serializing-shared-state/SKILL.md
 

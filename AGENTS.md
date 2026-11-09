@@ -31,7 +31,7 @@
 改前按 repo://docs/agents/development-workflow.md 第 2 节锁定基线。
 动手前先复述：用户真正要什么、本次范围、非目标、完成条件；再产出最小计划（格式见 repo://docs/agents/development-workflow.md 第 1 节）。
 规划与方案审查用高推理；写代码、改代码、跑测试默认中低推理或更轻模型，不全程开最高档。
-默认单线执行：一个任务先做完，再决定是否拆分；不默认并行拉起多个 agent。
+默认单线执行：一个任务先做完，再决定是否拆分。
 只启用当前任务必需的 skill。
 项目已定义 canonical 构建或测试命令时运行该命令，不发明变体。
 实现按复用顺序与搜索键寻找现有机制（repo://docs/agents/coding-standards.md 第 2 节），最后才写最少新代码。
@@ -134,6 +134,7 @@ Standards 轴先审 Coding，再审 Architecture。Spec 轴独立核对需求。
 - principle-laziness-protocol：重构、评估 diff 大小，或想加抽象、分层、层层传参。
 - principle-subtract-before-you-add：安排新增、重构或重写的顺序。
 - principle-minimize-reader-load：审阅或整理难追的代码；想加一层或一个状态前。
+- principle-guard-the-context-window：大输出、长文件、反复读或扇出规划；大块交给子代理，主线只留摘要；子代理在当前任务的树里跑，同一时刻一个写者。
 - principle-test-behavior-not-implementation：写、改或保留一条测试。
 - principle-prove-it-works：宣告完成前。
 - principle-sequence-verifiable-units：多步工作、批量改动或排提交顺序；先交付可端到端验证的最小切片，每步检查绿了再走。

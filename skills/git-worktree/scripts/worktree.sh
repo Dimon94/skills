@@ -3,25 +3,34 @@
 # L3
 #   COORD: skills/git-worktree/scripts/worktree.sh
 #   INPUT: 在目标仓库任一工作树内运行；git、find、lsof
-#   OUTPUT: new 建树并打印路径；ls 打印在做清单（TSV）；gc 报告并按 --apply 回收
+#   OUTPUT: new 从起点建树并打印路径；ls 打印在做清单（TSV）；gc 报告并按 --apply 回收
 #   POS: 只管 WT_ROOT 下的树；不合入、不推送、不碰根目录外的树；prunable 元数据只报告不清理
 #   TEST: node --test test/git-worktree.test.js
 #   PROTOCOL: 改子命令或参数时同步 skills/git-worktree/SKILL.md
 # L5
-#   PARAM: WT_BASE 集成分支，默认 main
+#   PARAM: WT_BASE 集成基准；默认 main，main 没有自己的提交且有上游时取上游（PR/MR 流程）
+#   PARAM: new 的第二参数 起点，默认 WT_BASE；集成分支下的子任务传集成分支
 #   PARAM: WT_ROOT 树根目录，默认 <主工作树>.wt
 #   PARAM: WT_MAX 根目录下同时存在的树上限，默认 4，整数 ≥ 1
 #   PARAM: WT_SHARE 从主工作树软链复用的只读产物名，默认 "node_modules .env .venv"
-#   FAIL: 名称不合法退出 2；达到上限退出 3；分支已存在退出 4
+#   FAIL: 名称或起点不合法退出 2；达到上限退出 3；分支已存在退出 4
 # L6
 #   CHAIN: new 先跑 gc --apply 回收可证明安全的树，再查上限，再建树和软链
 #   CHAIN: gc 只删同时满足 干净、有过提交、已并入 WT_BASE、无进程占用 的树；
+#          已并入 = 是 WT_BASE 的祖先，或补丁已在 WT_BASE（squash / rebase 合入）。
 #          其余保留并写明原因。永不 --force。
 # ==========================================================================
 set -euo pipefail
 
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-BASE="${WT_BASE:-main}"
+# 本地 main 没有自己的提交且有上游时，上游才是集成真相
+default_base() {
+  local up
+  up="$(git -C "$MAIN" rev-parse --abbrev-ref --symbolic-full-name 'main@{upstream}' 2>/dev/null)" || { echo main; return; }
+  if git -C "$MAIN" merge-base --is-ancestor main "$up"; then echo "$up"; else echo main; fi
+}
+
+BASE="${WT_BASE:-$(default_base)}"
 ROOT="${WT_ROOT:-$MAIN.wt}"
 MAX="${WT_MAX:-4}"
 SHARE="${WT_SHARE:-node_modules .env .venv}"
@@ -56,7 +65,14 @@ procs_in() {
 # 分支 reflog 只有创建一条：从没提交过
 never_committed() { [ "$(git -C "$MAIN" reflog show --format=%gs "refs/heads/$1" | wc -l)" -le 1 ]; }
 
-merged() { git -C "$MAIN" merge-base --is-ancestor "refs/heads/$1" "$BASE"; }
+# 祖先 = ff/rebase 合入；逐个补丁都在 = rebase 合入；整体补丁在 = squash 合入
+merged() {
+  local ref="refs/heads/$1" squash
+  git -C "$MAIN" merge-base --is-ancestor "$ref" "$BASE" && return
+  [ -z "$(git -C "$MAIN" cherry "$BASE" "$ref" | grep '^+')" ] && return
+  squash="$(git -C "$MAIN" commit-tree "$ref^{tree}" -p "$(git -C "$MAIN" merge-base "$BASE" "$ref")" -m squash)"
+  [ -z "$(git -C "$MAIN" cherry "$BASE" "$squash" | grep '^+')" ]
+}
 
 keep_reason() {
   local path="$1" branch="$2" procs
@@ -76,7 +92,8 @@ cmd_gc() {
     printf 'remove\t%s\t%s\n' "$branch" "$path"
     [ "$apply" = "--apply" ] || continue
     shared_links "$path" | while IFS= read -r rel; do rm "$path/$rel"; done
-    git -C "$MAIN" worktree remove "$path" && git -C "$MAIN" branch -q -d "$branch"
+    # merged 已证明并入；squash 合入时 -d 认不出，故用 -D
+    git -C "$MAIN" worktree remove "$path" && git -C "$MAIN" branch -q -D "$branch"
   done < <(our_trees)
 }
 
@@ -103,22 +120,23 @@ share_into() {
 }
 
 cmd_new() {
-  local branch="${1:-}" path
+  local branch="${1:-}" start="${2:-$BASE}" path
   [[ "$branch" =~ ^(fix|feat|research|chore|docs)/[a-z0-9][a-z0-9-]*$ ]] \
     || die 2 "branch must be <fix|feat|research|chore|docs>/<kebab-scope>"
   cmd_gc --apply >&2
   [ "$(our_trees | wc -l)" -lt "$MAX" ] || { cmd_ls >&2; die 3 "WT_MAX=$MAX trees active; finish or remove one"; }
+  git -C "$MAIN" rev-parse --verify -q "$start^{commit}" >/dev/null || die 2 "unknown start: $start"
   git -C "$MAIN" show-ref --quiet "refs/heads/$branch" && die 4 "branch exists: $branch"
   path="$ROOT/${branch//\//-}"
   mkdir -p "$ROOT"
-  git -C "$MAIN" worktree add -q -b "$branch" "$path" "$BASE"
+  git -C "$MAIN" worktree add -q --no-track -b "$branch" "$path" "$start"
   share_into "$path"
   echo "$path"
 }
 
 case "${1:-}" in
-  new) cmd_new "${2:-}" ;;
+  new) cmd_new "${2:-}" "${3:-}" ;;
   ls) cmd_ls ;;
   gc) cmd_gc "${2:-}" ;;
-  *) die 2 "usage: worktree.sh new <type>/<scope> | ls | gc [--apply]" ;;
+  *) die 2 "usage: worktree.sh new <type>/<scope> [<start>] | ls | gc [--apply]" ;;
 esac

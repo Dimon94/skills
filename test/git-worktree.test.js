@@ -111,6 +111,61 @@ test('gc 不回收有进程占用的树', () => {
   }
 });
 
+// PR/MR 流程：本地 main 只跟随 origin/main，合入发生在平台
+function prRepo() {
+  const main = repo();
+  const origin = `${main}-origin.git`;
+  git(main, 'init', '-q', '--bare', '-b', 'main', origin);
+  git(main, 'remote', 'add', 'origin', origin);
+  git(main, 'push', '-q', '-u', 'origin', 'main');
+  const other = `${main}-other`;
+  git(main, 'clone', '-q', origin, other);
+  git(other, 'config', 'user.email', 'o@o');
+  git(other, 'config', 'user.name', 'o');
+  return { main, other };
+}
+
+function squashMerge(other, main, branch) {
+  commitIn(other, 'unrelated.txt');
+  git(other, 'fetch', '-q', main, branch);
+  git(other, 'merge', '-q', '--squash', 'FETCH_HEAD');
+  git(other, 'commit', '-qm', `squash ${branch}`);
+  git(other, 'push', '-q', 'origin', 'main');
+  git(main, 'fetch', '-q', 'origin');
+}
+
+test('PR 流程：从上游建树，squash 合入后 gc 回收，未合入的保留', () => {
+  const { main, other } = prRepo();
+  commitIn(other, 'ahead.txt');
+  git(other, 'push', '-q', 'origin', 'main');
+  git(main, 'fetch', '-q', 'origin');
+
+  const done = newTree(main, 'feat/done');
+  assert.ok(fs.existsSync(path.join(done, 'ahead.txt')), '起点应是 origin/main 而非落后的本地 main');
+  assert.notStrictEqual(spawnSync('git', ['rev-parse', '--abbrev-ref', '@{upstream}'], { cwd: done }).status, 0, '任务分支不跟踪 origin/main');
+  const open = newTree(main, 'feat/open');
+  commitIn(done, 'd1.txt');
+  commitIn(done, 'd2.txt');
+  commitIn(open, 'o.txt');
+  squashMerge(other, main, 'feat/done');
+
+  const out = wt(main, {}, 'gc', '--apply').stdout;
+  assert.match(out, /remove\tfeat\/done/);
+  assert.match(out, /keep\tfeat\/open\tunmerged/);
+  assert.ok(!fs.existsSync(done));
+  assert.strictEqual(git(main, 'branch', '--list', 'feat/done'), '');
+});
+
+test('new 接受起点：子任务从集成分支建树；未知起点退出 2', () => {
+  const main = repo();
+  const epic = newTree(main, 'feat/epic');
+  commitIn(epic, 'e.txt');
+  const sub = wt(main, {}, 'new', 'feat/sub', 'feat/epic');
+  assert.strictEqual(sub.status, 0, sub.stderr);
+  assert.ok(fs.existsSync(path.join(sub.stdout.trim(), 'e.txt')));
+  assert.strictEqual(wt(main, {}, 'new', 'feat/bad', 'nope').status, 2);
+});
+
 test('link-skills 在任务工作树里拒绝运行', () => {
   const main = repo();
   const tree = newTree(main, 'feat/link');

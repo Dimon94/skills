@@ -9,7 +9,7 @@ description: 为每个写任务建独立工作树，并在暂停、接手、主�
 
 ```bash
 WT="<本 Skill 目录>/scripts/worktree.sh"
-cd "$(bash "$WT" new feat/<scope>)"   # 建树，打印路径
+cd "$(bash "$WT" new feat/<scope>)"   # 建树，打印路径；可加第二参数作起点
 bash "$WT" ls                          # 在做清单：branch ahead dirty procs last path
 bash "$WT" gc                          # 只报告；gc --apply 才回收
 ```
@@ -17,6 +17,8 @@ bash "$WT" gc                          # 只报告；gc --apply 才回收
 ## 1. 写之前建树
 
 改文件前在仓库任一工作树内运行 `new <type>/<scope>`，type 取 `fix`、`feat`、`research`、`chore`、`docs`，之后的读写、测试、提交都在打印出的路径里做。
+
+起点默认是集成基准：本地 `main` 没有自己的提交且有上游时取上游（如 `origin/main`），否则取 `main`。经 PR/MR 合入的项目先 `git fetch`，再建树。集成分支下的子任务把集成分支作为第二参数传入。
 
 - `new` 先回收可证明安全的树，再查上限。退出码 3 表示已有 `WT_MAX` 棵活跃树（默认 4）：stderr 里有在做清单，先把其中一棵收尾或暂停，不调高上限绕过。
 - 退出码 4 表示分支已存在：那是一棵在做或暂停的树，去接手它，不另起同名任务。
@@ -59,8 +61,8 @@ wip 正文和提交历史是权威输入，不从头重做已完成的部分。�
 
 ## 5. 收尾与回收
 
-任务分支合回 `main` 用 `git-rebase-main`，一次只合一棵树。合完后在主工作树运行 `gc --apply`。
+一次只合一棵树。本地集成的项目用 `git-rebase-main` 合回 `main`；经 PR/MR 合入的项目在平台合并后，主工作树 `git fetch` 并 `git merge --ff-only` 跟上上游。合完后在主工作树运行 `gc --apply`。
 
-`gc` 只删同时满足这四条的树和分支：没有未提交改动（软链不算）、有过提交、已并入 `main`、没有进程把工作目录放在树里。其余写明原因保留：`dirty`、`empty`、`unmerged`、`in-use:N`。它从不 `--force`。`prunable` 行是目录已不在的旧记录，只报告；清理它们要单独决定。
+`gc` 只删同时满足这四条的树和分支：没有未提交改动（软链不算）、有过提交、已并入集成基准、没有进程把工作目录放在树里。已并入包括 squash 合入和逐个 rebase 合入：补丁已在基准里就算。其余写明原因保留：`dirty`、`empty`、`unmerged`、`in-use:N`。它从不 `--force`。`prunable` 行是目录已不在的旧记录，只报告；清理它们要单独决定。
 
 废弃的任务不会被自动回收：确认不要后，按用户授权删除树和分支。

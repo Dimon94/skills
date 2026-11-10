@@ -53,13 +53,19 @@ test('new 建树并软链主工作树的只读产物', () => {
   assert.match(wt(main, {}, 'ls').stdout, /feat\/one\t0\t0\t/);
 });
 
-test('new 拒绝不合法的分支名，达到上限时拒绝建树', () => {
+test('new 拒绝不合法的分支名', () => {
   const main = repo();
   assert.strictEqual(wt(main, {}, 'new', 'one').status, 2);
-  newTree(main, 'feat/one', { WT_MAX: '1' });
-  const r = wt(main, { WT_MAX: '1' }, 'new', 'feat/two');
-  assert.strictEqual(r.status, 3);
-  assert.ok(!fs.existsSync(`${main}.wt/feat-two`));
+});
+
+test('new 超过原来的四棵仍可建树，旧 WT_MAX 不再限制数量', () => {
+  const main = repo();
+  const trees = Array.from({ length: 6 }, (_, i) => newTree(main, `feat/task-${i}`));
+  trees.push(newTree(main, 'feat/legacy-env', { WT_MAX: '1' }));
+  for (const tree of trees) {
+    assert.ok(fs.existsSync(tree));
+    assert.strictEqual(git(tree, 'branch', '--show-current').replace('/', '-'), path.basename(tree));
+  }
 });
 
 test('gc 只回收干净、有提交且已并入 main 的树；默认只报告', () => {
@@ -88,12 +94,12 @@ test('gc 只回收干净、有提交且已并入 main 的树；默认只报告',
   [dirty, open].forEach((p) => assert.ok(fs.existsSync(p)));
 });
 
-test('new 先回收已并入 main 的树，再按上限计数', () => {
+test('new 建树前回收已并入 main 的树', () => {
   const main = repo();
-  const done = newTree(main, 'feat/done', { WT_MAX: '1' });
+  const done = newTree(main, 'feat/done');
   commitIn(done, 'd.txt');
   git(main, 'merge', '-q', '--ff-only', 'feat/done');
-  newTree(main, 'feat/next', { WT_MAX: '1' });
+  newTree(main, 'feat/next');
   assert.ok(!fs.existsSync(done));
 });
 

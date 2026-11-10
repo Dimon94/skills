@@ -11,11 +11,10 @@
 #   PARAM: WT_BASE 集成基准；默认 main，main 没有自己的提交且有上游时取上游（PR/MR 流程）
 #   PARAM: new 的第二参数 起点，默认 WT_BASE；集成分支下的子任务传集成分支
 #   PARAM: WT_ROOT 树根目录，默认 <主工作树>.wt
-#   PARAM: WT_MAX 根目录下同时存在的树上限，默认 4，整数 ≥ 1
 #   PARAM: WT_SHARE 从主工作树软链复用的只读产物名，默认 "node_modules .env .venv"
-#   FAIL: 名称或起点不合法退出 2；达到上限退出 3；分支已存在退出 4
+#   FAIL: 名称或起点不合法退出 2；分支已存在退出 4
 # L6
-#   CHAIN: new 先跑 gc --apply 回收可证明安全的树，再查上限，再建树和软链
+#   CHAIN: new 先跑 gc --apply 回收可证明安全的树，再建树和软链；不限制树的数量
 #   CHAIN: gc 只删同时满足 干净、有过提交、已并入 WT_BASE、无进程占用 的树；
 #          已并入 = 是 WT_BASE 的祖先，或补丁已在 WT_BASE（squash / rebase 合入）。
 #          其余保留并写明原因。永不 --force。
@@ -32,7 +31,6 @@ default_base() {
 
 BASE="${WT_BASE:-$(default_base)}"
 ROOT="${WT_ROOT:-$MAIN.wt}"
-MAX="${WT_MAX:-4}"
 SHARE="${WT_SHARE:-node_modules .env .venv}"
 
 die() { echo "error: $2" >&2; exit "$1"; }
@@ -124,7 +122,6 @@ cmd_new() {
   [[ "$branch" =~ ^(fix|feat|research|chore|docs)/[a-z0-9][a-z0-9-]*$ ]] \
     || die 2 "branch must be <fix|feat|research|chore|docs>/<kebab-scope>"
   cmd_gc --apply >&2
-  [ "$(our_trees | wc -l)" -lt "$MAX" ] || { cmd_ls >&2; die 3 "WT_MAX=$MAX trees active; finish or remove one"; }
   git -C "$MAIN" rev-parse --verify -q "$start^{commit}" >/dev/null || die 2 "unknown start: $start"
   git -C "$MAIN" show-ref --quiet "refs/heads/$branch" && die 4 "branch exists: $branch"
   path="$ROOT/${branch//\//-}"

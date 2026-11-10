@@ -24,7 +24,7 @@
 带票的任务按以下顺序执行；后一步不能替代前一步。无票的小改从第 2 步开始。
 
 1. **开票。** 把现象或需求收敛为一个可独立验收的票。根因 Unknown 时保持方案中立：验收标准只写可观察结果和设计不变量，实现猜想只进调查记录。票落本仓 GitHub issue（`gh issue create`）并保留 issue 编号。完成标准：票含用户现象、可检查验收标准和真实依赖关系。
-2. **建树。** 用 `worktree.sh new <type>/<scope>` 为该票创建独立 worktree，任务分支随树创建、只存在于树内；主目录保持 main 不动。达到 `WT_MAX` 时先收尾或暂停一棵在做的树，不调高上限。执行"一票一树一写者"。主 agent 写本树时，后台研究只读；需要写文件的研究使用独立 worktree，或等主 agent 交出写权。完成标准：只过滤本票的 `git worktree list --porcelain` 可确认唯一 branch/path/HEAD，主目录仍是 main 且无本票差异。
+2. **建树。** 用 `worktree.sh new <type>/<scope>` 为该票创建独立 worktree，任务分支随树创建、只存在于树内；主目录保持 main 不动。工作树数量不限。执行"一票一树一写者"。主 agent 写本树时，后台研究只读；需要写文件的研究使用独立 worktree，或等主 agent 交出写权。完成标准：只过滤本票的 `git worktree list --porcelain` 可确认唯一 branch/path/HEAD，主目录仍是 main 且无本票差异。
 3. **诊断与实现。** 缺陷按 repo://docs/agents/debugging.md、需求按 repo://docs/agents/development-workflow.md 的证据闭环执行。新增测试前先跑最近现有测试。完成标准：同一最小检查先红后绿，focused tests 和 build 通过，一次性 harness 已清理。
 4. **留存。** 把已通过检查的单一语义边界保存为本地候选提交。无关 dirty path 不被吸收。工具增量（formatter churn、lockfile 更新、生成产物）逐项解释归属，否则丢弃；合并后与意图无法区分。完成标准：候选提交狭且可审计；未经下一步验证不得进入 main。
 5. **真实环境验证。** 按下方 Worktree 环境合同执行，走真实公开入口，同时断言 transport 和业务字段。行为变更对照未改动的主目录基线：行为差异新旧路径各跑一次，视觉差异同一视图各截一次；"应该等价"是声明，基线对照才是证据。完成标准：业务状态、输出身份和外部副作用计数同时通过。
@@ -51,11 +51,10 @@ Worktree 只检出 git 跟踪的源码，这部分开销小。真正的成本在
 
 ### 及时清理
 
-Worktree 是短期隔离，不是长期资产。磁盘和内存的上限靠三件事：
+Worktree 数量不限，通过及时回收和依赖复用控制资源占用：
 
-1. **上限。** `WT_MAX`（默认 4）限制同时存在的树；满了 `new` 退出 3 并打印在做清单。
-2. **自动回收。** `new` 先跑 `gc --apply`：只删同时满足无改动、有过提交、已并入 main、无进程 cwd 在树内的树和分支，从不 `--force`；其余写明 `dirty`、`empty`、`unmerged`、`in-use:N` 保留。
-3. **人工收口。** 票废弃时经用户授权移除，不留“以后可能有用”的树。`gc` 报告的 `prunable` 行是目录已删的旧记录，清理要单独决定。
+1. **自动回收。** `new` 先跑 `gc --apply`：只删同时满足无改动、有过提交、已并入 main、无进程 cwd 在树内的树和分支，从不 `--force`；其余写明 `dirty`、`empty`、`unmerged`、`in-use:N` 保留。
+2. **人工收口。** 票废弃时经用户授权移除，不留“以后可能有用”的树。`gc` 报告的 `prunable` 行是目录已删的旧记录，清理要单独决定。
 
 完成标准：`git worktree list` 只剩主树和活跃票的树；`git branch` 只剩 main 和活跃票分支。单票任务不执行全局 `git worktree prune`。
 

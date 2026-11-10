@@ -19,7 +19,7 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 | Assess a change's blast radius | `blast-radius` proves what a change breaks beyond the diff by running real code; foggy, wide impact goes to `wayfinder` |
 | No scripted way to prove a project works | Run `create-verification-skill` once per project to generate a local `verify-<app>` skill; `maintain-verification-skill` keeps its feature map honest |
 
-Every row that writes files starts in its own tree from `git-worktree`, even a one-line doc fix; the main checkout only integrates. `git-worktree` caps live trees (`WT_MAX`, default 4), symlinks `node_modules`/`.env`/`.venv` from main instead of reinstalling, and reclaims merged, clean, idle trees before creating a new one.
+Every row that writes files starts in its own tree from `git-worktree`, even a one-line doc fix; the main checkout only integrates. `git-worktree` supports any number of task trees, symlinks `node_modules`/`.env`/`.venv` from main instead of reinstalling, and reclaims merged, clean, idle trees before creating a new one.
 
 Refactor and optimization analysis is also a pre-routing step, not an independent delivery path. Pushes, pull requests, and remote merges always require separate authority.
 

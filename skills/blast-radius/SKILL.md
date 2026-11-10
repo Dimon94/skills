@@ -1,7 +1,6 @@
 ---
 name: blast-radius
-description: "Find what a change could break somewhere else before it ships, beyond the diff, and prove the one fact it's safe because of by running real code instead of writing it up. Use for 'blast radius of X', 'what could this break', or reviewing a small diff you don't trust."
-disable-model-invocation: true
+description: "Blast radius: what a change breaks beyond its diff, with the one safety fact proven by running real code. Use for 'blast radius of X' or 'what could this break', a small diff you don't trust, choosing E2E scenarios when the reach is unclear, or a review whose diff touches shared interfaces, schemas, wire formats, or flags."
 ---
 
 # Blast radius

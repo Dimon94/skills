@@ -1,6 +1,6 @@
 ---
 name: retro
-description: 复盘一段会话或一条失败链路，挖出持久的教训，并把每条落到一个具体的 agent 环境改动：Skill 正文、Skill description、自动检查、编码规范、AGENTS.md 指针、信息通道或工具。用于 implement 或 code-review 在 R3 后仍有 P0/P1、同一门禁反复失败，或用户说“复盘 / retro / reflect”时。只提建议，改动等用户逐条批准。
+description: 复盘一段会话或一条失败链路，挖出持久的教训，并把每条落到一个具体的 agent 环境改动。用于 implement 或 code-review 在 R3 后仍有 P0/P1、同一门禁反复失败，或用户说“复盘 / retro / reflect”时。只提建议，改动等用户逐条批准。
 ---
 
 # Retro

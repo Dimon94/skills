@@ -46,16 +46,19 @@ Standards 来源必须覆盖仓库的 Coding 与 Architecture 规则。Spec 缺�
 ## 3. 按证据启动专项 Review
 
 只在第 1 轮运行专项。只根据用户请求、Spec、changed paths 和主 Review finding 选择专项。
-每个命中的 Skill 使用独立只读 SubAgent，并绑定同一 Review Packet：
+每个命中的 Skill 绑定同一 Review Packet；除标“用户调用”的以外，各用一个独立只读 SubAgent：
 
 | Skill | 触发证据 |
 | --- | --- |
 | `complexity-optimizer` | 明确性能目标，或 diff 命中嵌套扫描、N+1、渲染重算、大数据或热点路径；只审 diff 与直接调用链 |
-| `thermo-nuclear-code-quality-review` | 用户明确要求严格可维护性审查，或主 Review 发现重大结构风险 |
+| `thermo-nuclear-code-quality-review`（用户调用） | 用户明确要求严格可维护性审查，或主 Review 发现重大结构风险 |
 | `better-interface` | 用户明确要求完整界面 Review；其内部领域编排仍由该 Skill 拥有 |
 | `vercel-react-best-practices` | diff 改变 React/Next.js 渲染、数据获取或 bundle 行为 |
 | `supabase-postgres-best-practices` | diff 改变 Postgres/Supabase 查询、schema、RLS 或连接配置 |
 | `blast-radius` | diff 命中共享库/公开接口、DB schema、wire format、feature flag 或跨语言数据读者；用户明确要求爆炸半径分析；或主 Review 发现小 diff 外部影响不明 |
+
+标“用户调用”的专项模型调不了，不进 SubAgent：命中时交出 Review Packet，请用户运行对应的
+`/名字`，等它的报告回来再进入第 4 步。
 
 只读约束指不修改产品文件；`blast-radius` 允许执行取证脚本与测试来证明安全事实，
 产出只能是报告与证据，不得 stage、commit 或改动产品代码。

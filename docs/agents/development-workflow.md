@@ -19,7 +19,7 @@
 
 ## 2. 锁定基线
 
-读取目标文件最近的 AGENTS.md、CONTEXT.md、System Map、直接调用者、公开入口、相关测试和配置。
+读取目标文件最近的 AGENTS.md、GLOSSARY.md、System Map、直接调用者、公开入口、相关测试和配置。
 
 记录：
 
@@ -87,7 +87,7 @@
 
 按 Layer Contracts 列出当前变更命中的 L1-L6 触发面。更新对应 canonical 文档。
 
-- 统一语言变化：CONTEXT.md。
+- 统一语言变化：GLOSSARY.md。
 - 顶层所有权或依赖变化：System Map。
 - 难回退决定：ADR。
 - 模块成员或入口变化：最近 AGENTS.md。

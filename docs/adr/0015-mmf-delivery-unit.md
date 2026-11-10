@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Related: 0004（措辞被本记录取代）、repo://CONTEXT.md、repo://docs/research/2026-10-20-vertical-slicing-heuristics.md 第 6 组、repo://docs/research/2026-11-04-epic-to-spec-best-practices.md
+Related: 0004（措辞被本记录取代）、repo://GLOSSARY.md、repo://docs/research/2026-10-20-vertical-slicing-heuristics.md 第 6 组、repo://docs/research/2026-11-04-epic-to-spec-best-practices.md
 
 ## Context
 
@@ -37,7 +37,7 @@ Spec 不是单位。它是描述一个 MMF 的合同文档，写行为、状态�
 - 不选 Feature。它是日常泛称，任何大小都能叫 feature，没有上下限可测。
 - 不选垂直切片。垂直切片是切法，Epic 切成 MMF、MMF 切成 ticket 都用它；拿它命名某一层，会再造一个多义词，正是现在 vertical-slicing 与 0004 冲突的根源。
 
-代价：MMF 是外来缩写，读者第一次见要查 repo://CONTEXT.md。
+代价：MMF 是外来缩写，读者第一次见要查 repo://GLOSSARY.md。
 
 ### 4. 默认一个 MMF 一个 MR，逐票合入是例外
 

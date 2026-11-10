@@ -58,7 +58,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 ## 仓库边界
 
 - `AGENTS.md`：本仓工作的总合同。
-- `CONTEXT.md`：统一语言与 canonical term。
+- `GLOSSARY.md`：统一语言与 canonical term。
 - `docs/architecture/current-system-map.md`：模块、依赖与验证入口。
 - `skills/`：本仓自有 Skill 与精选上游快照的 Canonical source。
 - `scripts/link-skills.sh`：链接 `skills/` 中的自有 Skill 与上游快照。

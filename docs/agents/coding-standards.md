@@ -49,7 +49,7 @@ DRY、SOLID、KISS 和 YAGNI 用来减少重复意义、特殊情况和无效间
 
 ## 3. 命名与语言
 
-- 使用 repo://CONTEXT.md 的 canonical term。
+- 使用 repo://GLOSSARY.md 的 canonical term。
 - 名称表达保存的事实或执行的动作。
 - 身份、展示名、外部 ID 和内部引用使用不同类型或明确后缀。
 - 布尔名表达可判定事实。避免 status、data、item、handle 等无边界名称。

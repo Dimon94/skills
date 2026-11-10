@@ -2,14 +2,14 @@
 
 Status: canonical architecture standard
 
-用途：约束状态所有权、依赖方向，以及 module、interface、seam 和 adapter 的形状。本文件不替代 CONTEXT.md、System Map、最近的 AGENTS.md 或 accepted ADR。
+用途：约束状态所有权、依赖方向，以及 module、interface、seam 和 adapter 的形状。本文件不替代 GLOSSARY.md、System Map、最近的 AGENTS.md 或 accepted ADR。
 
 ## 1. 前置材料
 
 先读：
 
 1. repo://docs/agents/coding-standards.md。
-2. repo://CONTEXT.md。
+2. repo://GLOSSARY.md。
 3. repo://docs/architecture/current-system-map.md。
 4. 每个变更文件最近的 AGENTS.md。
 5. 相关 accepted ADR 和外部合同。

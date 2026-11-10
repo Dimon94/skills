@@ -108,7 +108,7 @@ Status: current
 
 根合同（本文件「当前事实」「链路」「不变量」）变化时同步：
 
-- repo://CONTEXT.md（统一语言）。
+- repo://GLOSSARY.md（统一语言）。
 - 根 repo://AGENTS.md（指针与触发）。
 - 命中 skill 的 SKILL.md（L2）。
 - 架构取舍写 repo://docs/adr/ 新 ADR，不改写已 accepted 的结论。

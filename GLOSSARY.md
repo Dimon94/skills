@@ -1,4 +1,4 @@
-# dverity Context
+# dverity Glossary
 
 本文件保存项目统一语言：已经确认的概念、边界和避免使用的同义词。
 

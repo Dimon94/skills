@@ -116,6 +116,7 @@ disable-model-invocation: true
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
 | 建树、看在做清单、回收工作树 | `git-worktree` |
 | 写或改 Skill | 按 `playbooks/authoring-a-skill.md` |
+| 定义或改领域术语、写或改 ADR | `mattpocock-skills:domain-modeling`；执行前先读项目 `GLOSSARY.md` 的使用规则与词汇索引，再按任务读相关词条 |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |
 

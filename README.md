@@ -60,7 +60,7 @@ To let an AI Agent inspect the environment, install runtime dependencies, and ve
 ## Repository Boundary
 
 - `AGENTS.md`: repository working contract.
-- `CONTEXT.md`: canonical vocabulary.
+- `GLOSSARY.md`: canonical vocabulary.
 - `docs/architecture/current-system-map.md`: modules, dependencies, and verification entry points.
 - `skills/`: the canonical source for repository-owned Skills and curated upstream snapshots.
 - `scripts/link-skills.sh`: links repository-owned Skills and upstream snapshots from `skills/`.

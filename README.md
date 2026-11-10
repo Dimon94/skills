@@ -10,7 +10,7 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 
 | Task type | Workflow |
 | --- | --- |
-| Large requirement | 用 `to-epic` 划分 Epic 与 Spec 候选 → 用 `to-spec` 细化当前候选 → 用 `to-tickets` 拆实施票；每份 Spec 对应一个 MR，执行方式自选 |
+| Large requirement | `to-epic` cuts the Epic into MMFs → `to-spec` writes one Spec per MMF → `vertical-slicing` cuts the MMF into tickets → `ticket-sizing` gives each ticket a split signal plus the MMF's ticket count and total, and the user decides whether to proceed or re-cut → tickets past the split line go to `ticket-split-100k` → `to-tickets` publishes → implement; each MMF ships as one MR, and an MMF that fits one context skips the tickets |
 | Regular requirement | the model drafts a minimal plan → `grill-with-docs` stress-tests it → `implement` |
 | Small change | `implement` directly; `tdd` decides per change whether a failing check comes first |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
@@ -21,7 +21,7 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 
 Every row that writes files starts in its own tree from `git-worktree`, even a one-line doc fix; the main checkout only integrates. `git-worktree` caps live trees (`WT_MAX`, default 4), symlinks `node_modules`/`.env`/`.venv` from main instead of reinstalling, and reclaims merged, clean, idle trees before creating a new one.
 
-The pre-map tools are selected by the problem. They are not a fixed sequence and do not all have to run. Refactor and optimization analysis is also a pre-routing step, not an independent delivery path. Pushes, pull requests, and remote merges always require separate authority.
+Refactor and optimization analysis is also a pre-routing step, not an independent delivery path. Pushes, pull requests, and remote merges always require separate authority.
 
 When a pull request reaches review, `gh-merge-pr` freezes one Review Packet, runs `code-review` as the main Standards and Spec review, and adds specialist reviews only when the request, changed paths, or main findings provide evidence. The current-head verdict must pass before a separately authorized merge and parity readback.
 
@@ -80,7 +80,7 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-redesign-from-first-principles` | `to-spec` (Implementation Decisions) |
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
 | `principle-separate-before-serializing-shared-state` | `vertical-slicing` (step 5, dependency edges) |
-| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing` (check 6, hiding has a deadline) |
+| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing` (step 4, structure slices; exception mode: check 6 in `references/release-per-ticket.md`) |
 | `principle-laziness-protocol` | `implement` (step 2, subtract first) |
 | `principle-subtract-before-you-add` | `implement` (step 2, subtract first) |
 | `principle-minimize-reader-load` | `implement` (step 4, ablation before reconciliation) |

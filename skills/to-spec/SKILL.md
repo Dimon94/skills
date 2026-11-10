@@ -12,13 +12,19 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。
 
-2. 判定 Business Flow。行为的状态跨越步骤或时间留存，或者包含失败重试、审批、取消、不可逆副作用时，按模板画状态图；其余情况在该节写 `N/A` 和一句理由。完成条件：该节是一张图加规则，或一条 `N/A` 理由。
+2. 判定 MMF。Spec 描述一个 MMF：验收、合入与上线的单位，对应一个 MR。用两个问题判定需求：切成两半，存在一种切法让每半都能单独上线且单独有人用吗；整体单独上线有人用吗。结果取其一：
+   - 切得开 → 多个 MMF：停下，请用户运行 `/to-epic`，列出已识别的 MMF 候选及各自的用户结果。
+   - 切不开，且整体单独上线有人用 → 正好一个 MMF：继续。
+   - 整体单独上线没人用 → 不足一个 MMF：停下，说明它是某个 MMF 里的 ticket，点名所属 MMF；不知道写 Unknown。
+   完成条件：结果是三者之一，两个问题各有答案和依据。
 
-3. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
+3. 判定 Business Flow。行为的状态跨越步骤或时间留存，或者包含失败重试、审批、取消、不可逆副作用时，按模板画状态图；其余情况在该节写 `N/A` 和一句理由。完成条件：该节是一张图加规则，或一条 `N/A` 理由。
+
+4. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
 Check with the user that these seams match their expectations.
 
-4. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都写明 Interface 和 Seam，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都写明 Interface 和 Seam，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
 <spec-template>
 
@@ -32,7 +38,7 @@ The solution to the problem, from the user's perspective.
 
 ## Business Flow
 
-The states the feature moves through and the rules that must always hold, in the reader's words. Write `N/A` and one reason when step 2 finds no business state.
+The states the feature moves through and the rules that must always hold, in the reader's words. Write `N/A` and one reason when step 3 finds no business state.
 
 <business-flow-example>
 
@@ -48,14 +54,14 @@ stateDiagram-v2
 
 - R1：同一笔订单只能退款一次
 
-未列出的转移一律禁止。每个 T 和 R 都是 MR 的验收项。
+未列出的转移一律禁止。每个 T 和 R 都是这个 MMF 的 MR 验收项。
 
 </business-flow-example>
 
 - 状态和箭头用读者能看到或在意的业务词，代码名和变量名留给 Implementation Decisions。
 - 箭头写成 `T<n> 事件 [条件]`，失败、取消和重试也各占一条箭头。规则写成 `R<n>`，表达必须一直成立的事。
 - 状态和转移只在本节定义，User Stories 负责说明为什么需要这些行为。
-- 箭头控制在约 20 条。超出时先合并读者不区分的状态；仍读不清，就交回 `to-epic` 拆分。
+- 箭头控制在约 20 条。超出时先合并读者不区分的状态；仍读不清，说明它不止一个 MMF：停下，请用户运行 `/to-epic` 重切 MMF。
 
 ## User Stories
 

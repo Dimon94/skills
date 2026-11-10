@@ -96,19 +96,21 @@ disable-model-invocation: true
 
 - 函数、命名和类型自解释，不写复述代码的叙述注释。
 - 项目有 `docs/agents/layer-contracts.md` 时，改动命中它的触发面就按它写 L3–L6 合同块。合同块是 agent 的索引，不按叙述注释删除；只查它是否过期、是否在逐句翻译代码。
-- 清理叙述注释：用 `no-comments`。
+- 清理叙述注释：`no-comments`（用户调用，见“任务路由”表下规则）。
 
 ## 任务路由
 
 | 任务 | owner skill |
 | --- | --- |
-| 复述用户真正要什么 | `in-your-own-words` |
-| 大需求拆成多个 Spec | `to-epic` |
-| 写 Spec | `to-spec` |
-| 拆成可交付的片 | `vertical-slicing` |
-| 把片发成票 | 由用户调用 `to-tickets`：模型不能自调。规划时就说明这一步要用户调用；交出切片清单后停下等用户 |
-| 多阶段交付编排 | `delivery-pipeline` |
-| 按 Spec 或票实现 | `implement`；测试先行用 `tdd` |
+| 复述用户真正要什么 | `in-your-own-words`（用户调用） |
+| 大需求切成多个 MMF | `to-epic`（用户调用） |
+| 给一个 MMF 写 Spec | `to-spec`（用户调用） |
+| 把一个 MMF 切成 ticket | `vertical-slicing`（用户调用） |
+| 逐票预测 | `ticket-sizing` |
+| 预测超过拆分线的票再拆 | `ticket-split-100k`（用户调用） |
+| 把 ticket 发到 tracker | `to-tickets`（用户调用） |
+| 多阶段交付编排 | `delivery-pipeline`（用户调用） |
+| 按 Spec 或票实现 | `implement`（用户调用）；测试先行用 `tdd` |
 | 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md` |
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
@@ -116,3 +118,7 @@ disable-model-invocation: true
 | 写或改 Skill | 按 `playbooks/authoring-a-skill.md` |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |
+
+大需求按单位逐层切：一个 Epic 由多个 MMF 组成；一个 MMF 对应一份 Spec、一个 MR，ticket 留在它的 MR 分支内。顺序：`to-epic` 切 MMF → 每个 MMF 由 `to-spec` 写一份 Spec → `vertical-slicing` 切 ticket → `ticket-sizing` 给每票拆分信号与 MMF 的票数、合计 → 用户看合计决定照此执行、回 `to-epic` 重切或转例外模式 → 超过拆分线的票走 `ticket-split-100k` → `to-tickets` 发布 → `implement`。MMF 一个上下文装得下时不拆票，Spec 直接交 `implement`。
+
+标“用户调用”的 Skill 模型调不了，只能由用户输入 `/名字` 运行。规划时就说明哪几步要用户调用；轮到它时交出已有产物，点名请用户运行哪个命令，然后停下。

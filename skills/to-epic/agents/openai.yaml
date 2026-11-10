@@ -1,6 +1,6 @@
 interface:
   display_name: "To Epic"
-  short_description: "先验证核心闭环，再按业务结果拆分可逐步交付的 Spec"
-  default_prompt: "使用 $to-epic，把这个大需求或已有 Epic 整理成整体目标和 Spec 候选。先选择可验收的首片，遵循 codebase-design 明确相关 Module、共享 Interface、依赖与并发条件；每份 Spec 对应一个 MR，按获批范围滚动细化。"
+  short_description: "先验证核心闭环，再按业务结果切出可逐个上线的 MMF"
+  default_prompt: "使用 $to-epic，把这个大需求或已有 Epic 整理成整体目标和 MMF 候选。先选择可验收的首个 MMF，遵循 codebase-design 明确相关 Module、共享 Interface、依赖与并发条件；每个 MMF 对应一份 Spec 和一个 MR，按获批范围滚动细化。"
 policy:
   allow_implicit_invocation: false

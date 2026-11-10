@@ -9,7 +9,7 @@
 - [精选上游 Skill 快照](0001-curated-upstream-skill-snapshots.md)
 - [code-review 转为本仓自有 Skill](0002-owned-code-review.md)（已被 0005 取代）
 - [Skill 自带多端 agent hook](0003-skill-owned-agent-hooks.md)
-- [Epic 按 Spec 划分交付边界](0004-epic-spec-delivery-boundary.md)
+- [Epic 按 Spec 划分交付边界](0004-epic-spec-delivery-boundary.md)（措辞已被 0015 取代）
 - [code-review 以上游原版为基础，只加严重度](0005-code-review-upstream-severity.md)
 - [tdd 与 implement 转为本仓自有 Skill](0006-owned-tdd-implement.md)
 - [Review 最多三轮，只报具体反例](0008-review-round-limit.md)（阻断线已被 0011 修订）
@@ -19,6 +19,7 @@
 - [dimon-mode 用剧本串联已有 Skill](0012-dimon-mode-playbooks.md)
 - [每个写任务一棵工作树，暂停落成 wip 提交](0013-worktree-per-write-task.md)（“不导入守上下文叶子”已被 0014 取代）
 - [大块读取交给子代理，同一棵树同一时刻一个写者](0014-subagents-take-bulk-reads.md)
+- [交付单位叫 MMF，Spec 是描述它的文档](0015-mmf-delivery-unit.md)
 
 ## 命名
 

@@ -1,6 +1,6 @@
 # 拆法库
 
-职责：给 `vertical-slicing` 的加厚步骤和结构/收尾步骤提供拆法和隐藏手法。来源摘要与原文链接见 [研究记录](../../../docs/research/2026-10-20-vertical-slicing-heuristics.md)。
+职责：给 `vertical-slicing` 的加厚与结构步骤提供拆法，给[例外模式](release-per-ticket.md)提供隐藏手法。来源摘要与原文链接见 [研究记录](../../../docs/research/2026-10-20-vertical-slicing-heuristics.md)。
 
 ## Meta-pattern
 
@@ -26,11 +26,11 @@
 
 ## 隐藏手法
 
-未完成工作也合入 main 并部署，用以下手法控制可见性或分阶段迁移。
+例外模式下未完成工作也合入 main 并部署，用以下手法控制可见性或分阶段迁移。默认模式的票留在 MMF 的 MR 分支内，不需要隐藏。
 
 | 手法 | 用在 | 换用其他手法 | 收尾片 |
 | --- | --- | --- | --- |
-| Release toggle | 用户可见的新功能分多片完成；toggle 存活一两周以内 | 替换内部实现或改 Interface | 打开 toggle，删 toggle 与旧路径 |
+| Release toggle | 用户可见的新功能分多片完成；toggle 只活到所属里程碑放量（一两周以内是启发式，不是门槛） | 替换内部实现或改 Interface | 打开 toggle，删 toggle 与旧路径 |
 | Dark launch | 新的后端行为要在公开前验证负载；它增强已有交互 | 需要用户主动选择的功能，改用 canary；有不可撤销副作用的调用（扣款、发消息） | 公开 release，删 dark 路径开关 |
 | Branch by abstraction | 替换内部 Module（库、存储、框架），调用方多，耗时数天以上 | 调用方很少、当天能改完 | 删旧 Adapter；只剩一个 Adapter 时考虑删 seam |
 | Expand-contract | 向后不兼容的 Interface 或 schema 变更，调用方要逐步迁移 | 只有一个调用方且能原子修改 | 确认无调用方后删旧 Interface 或旧列 |

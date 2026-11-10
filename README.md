@@ -4,7 +4,11 @@
 
 This repository combines requirement shaping, map planning, spec and ticket creation, automated dispatch, and local Git closeout into one resumable development workflow. `skills/` is the canonical runtime source. Third-party suites contribute only curated upstream snapshots; standalone single-Skill projects stay in upstream clones and are consumed through symlinks.
 
-![Development workflow](docs/assets/development-workflow.en.svg)
+[![Development workflow](docs/assets/development-workflow.en.svg)](docs/assets/development-workflow.en.svg)
+
+[View full-size SVG](docs/assets/development-workflow.en.svg) · [Download PNG](docs/assets/development-workflow.en.png)
+
+The diagram gives an overview. See [Task Routing](#task-routing) for detailed Skill selection and the MMF delivery rules.
 
 ## Task Routing
 

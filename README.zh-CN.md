@@ -4,7 +4,11 @@
 
 这套仓库把需求澄清、地图规划、规格拆票、自动调度和本地 Git 收口组合成一条可恢复的开发链路。`skills/` 是 Agent 读取的 Canonical source；第三方套件只收录工作流实际使用的上游快照，独立单-Skill 项目通过上游 clone 与 symlink 接入。
 
-![开发链路流程图](docs/assets/development-workflow.zh-CN.svg)
+[![开发链路流程图](docs/assets/development-workflow.zh-CN.svg)](docs/assets/development-workflow.zh-CN.svg)
+
+[查看 SVG 原图](docs/assets/development-workflow.zh-CN.svg) · [下载 PNG](docs/assets/development-workflow.zh-CN.png)
+
+流程图展示链路概览。具体 Skill 选择与 MMF 交付规则见[任务分流](#任务分流)。
 
 ## 任务分流
 

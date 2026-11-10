@@ -28,7 +28,7 @@
 3. **诊断与实现。** 缺陷按 repo://docs/agents/debugging.md、需求按 repo://docs/agents/development-workflow.md 的证据闭环执行。新增测试前先跑最近现有测试。完成标准：同一最小检查先红后绿，focused tests 和 build 通过，一次性 harness 已清理。
 4. **留存。** 把已通过检查的单一语义边界保存为本地候选提交。无关 dirty path 不被吸收。工具增量（formatter churn、lockfile 更新、生成产物）逐项解释归属，否则丢弃；合并后与意图无法区分。完成标准：候选提交狭且可审计；未经下一步验证不得进入 main。
 5. **真实环境验证。** 按下方 Worktree 环境合同执行，走真实公开入口，同时断言 transport 和业务字段。行为变更对照未改动的主目录基线：行为差异新旧路径各跑一次，视觉差异同一视图各截一次；"应该等价"是声明，基线对照才是证据。完成标准：业务状态、输出身份和外部副作用计数同时通过。
-6. **集成与清理。** 先在本票 worktree 执行 `git rebase main`，冲突在本树解决并重跑 focused tests；再回 main，确认无并行任务未提交差异后合入已验证提交。在 main 重跑最小 smoke，把 main commit、验证证据和剩余风险回写票。随后停止本树服务，确认 worktree clean 且提交已进入 main，再移除 worktree 并删除分支。移除前，本树产生的交付物（截图、构建、导出）先写到持久位置或附到票上，并显式说明位置；它们随树删除。完成标准：rebase 后验证仍绿，main 只包含完整已验证提交，无在途代码，票可由证据关闭。单票任务不执行全局 `git worktree prune`。
+6. **集成与清理。** 先在本票 worktree 执行 `git rebase main`，冲突在本树解决并重跑 focused tests；再回 main，确认无并行任务未提交差异后合入已验证提交。在 main 重跑最小 smoke，把 main commit、验证证据和剩余风险回写票。随后停止本树服务，在主目录跑 `worktree.sh gc --apply` 回收本树与本地分支（条件见 repo://skills/git-worktree/SKILL.md 第 5 节）。回收前，本树产生的交付物（截图、构建、导出）先写到持久位置或附到票上，并显式说明位置；它们随树删除。完成标准：rebase 后验证仍绿，main 只包含完整已验证提交，无在途代码，票可由证据关闭。单票任务不执行全局 `git worktree prune`。
 
 ## Worktree 环境合同
 

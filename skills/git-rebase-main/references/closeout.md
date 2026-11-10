@@ -18,9 +18,9 @@
   两端 SHA 分别记录；远端预期 HEAD 必须属于本次已落地的提交集。经历本地 rebase 时，
   在 rebase 前固定原源 HEAD，并证明远端预期 HEAD 是其祖先。PR 还需记录 Review Packet
   head、`MERGED` 状态与 merge SHA。Fork 分支只在用户拥有或明确获授权时删除。
-- 主工作区、任务工作树、本次创建的 Review 工作树，以及各自 branch/path/HEAD。
-  已有 `main` 任务没有源分支可删；确实没有 Issue、远端源分支或临时树时逐项记 `not applicable`
-  并给出查询依据。用户明确要求保留的对象记录保留指令。
+- 主工作区、任务工作树、本次创建的 Review 工作树，以及各自 branch/path/HEAD。任务工作树
+  标明回收 owner：`worktree.sh ls` 列出的树归 `git-worktree`，其余临时树归本合同第 3 节。
+  确实没有 Issue、远端源分支或临时树时逐项记 `not applicable` 并给出查询依据。用户明确要求保留的对象记录保留指令。
 
 完成标准：每个对象都已确定归属、授权与预期终态；没有猜测的 ID、remote 或路径。
 以下步骤按顺序执行，任一步阻断就停止后续写入，保留现场与已完成结果。
@@ -44,23 +44,28 @@
 核对任务源 HEAD 已进入目标历史。Squash / rebase merge 可用同一 PR 的已审 head、
 `MERGED` 与目标包含 merge SHA 证明落地；仅凭 PR 编号或 Issue 已关闭不足以回收。
 
-逐树检查 `git status --porcelain=v1 --untracked-files=all`、ignored 文件、进行中的 Git 操作、
-会话与进程占用。停止本任务服务并释放写权；其他写者仍在用的树保持原位。Dirty 或
-不可重建的 ignored 文件先保全并验证恢复位置；无法证明可安全移除时记 `BLOCKED`。
+停止本任务服务并释放写权。先把交付物、收尾证据和不可重建的 ignored 文件移到持久位置
+并验证恢复位置，再把执行目录切到保留的主工作区。然后按回收 owner 分两类：
 
-先把交付物与收尾证据移到持久位置，再把执行目录切到保留的主工作区。只对清单内且已
-证明可回收的树执行 `git worktree remove <path>`；命令拒绝时保留现场，不加 `--force`。
+- `worktree.sh ls` 列出的任务树及其本地分支：回收归 `git-worktree` 第 5 节（主工作区运行
+  `gc --apply`）。本节只读回：树与分支都已不在；`gc` 输出该树的 `keep` 行时，把原因记 `BLOCKED`。
+- 其余临时树（如 `gh-merge-pr` 本次建的 Review 工作树）：逐树检查
+  `git status --porcelain=v1 --untracked-files=all`、ignored 文件、进行中的 Git 操作、会话与
+  进程占用；其他写者仍在用的树保持原位，无法证明可安全移除时记 `BLOCKED`。只对清单内且已
+  证明可回收的树执行 `git worktree remove <path>`；命令拒绝时保留现场，不加 `--force`。
+
 主工作区保持原位；不运行全局 prune、reset 或 clean 来制造 clean。
 
-完成标准：`git worktree list --porcelain` 与文件系统均确认目标临时树已移除；主工作区及
-其他任务的树保持原位。
+完成标准：`git worktree list --porcelain` 与文件系统均确认目标临时树已移除，或保留原因已记
+`BLOCKED`；主工作区保持原位，其他任务的树只经 `gc` 自身的条件变动。
 
 ## 4. 删除源分支
 
-所有源分支工作树释放后重新核对本地 / 远端各自的 HEAD；它们必须仍与各自预期一致。
+所有源分支工作树释放后重新核对仍存在的本地 / 远端源分支 HEAD；它们必须仍与各自预期一致。
 `main`、目标分支、受保护分支和出现新提交的源分支保留并报告原因。
 
-- 本地源分支：从保留的主工作区执行 `git branch -d -- <source>`。Squash / rebase merge
+- `worktree.sh` 任务树的本地分支：已由第 3 步的 `gc` 回收，本节只读回 `refs/heads/<source>` 不存在。
+- 其他本地源分支：从保留的主工作区执行 `git branch -d -- <source>`。Squash / rebase merge
   导致祖先检查拒绝时，仅在第 3 步的 PR 落地证据完整且本地 HEAD 等于已审 head 后，使用
   `git update-ref -d refs/heads/<source> <expected-head>`；其他拒绝保持 `BLOCKED`。
 - 远端源分支：用 `git ls-remote --heads <source-remote> refs/heads/<source>` 读取真实状态。

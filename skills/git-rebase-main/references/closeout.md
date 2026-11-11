@@ -81,6 +81,8 @@
 读回目标 HEAD、主工作区分支和 `git status --short --branch`，核对目标验证通过、主工作区
 仍在原定分支。本地合入 `main` 时主工作区应在 `main`；PR 的目标是其他分支时，单独核对
 本地目标 ref 与 remote target 的 parity，保留主工作区原分支。
+项目规定 `main` 只经 PR/MR 前进时，再读回 `git rev-list --count origin/main..main`：大于 0 记
+`BLOCKED`，按 `gh-merge-pr` 第 6 节分类这些提交。
 主工作区应 clean；预先存在且保留的无关改动单列，不能宣称 clean。逐项报告：
 
 | 对象 | 必需证据 |

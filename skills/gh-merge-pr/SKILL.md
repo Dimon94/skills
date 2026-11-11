@@ -114,6 +114,10 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
   `main` 只有在它就是目标分支时才同步，主工作区的既有无关改动按收尾合同保留并报告；
 - 最小 post-merge check 通过。
 
+`--ff-only` 因本地 `<target>` 有远端没有的提交而失败时，先运行 `git cherry -v origin/<target> <target>`
+分类。全是 `-` 行（补丁已在远端）：把本地 `<target>` 对齐远端后继续。有 `+` 行：列出这些提交的
+标题，问用户“先保存到 `hold/local-<target>-<date>-<sha>` 再对齐，还是保留现场”，问题里写明分类结果。
+
 任一 SHA 缺失或不一致都保持 `BLOCKED`，即使 Provider 已显示 merged。
 
 完成标准：Provider、remote target、本地 target 与 active worktree parity 成立。

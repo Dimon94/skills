@@ -15,6 +15,9 @@ description: 将已完成的任务分支合回本地 main，并关闭对应 Issu
 用 `git worktree list --porcelain` 核对路径与分支。源分支为 detached HEAD 或 Issue
 对应关系不明时先补齐身份。Issue 确实不存在则记 `none`，不为收尾建票。
 
+先读项目 AGENTS.md 的合回规则。规则写明 main 只经 PR/MR 前进时，不合入本地 `main`：报告冲突，
+改用 `git-push-pr`。本地合入会让 `main` 领先远端，之后每次 PR 收尾都会在快进时 `BLOCKED`。
+
 完成标准：每个收尾对象都有明确身份与归属；授权范围沿用收尾合同。
 
 ## 2. 提交任务改动

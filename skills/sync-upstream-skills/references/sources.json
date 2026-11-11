@@ -220,10 +220,12 @@
         {
           "name": "principle-explain-the-number",
           "sourcePath": "pstack/skills/principle-explain-the-number",
-          "treeSha256": "0000a3e34badb21f104774780386e1b0b80671cff3697ae9ab599f771c2c43cb",
-          "knownBrokenLinks": [
-            "../benchmark-checklist/SKILL.md"
-          ]
+          "treeSha256": "0000a3e34badb21f104774780386e1b0b80671cff3697ae9ab599f771c2c43cb"
+        },
+        {
+          "name": "benchmark-checklist",
+          "sourcePath": "pstack/skills/benchmark-checklist",
+          "treeSha256": "77f6adce1b8785c7e26d762992365b466d3e7d09d61edbd670f2bceccf649146"
         },
         {
           "name": "principle-attack-the-premise",

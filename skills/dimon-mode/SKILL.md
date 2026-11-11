@@ -111,7 +111,7 @@ disable-model-invocation: true
 | 把 ticket 发到 tracker | `to-tickets`（用户调用） |
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
 | 按 Spec 或票实现 | `implement`（用户调用）；测试先行用 `tdd` |
-| 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md` |
+| 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
 | 建树、看在做清单、回收工作树 | `git-worktree` |

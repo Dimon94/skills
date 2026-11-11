@@ -1,59 +1,312 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 1680" width="1360" height="1680">
-<style>text { font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }</style>
-<defs>
-<marker id="blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2563eb"/></marker>
-<marker id="orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#ea580c"/></marker>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2080 2940" width="2080" height="2940">
+<style xmlns="http://www.w3.org/2000/svg">
+text { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.title { fill:#111827; font-size:32px; font-weight:700; }
+.subtitle { fill:#64748b; font-size:15px; }
+.section { fill:#2563eb; font-size:14px; font-weight:700; letter-spacing:0.04em; }
+.type { fill:#64748b; font-size:10px; font-weight:700; letter-spacing:0.08em; }
+.node-title { fill:#111827; font-size:15px; font-weight:700; }
+.node-sub { fill:#64748b; font-size:11.5px; }
+.edge-label { font-size:11px; font-weight:600; }
+.legend { fill:#475569; font-size:12px; }
+.footer { fill:#64748b; font-size:12px; }
+</style>
+<defs xmlns="http://www.w3.org/2000/svg">
+<marker id="arrow-control" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#7c3aed" /></marker>
+<marker id="arrow-choice" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#f97316" /></marker>
+<marker id="arrow-bug" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#16a34a" /></marker>
+<marker id="arrow-feedback" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><polygon points="0 0, 10 4, 0 8" fill="#ef4444" /></marker>
 </defs>
-<rect data-graph-role="background" width="1360" height="1680" fill="#ffffff"/>
-<text x="120" y="64" font-size="34" fill="#111827" font-weight="600">Skill Development Workflow</text>
-<text x="120" y="102" font-size="18" fill="#6b7280" font-weight="400">MMF is the delivery unit · Spec defines the contract · tickets execute inside an MMF</text>
-<path data-graph-role="edge" data-source="input" data-target="plan" d="M 680 300 V 400" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blue)"/>
-<path data-graph-role="edge" data-source="plan" data-target="tickets" d="M 900 560 V 680" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blue)"/>
-<path data-graph-role="edge" data-source="plan" data-target="work" d="M 240 560 V 980" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blue)"/>
-<path data-graph-role="edge" data-source="tickets" data-target="work" d="M 900 850 V 980" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blue)"/>
-<path data-graph-role="edge" data-source="work" data-target="delivery" d="M 680 1190 V 1320" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#blue)"/>
-<path data-graph-role="edge" data-source="input" data-target="work" d="M 120 230 H 60 V 1080 H 120" fill="none" stroke="#ea580c" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#orange)"/>
-<g data-graph-role="node" data-node-id="input">
-<rect x="120" y="160" width="1120" height="140" rx="8" fill="#f8fafc" stroke="#d1d5db" stroke-width="1.5"/>
-<text x="144" y="198" font-size="24" fill="#111827" font-weight="600">01 Task Routing</text>
-<text x="144" y="236" font-size="16" fill="#6b7280" font-weight="400">Large → MMF planning; regular → minimal plan + grill-with-docs; small → implement</text>
-<text x="144" y="268" font-size="16" fill="#6b7280" font-weight="400">Bug → diagnosing-bugs → verification + local Git closeout; refactor / optimize → analyze, then route</text>
+
+<rect xmlns="http://www.w3.org/2000/svg" data-graph-role="background" width="2080" height="2940" fill="#ffffff" />
+
+<text xmlns="http://www.w3.org/2000/svg" x="1040" y="50" text-anchor="middle" class="title">Dimon Development Workflow</text>
+
+<text xmlns="http://www.w3.org/2000/svg" x="1040" y="78" text-anchor="middle" class="subtitle">Analyze refactors first · then enter three delivery paths by size · current-head review</text>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container"><rect data-graph-role="container" x="40" y="110" width="2000" height="220" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="58" y="138" class="section">01 · TASK ENTRY</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container"><rect data-graph-role="container" x="40" y="390" width="620" height="1320" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="58" y="418" class="section">02A · LARGE REQUIREMENT</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container"><rect data-graph-role="container" x="730" y="390" width="620" height="1320" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="748" y="418" class="section">02B · SMALL REQUIREMENT</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container"><rect data-graph-role="container" x="1420" y="390" width="620" height="1320" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="1438" y="418" class="section">02C · BUG</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="request">
+<rect x="80" y="180" width="240" height="60" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" />
+<text x="200.0" y="198" text-anchor="middle" class="type">INPUT</text>
+<text x="200.0" y="221" text-anchor="middle" class="node-title">Requirement / Problem</text>
+<text x="200.0" y="240" text-anchor="middle" class="node-sub">Classify size and task type</text>
 </g>
-<g data-graph-role="node" data-node-id="plan">
-<rect x="120" y="400" width="1120" height="160" rx="8" fill="#eff6ff" stroke="#d1d5db" stroke-width="1.5"/>
-<text x="144" y="438" font-size="24" fill="#111827" font-weight="600">02 MMF Planning</text>
-<text x="144" y="476" font-size="16" fill="#6b7280" font-weight="400">to-epic: Epic → independently shippable MMFs; to-spec: one Spec per MMF</text>
-<text x="144" y="508" font-size="16" fill="#6b7280" font-weight="400">One MR per MMF; deliver MMFs in turn; shared enabling work belongs to the first MMF that needs it</text>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="kind">
+<polygon points="520.0,160 640,210.0 520.0,260 400,210.0" fill="#fff7ed" stroke="#f97316" stroke-width="2" />
+<text x="520.0" y="178" text-anchor="middle" class="type">DECISION</text>
+<text x="520.0" y="201" text-anchor="middle" class="node-title">Refactor / Optimize?</text>
+<text x="520.0" y="218" text-anchor="middle" class="node-sub">Yes: analyze first</text>
+<text x="520.0" y="233" text-anchor="middle" class="node-sub">No: route directly</text>
 </g>
-<g data-graph-role="node" data-node-id="tickets">
-<rect x="400" y="680" width="840" height="170" rx="8" fill="#faf5ff" stroke="#d1d5db" stroke-width="1.5"/>
-<text x="424" y="718" font-size="24" fill="#111827" font-weight="600">03 Optional Tickets</text>
-<text x="424" y="756" font-size="16" fill="#6b7280" font-weight="400">vertical-slicing → ticket-sizing → user decision → to-tickets</text>
-<text x="424" y="788" font-size="16" fill="#6b7280" font-weight="400">Oversized: ticket-split-100k; show split signals + MMF total before publishing</text>
-<text x="424" y="820" font-size="16" fill="#6b7280" font-weight="400">Execute by dependency in one MMF MR; deliver when all tickets are complete</text>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="analysis">
+<rect x="760" y="150" width="500" height="120" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2" />
+<rect x="764" y="154" width="492" height="112" rx="7" fill="none" stroke="#0d9488" stroke-width="0.9" opacity="0.55" />
+<text x="1010.0" y="168" text-anchor="middle" class="type">ANALYZE</text>
+<text x="1010.0" y="191" text-anchor="middle" class="node-title">Choose One Analysis</text>
+<text x="1010.0" y="208" text-anchor="middle" class="node-sub">improve-codebase-architecture</text>
+<text x="1010.0" y="223" text-anchor="middle" class="node-sub">productionize-app-with-services</text>
 </g>
-<g data-graph-role="node" data-node-id="work">
-<rect x="120" y="980" width="1120" height="210" rx="8" fill="#f0fdf4" stroke="#d1d5db" stroke-width="1.5"/>
-<text x="144" y="1018" font-size="24" fill="#111827" font-weight="600">04 Implement + Verify</text>
-<text x="144" y="1056" font-size="16" fill="#6b7280" font-weight="400">git-worktree isolates writes → implement vertical slices → tdd chooses red / green as needed</text>
-<text x="144" y="1088" font-size="16" fill="#6b7280" font-weight="400">Relevant E2E / real execution / existing formal checks → reconcile → code-review (Standards + Spec)</text>
-<text x="144" y="1120" font-size="16" fill="#6b7280" font-weight="400">Then git-commit; delivery-pipeline can orchestrate execution under the target project&#x27;s contract</text>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="route">
+<polygon points="1630.0,160 1760,210.0 1630.0,260 1500,210.0" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2" />
+<text x="1630.0" y="178" text-anchor="middle" class="type">ROUTER</text>
+<text x="1630.0" y="201" text-anchor="middle" class="node-title">Scale / Type Router</text>
+<text x="1630.0" y="220" text-anchor="middle" class="node-sub">Large · Small · Bug</text>
 </g>
-<g data-graph-role="node" data-node-id="delivery">
-<rect x="120" y="1320" width="1120" height="230" rx="8" fill="#fff7ed" stroke="#d1d5db" stroke-width="1.5"/>
-<text x="144" y="1358" font-size="24" fill="#111827" font-weight="600">05 Integrate + Deliver</text>
-<text x="144" y="1396" font-size="16" fill="#6b7280" font-weight="400">Local: git-rebase-main → main; remote: git-push-pr → gh-merge-pr</text>
-<text x="144" y="1428" font-size="16" fill="#6b7280" font-weight="400">PR: freeze Review Packet → current-head Standards + Spec → evidence-led specialists → Verdict</text>
-<text x="144" y="1460" font-size="16" fill="#6b7280" font-weight="400">Authorized merge + parity readback; deployment and business acceptance follow the target project&#x27;s contract</text>
+
+<path xmlns="http://www.w3.org/2000/svg" id="start" data-graph-role="edge" data-source="request" data-target="kind" d="M320 210 H400" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="kind-analysis" data-graph-role="edge" data-source="kind" data-target="analysis" d="M640 210 H760" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="analysis-route" data-graph-role="edge" data-source="analysis" data-target="entry-junction" d="M1260 210 H1397" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="kind-direct" data-graph-role="edge" data-source="kind" data-target="entry-junction" d="M520 260 V300 H1400 V213" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="label"><rect x="654.0" y="168" width="92" height="20" rx="5" fill="#ffffff" opacity="0.96" />
+<text x="700" y="182" text-anchor="middle" class="edge-label" fill="#f97316">analyze first</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="label"><rect x="1021.0" y="278" width="118" height="20" rx="5" fill="#ffffff" opacity="0.96" />
+<text x="1080" y="292" text-anchor="middle" class="edge-label" fill="#f97316">ordinary / bug</text></g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="route-0" data-graph-role="edge" data-source="route-junction" data-target="large-clarify" d="M1627 340 H350 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="label"><rect x="316.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96" />
+<text x="350" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Large</text></g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="route-1" data-graph-role="edge" data-source="route-junction" data-target="small-grill" d="M1630 343 V370 H1040 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="label"><rect x="1006.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96" />
+<text x="1040" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Small</text></g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="route-2" data-graph-role="edge" data-source="route-junction" data-target="bug-worktree" d="M1633 340 H1730 V430" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="label"><rect x="1696.0" y="364" width="68" height="20" rx="5" fill="#ffffff" opacity="0.96" />
+<text x="1730" y="378" text-anchor="middle" class="edge-label" fill="#f97316">Bug</text></g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="entry-route" data-graph-role="edge" data-source="entry-junction" data-target="route" d="M1403 210 H1500" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<path xmlns="http://www.w3.org/2000/svg" id="route-trunk" data-graph-role="edge" data-source="route" data-target="route-junction" d="M1630 260 V337" fill="none" stroke="#f97316" stroke-width="2.2" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="entry-junction"><circle cx="1400" cy="210" r="3" fill="#f97316" /></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="route-junction"><circle cx="1630" cy="340" r="3" fill="#f97316" /></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="large-clarify" id="large-clarify"><rect x="100" y="430" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="448" text-anchor="middle" class="type">OPTIONAL</text><text x="350.0" y="472" text-anchor="middle" class="node-title">Research / Brainstorm / Grill</text><text x="350.0" y="496" text-anchor="middle" class="node-sub">Clarify as needed; Second Opinion / Office Hours</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="to-epic" id="to-epic"><rect x="100" y="558" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="576" text-anchor="middle" class="type">EPIC</text><text x="350.0" y="600" text-anchor="middle" class="node-title">to-epic</text><text x="350.0" y="624" text-anchor="middle" class="node-sub">Epic → shippable MMFs; enabling work in first MMF</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-1" data-graph-role="edge" data-source="large-clarify" data-target="to-epic" d="M350 518 V558" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="mmf" id="mmf"><rect x="100" y="686" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="704" text-anchor="middle" class="type">DELIVERY UNIT</text><text x="350.0" y="728" text-anchor="middle" class="node-title">MMF</text><text x="350.0" y="752" text-anchor="middle" class="node-sub">One MMF · one Spec · one MR</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-2" data-graph-role="edge" data-source="to-epic" data-target="mmf" d="M350 646 V686" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="large-wayfinder" id="large-wayfinder"><rect x="100" y="814" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="832" text-anchor="middle" class="type">DISCOVERY</text><text x="350.0" y="856" text-anchor="middle" class="node-title">wayfinder</text><text x="350.0" y="880" text-anchor="middle" class="node-sub">Optional Map; decision frontier → evidence → closure</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-3" data-graph-role="edge" data-source="mmf" data-target="large-wayfinder" d="M350 774 V814" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="to-spec" id="to-spec"><rect x="100" y="942" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="960" text-anchor="middle" class="type">SPEC</text><text x="350.0" y="984" text-anchor="middle" class="node-title">to-spec</text><text x="350.0" y="1008" text-anchor="middle" class="node-sub">Business Flow · Module / Interface / Seam · approve / publish</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-4" data-graph-role="edge" data-source="large-wayfinder" data-target="to-spec" d="M350 902 V942" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="vertical-slicing" id="vertical-slicing"><rect x="100" y="1070" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="1088" text-anchor="middle" class="type">SLICES</text><text x="350.0" y="1112" text-anchor="middle" class="node-title">vertical-slicing</text><text x="350.0" y="1136" text-anchor="middle" class="node-sub">Skeleton / thickening / structure · dependencies / waves</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-5" data-graph-role="edge" data-source="to-spec" data-target="vertical-slicing" d="M350 1030 V1070" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="ticket-sizing" id="ticket-sizing"><rect x="100" y="1198" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="1216" text-anchor="middle" class="type">SIZING</text><text x="350.0" y="1240" text-anchor="middle" class="node-title">ticket-sizing</text><text x="350.0" y="1264" text-anchor="middle" class="node-sub">Per-ticket signals + MMF total before user decision</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-6" data-graph-role="edge" data-source="vertical-slicing" data-target="ticket-sizing" d="M350 1158 V1198" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="ticket-decision" id="ticket-decision"><rect x="100" y="1326" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="1344" text-anchor="middle" class="type">USER DECISION</text><text x="350.0" y="1368" text-anchor="middle" class="node-title">Proceed / Re-cut / Release Mode</text><text x="350.0" y="1392" text-anchor="middle" class="node-sub">Proceed; return to to-epic; or approve per-ticket release</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-7" data-graph-role="edge" data-source="ticket-sizing" data-target="ticket-decision" d="M350 1286 V1326" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="ticket-split" id="ticket-split"><rect x="100" y="1454" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="1472" text-anchor="middle" class="type">CONDITIONAL</text><text x="350.0" y="1496" text-anchor="middle" class="node-title">ticket-split-100k</text><text x="350.0" y="1520" text-anchor="middle" class="node-sub">Split oversized tickets only; otherwise go to to-tickets</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-8" data-graph-role="edge" data-source="ticket-decision" data-target="ticket-split" d="M350 1414 V1454" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="to-tickets" id="to-tickets"><rect x="100" y="1582" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="350.0" y="1600" text-anchor="middle" class="type">PUBLISH</text><text x="350.0" y="1624" text-anchor="middle" class="node-title">to-tickets</text><text x="350.0" y="1648" text-anchor="middle" class="node-sub">Approval → publish tickets / Parent / blockers → readback</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="large-clarify-9" data-graph-role="edge" data-source="ticket-split" data-target="to-tickets" d="M350 1542 V1582" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="small-grill" id="small-grill"><rect x="790" y="430" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="448" text-anchor="middle" class="type">PLAN</text><text x="1040.0" y="472" text-anchor="middle" class="node-title">Minimal Plan → grill-with-docs</text><text x="1040.0" y="496" text-anchor="middle" class="node-sub">Regular: stress-test plan; small changes: implement directly</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="implement" id="implement"><rect x="790" y="558" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="576" text-anchor="middle" class="type">IMPLEMENT</text><text x="1040.0" y="600" text-anchor="middle" class="node-title">git-worktree → implement</text><text x="1040.0" y="624" text-anchor="middle" class="node-sub">Isolate writes; fix baseline, acceptance and expectations</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-1" data-graph-role="edge" data-source="small-grill" data-target="implement" d="M1040 518 V558" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="tdd" id="tdd"><rect x="790" y="686" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="704" text-anchor="middle" class="type">SLICE LOOP</text><text x="1040.0" y="728" text-anchor="middle" class="node-title">tdd · Red → Green → Probe</text><text x="1040.0" y="752" text-anchor="middle" class="node-sub">Red / green as needed; probe; no new tests for docs</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-2" data-graph-role="edge" data-source="implement" data-target="tdd" d="M1040 646 V686" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="verify" id="verify"><rect x="790" y="814" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="832" text-anchor="middle" class="type">REAL EXECUTION</text><text x="1040.0" y="856" text-anchor="middle" class="node-title">E2E / verify-&lt;app&gt; / formal-verify-*</text><text x="1040.0" y="880" text-anchor="middle" class="node-sub">Real entrypoints + full checks; run covered formal checks</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-3" data-graph-role="edge" data-source="tdd" data-target="verify" d="M1040 774 V814" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="reconcile" id="reconcile"><rect x="790" y="942" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="960" text-anchor="middle" class="type">RECONCILE</text><text x="1040.0" y="984" text-anchor="middle" class="node-title">Acceptance ↔ Actual Artifacts</text><text x="1040.0" y="1008" text-anchor="middle" class="node-sub">Remove unneeded layers; reconcile acceptance with artifacts</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-4" data-graph-role="edge" data-source="verify" data-target="reconcile" d="M1040 902 V942" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="local-review" id="local-review"><rect x="790" y="1070" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="1088" text-anchor="middle" class="type">REVIEW</text><text x="1040.0" y="1112" text-anchor="middle" class="node-title">code-review · Standards + Spec</text><text x="1040.0" y="1136" text-anchor="middle" class="node-sub">Up to 3 rounds; fix P0/P1; log P2; report P3</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-5" data-graph-role="edge" data-source="reconcile" data-target="local-review" d="M1040 1030 V1070" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="small-commit" id="small-commit"><rect x="790" y="1198" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="1216" text-anchor="middle" class="type">COMMIT</text><text x="1040.0" y="1240" text-anchor="middle" class="node-title">git-commit</text><text x="1040.0" y="1264" text-anchor="middle" class="node-sub">Narrow verified commit; remote delivery needs authority</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-6" data-graph-role="edge" data-source="local-review" data-target="small-commit" d="M1040 1158 V1198" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="small-land" id="small-land"><rect x="790" y="1326" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="1344" text-anchor="middle" class="type">LOCAL LAND</text><text x="1040.0" y="1368" text-anchor="middle" class="node-title">git-rebase-main</text><text x="1040.0" y="1392" text-anchor="middle" class="node-sub">Rebase → fast-forward main; no implicit push / PR</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-7" data-graph-role="edge" data-source="small-commit" data-target="small-land" d="M1040 1286 V1326" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="small-close" id="small-close"><rect x="790" y="1454" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1040.0" y="1472" text-anchor="middle" class="type">CLOSEOUT</text><text x="1040.0" y="1496" text-anchor="middle" class="node-title">Post-merge Check → Cleanup</text><text x="1040.0" y="1520" text-anchor="middle" class="node-sub">Verify landing; clean up and report within task scope</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="small-grill-8" data-graph-role="edge" data-source="small-land" data-target="small-close" d="M1040 1414 V1454" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="bug-worktree" id="bug-worktree"><rect x="1480" y="430" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="448" text-anchor="middle" class="type">ISOLATE</text><text x="1730.0" y="472" text-anchor="middle" class="node-title">git-worktree</text><text x="1730.0" y="496" text-anchor="middle" class="node-sub">One bug / writer; fix the real reproduction surface</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="diagnosing-bugs" id="diagnosing-bugs"><rect x="1480" y="558" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="576" text-anchor="middle" class="type">DEBUG</text><text x="1730.0" y="600" text-anchor="middle" class="node-title">diagnosing-bugs · how · why</text><text x="1730.0" y="624" text-anchor="middle" class="node-sub">Eliminate hypotheses with runtime evidence; find cause</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-1" data-graph-role="edge" data-source="bug-worktree" data-target="diagnosing-bugs" d="M1730 518 V558" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="bug-fix" id="bug-fix"><rect x="1480" y="686" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="704" text-anchor="middle" class="type">RED → FIX</text><text x="1730.0" y="728" text-anchor="middle" class="node-title">tdd · Root-cause Fix</text><text x="1730.0" y="752" text-anchor="middle" class="node-sub">Same input fails first; fix root cause and peer cases</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-2" data-graph-role="edge" data-source="diagnosing-bugs" data-target="bug-fix" d="M1730 646 V686" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="bug-verify" id="bug-verify"><rect x="1480" y="814" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="832" text-anchor="middle" class="type">REPRODUCE AGAIN</text><text x="1730.0" y="856" text-anchor="middle" class="node-title">Real Reproduction → PASS</text><text x="1730.0" y="880" text-anchor="middle" class="node-sub">Recheck the original surface; unit tests are insufficient</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-3" data-graph-role="edge" data-source="bug-fix" data-target="bug-verify" d="M1730 774 V814" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="bug-review" id="bug-review"><rect x="1480" y="942" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="960" text-anchor="middle" class="type">REVIEW</text><text x="1730.0" y="984" text-anchor="middle" class="node-title">code-review</text><text x="1730.0" y="1008" text-anchor="middle" class="node-sub">Repro / root cause as Spec; both axes must pass</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-4" data-graph-role="edge" data-source="bug-verify" data-target="bug-review" d="M1730 902 V942" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="git-commit" id="git-commit"><rect x="1480" y="1070" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="1088" text-anchor="middle" class="type">LOCAL</text><text x="1730.0" y="1112" text-anchor="middle" class="node-title">git-commit</text><text x="1730.0" y="1136" text-anchor="middle" class="node-sub">Commit only this fix, checks and documentation</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-5" data-graph-role="edge" data-source="bug-review" data-target="git-commit" d="M1730 1030 V1070" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="git-rebase-main" id="git-rebase-main"><rect x="1480" y="1198" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="1216" text-anchor="middle" class="type">LAND</text><text x="1730.0" y="1240" text-anchor="middle" class="node-title">git-rebase-main</text><text x="1730.0" y="1264" text-anchor="middle" class="node-sub">Rebase + fast-forward; verify then reclaim safely</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-6" data-graph-role="edge" data-source="git-commit" data-target="git-rebase-main" d="M1730 1158 V1198" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="bug-close" id="bug-close"><rect x="1480" y="1326" width="500" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1730.0" y="1344" text-anchor="middle" class="type">CLOSEOUT</text><text x="1730.0" y="1368" text-anchor="middle" class="node-title">Evidence → Report / Next Issue</text><text x="1730.0" y="1392" text-anchor="middle" class="node-sub">Symptom, cause, fix, original repro red → green</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="bug-worktree-7" data-graph-role="edge" data-source="git-rebase-main" data-target="bug-close" d="M1730 1286 V1326" fill="none" stroke="#16a34a" stroke-width="2.2" marker-end="url(#arrow-bug)" />
+<path xmlns="http://www.w3.org/2000/svg" id="re-cut-mmf" data-graph-role="edge" data-source="ticket-decision" data-target="to-epic" d="M100 1370 H80 V602 H100" fill="none" stroke="#ef4444" stroke-width="2.2" marker-end="url(#arrow-feedback)" />
+<path xmlns="http://www.w3.org/2000/svg" id="skip-ticket-split" data-graph-role="edge" data-source="ticket-decision" data-target="to-tickets" d="M600 1370 H625 V1626 H600" fill="none" stroke="#f97316" stroke-width="2.2" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+<path xmlns="http://www.w3.org/2000/svg" id="one-context-direct" data-graph-role="edge" data-source="vertical-slicing" data-target="implement" d="M600 1114 H695 V602 H790" fill="none" stroke="#f97316" stroke-width="2.2" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" />
+<text xmlns="http://www.w3.org/2000/svg" x="1040.0" y="1590" text-anchor="middle" class="node-sub">No behavior checks: create-verification-skill; drift: maintain-verification-skill</text>
+<text xmlns="http://www.w3.org/2000/svg" x="1040.0" y="1620" text-anchor="middle" class="node-sub">Formal-check gap: propose create-formal-verification-skill</text>
+<text xmlns="http://www.w3.org/2000/svg" x="1050.0" y="1698" text-anchor="middle" class="node-sub">One context: manual Spec → 02B; automation publishes one ticket → 03. Per-ticket release: see owner.</text>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container" transform="translate(0 960)"><rect data-graph-role="container" x="40" y="790" width="2000" height="450" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="1290" y="818" class="section">03 · DELIVERY-PIPELINE AUTOMATION &amp; DELIVERY</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="dp-input" transform="translate(0 970)">
+<rect x="60" y="870" width="210" height="70" rx="10" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2" />
+<rect x="64" y="874" width="202" height="62" rx="7" fill="none" stroke="#8b5cf6" stroke-width="0.9" opacity="0.55" />
+<text x="165.0" y="888" text-anchor="middle" class="type">CONTROL</text>
+<text x="165.0" y="911" text-anchor="middle" class="node-title">Take Map / Spec</text>
+<text x="165.0" y="930" text-anchor="middle" class="node-sub">Resume durable workflow</text>
 </g>
-<text x="696" y="354" font-size="16" fill="#2563eb" font-weight="400">Large scope</text>
-<text x="916" y="622" font-size="16" fill="#2563eb" font-weight="400">Needs tickets</text>
-<text x="256" y="622" font-size="16" fill="#2563eb" font-weight="400">Fits one</text>
-<text x="256" y="650" font-size="16" fill="#2563eb" font-weight="400">context:</text>
-<text x="256" y="678" font-size="16" fill="#2563eb" font-weight="400">skip tickets</text>
-<text x="916" y="916" font-size="16" fill="#2563eb" font-weight="400">Approved tickets</text>
-<text x="696" y="1262" font-size="16" fill="#2563eb" font-weight="400">Verified commit</text>
-<text x="120" y="1602" font-size="16" fill="#2563eb" font-weight="400">Main delivery flow</text>
-<text x="400" y="1602" font-size="16" fill="#ea580c" font-weight="400">Regular / small: enter implementation</text>
-<text x="120" y="1640" font-size="15" fill="#6b7280" font-weight="400">Remote writes, PR merge and release each follow explicit authority; implemented does not mean deployed or accepted.</text>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="gate" transform="translate(0 970)">
+<rect x="330" y="870" width="210" height="70" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2" />
+<text x="435.0" y="888" text-anchor="middle" class="type">STATE</text>
+<text x="435.0" y="911" text-anchor="middle" class="node-title">Rebuild Gate</text>
+<text x="435.0" y="930" text-anchor="middle" class="node-sub">Discovery / Spec / Tickets evidence</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="frontier" transform="translate(0 970)">
+<polygon points="622,870 798,870 820,905.0 798,940 622,940 600,905.0" fill="#fff7ed" stroke="#f97316" stroke-width="2" />
+<text x="710.0" y="888" text-anchor="middle" class="type">SCHEDULE</text>
+<text x="710.0" y="911" text-anchor="middle" class="node-title">Ready Frontier</text>
+<text x="710.0" y="930" text-anchor="middle" class="node-sub">Largest safe batch</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="lanes" transform="translate(0 970)">
+<rect x="880" y="870" width="210" height="70" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2" />
+<text x="985.0" y="888" text-anchor="middle" class="type">WORKERS</text>
+<text x="985.0" y="911" text-anchor="middle" class="node-title">Role Lanes</text>
+<text x="985.0" y="930" text-anchor="middle" class="node-sub">Owner / Model / Execution WT</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="fanin" transform="translate(0 970)">
+<rect x="1150" y="870" width="220" height="70" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" />
+<rect x="1154" y="874" width="212" height="62" rx="7" fill="none" stroke="#16a34a" stroke-width="0.9" opacity="0.55" />
+<text x="1260.0" y="888" text-anchor="middle" class="type">INTEGRATE</text>
+<text x="1260.0" y="911" text-anchor="middle" class="node-title">Terminal Fan-in</text>
+<text x="1260.0" y="930" text-anchor="middle" class="node-sub">Verify + cherry-pick</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="quality" transform="translate(0 970)">
+<rect x="1430" y="870" width="220" height="70" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2" />
+<text x="1540.0" y="888" text-anchor="middle" class="type">QUALITY</text>
+<text x="1540.0" y="911" text-anchor="middle" class="node-title">Testing + Review</text>
+<text x="1540.0" y="930" text-anchor="middle" class="node-sub">Full checks and verdict</text>
+</g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-0" data-graph-role="edge" data-source="dp-input" data-target="gate" d="M270 905 H330" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 970)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-1" data-graph-role="edge" data-source="gate" data-target="frontier" d="M540 905 H600" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 970)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-2" data-graph-role="edge" data-source="frontier" data-target="lanes" d="M820 905 H880" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 970)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-3" data-graph-role="edge" data-source="lanes" data-target="fanin" d="M1090 905 H1150" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 970)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-4" data-graph-role="edge" data-source="fanin" data-target="quality" d="M1370 905 H1430" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 970)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="pipeline-loop" data-graph-role="edge" data-source="fanin" data-target="frontier" d="M1260 940 V1000 H710 V940" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5" transform="translate(0 970)" />
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="test-choice" id="test-choice"><rect x="600" y="2020" width="260" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="730.0" y="2038" text-anchor="middle" class="type">GATE</text><text x="730.0" y="2062" text-anchor="middle" class="node-title">Test Decision</text><text x="730.0" y="2086" text-anchor="middle" class="node-sub">Test now / after rebase / skip extra test</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="sync-main" id="sync-main"><rect x="920" y="2020" width="260" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1050.0" y="2038" text-anchor="middle" class="type">GATE</text><text x="1050.0" y="2062" text-anchor="middle" class="node-title">Rebase + Recheck</text><text x="1050.0" y="2086" text-anchor="middle" class="node-sub">Sync latest main; recheck after conflicts</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="remote" id="remote"><rect x="1240" y="2020" width="260" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1370.0" y="2038" text-anchor="middle" class="type">GATE</text><text x="1370.0" y="2062" text-anchor="middle" class="node-title">Push / PR Gate</text><text x="1370.0" y="2086" text-anchor="middle" class="node-sub">Authority, one PR and CI; hold if absent</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="quality-test-choice" data-graph-role="edge" data-source="quality" data-target="test-choice" d="M1540 1910 V1980 H730 V2020" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<path xmlns="http://www.w3.org/2000/svg" id="test-rebase" data-graph-role="edge" data-source="test-choice" data-target="sync-main" d="M860 2064 H920" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<path xmlns="http://www.w3.org/2000/svg" id="rebase-remote" data-graph-role="edge" data-source="sync-main" data-target="remote" d="M1180 2064 H1240" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<path xmlns="http://www.w3.org/2000/svg" id="large-pipeline" data-graph-role="edge" data-source="to-tickets" data-target="dp-input" d="M350 1670 V1730 H165 V1840" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<text xmlns="http://www.w3.org/2000/svg" x="1000.0" y="1962" text-anchor="middle" class="node-sub">More ready work: recompute frontier</text>
+<text xmlns="http://www.w3.org/2000/svg" x="1010.0" y="2148" text-anchor="middle" class="node-sub">Workers use 02B implementation / verification; CLI review placement follows host policy.</text>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container" transform="translate(0 1140)"><rect data-graph-role="container" x="40" y="1110" width="2000" height="290" rx="12" fill="#f8fafc" fill-opacity="0.58" stroke="#cbd5e1" stroke-width="1.4" stroke-dasharray="7 6" />
+<text x="1200" y="1138" class="section">04 · GH-MERGE-PR CURRENT-HEAD REVIEW (SEPARATE AUTHORITY)</text></g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="review-packet" transform="translate(0 1140)">
+<rect x="60" y="1180" width="230" height="78" rx="10" fill="#faf5ff" stroke="#8b5cf6" stroke-width="2" />
+<rect x="64" y="1184" width="222" height="70" rx="7" fill="none" stroke="#8b5cf6" stroke-width="0.9" opacity="0.55" />
+<text x="175.0" y="1198" text-anchor="middle" class="type">PACKET</text>
+<text x="175.0" y="1221" text-anchor="middle" class="node-title">Fixed Review Packet</text>
+<text x="175.0" y="1240" text-anchor="middle" class="node-sub">PR · Base · Head SHA · Diff · Spec</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="code-review" transform="translate(0 1140)">
+<rect x="350" y="1180" width="230" height="78" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2" />
+<text x="465.0" y="1198" text-anchor="middle" class="type">MAIN REVIEW</text>
+<text x="465.0" y="1221" text-anchor="middle" class="node-title">code-review</text>
+<text x="465.0" y="1240" text-anchor="middle" class="node-sub">Standards + Spec main review</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="specialist-gate" transform="translate(0 1140)">
+<polygon points="755.0,1174 870,1219.0 755.0,1264 640,1219.0" fill="#fff7ed" stroke="#f97316" stroke-width="2" />
+<text x="755.0" y="1192" text-anchor="middle" class="type">ROUTER</text>
+<text x="755.0" y="1215" text-anchor="middle" class="node-title">Specialist Evidence?</text>
+<text x="755.0" y="1234" text-anchor="middle" class="node-sub">Request · paths · main findings</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="specialists" transform="translate(0 1140)">
+<rect x="930" y="1174" width="350" height="90" rx="10" fill="#f0fdfa" stroke="#0d9488" stroke-width="2" />
+<text x="1105.0" y="1192" text-anchor="middle" class="type">SPECIALISTS</text>
+<text x="1105.0" y="1215" text-anchor="middle" class="node-title">On-demand Reviews</text>
+<text x="1105.0" y="1232" text-anchor="middle" class="node-sub">complexity · thermo · better-interface</text>
+<text x="1105.0" y="1247" text-anchor="middle" class="node-sub">React · Postgres</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="verdict" transform="translate(0 1140)">
+<rect x="1340" y="1180" width="230" height="78" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="2" />
+<rect x="1344" y="1184" width="222" height="70" rx="7" fill="none" stroke="#dc2626" stroke-width="0.9" opacity="0.55" />
+<text x="1455.0" y="1198" text-anchor="middle" class="type">VERDICT</text>
+<text x="1455.0" y="1221" text-anchor="middle" class="node-title">Current-head Verdict</text>
+<text x="1455.0" y="1240" text-anchor="middle" class="node-sub">REVIEWED / BLOCKED</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="merge" transform="translate(0 1140)">
+<rect x="1610" y="1180" width="220" height="78" rx="10" fill="#fff7ed" stroke="#f97316" stroke-width="2" />
+<text x="1720.0" y="1198" text-anchor="middle" class="type">AUTHORITY</text>
+<text x="1720.0" y="1221" text-anchor="middle" class="node-title">Merge Gate</text>
+<text x="1720.0" y="1238" text-anchor="middle" class="node-sub">Explicit PR / target authority</text>
+<text x="1720.0" y="1253" text-anchor="middle" class="node-sub">Existing authority remains valid</text>
+</g>
+
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="parity" transform="translate(0 1140)">
+<rect x="1850" y="1180" width="180" height="78" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" />
+<text x="1940.0" y="1198" text-anchor="middle" class="type">READBACK</text>
+<text x="1940.0" y="1221" text-anchor="middle" class="node-title">Parity Readback</text>
+<text x="1940.0" y="1238" text-anchor="middle" class="node-sub">Provider · Remote</text>
+<text x="1940.0" y="1253" text-anchor="middle" class="node-sub">Local · Check</text>
+</g>
+
+<path xmlns="http://www.w3.org/2000/svg" id="packet-main" data-graph-role="edge" data-source="review-packet" data-target="code-review" d="M290 1219 H350" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="main-specialist-gate" data-graph-role="edge" data-source="code-review" data-target="specialist-gate" d="M580 1219 H640" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="specialist-yes" data-graph-role="edge" data-source="specialist-gate" data-target="specialists" d="M870 1219 H930" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-choice)" stroke-dasharray="7 5" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="specialist-verdict" data-graph-role="edge" data-source="specialists" data-target="verdict" d="M1280 1219 H1340" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="specialist-no" data-graph-role="edge" data-source="specialist-gate" data-target="verdict" d="M755 1264 V1320 H1455 V1258" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-feedback)" stroke-dasharray="7 5" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="verdict-merge" data-graph-role="edge" data-source="verdict" data-target="merge" d="M1570 1219 H1610" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="merge-parity" data-graph-role="edge" data-source="merge" data-target="parity" d="M1830 1219 H1850" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-control)" transform="translate(0 1140)" />
+
+<path xmlns="http://www.w3.org/2000/svg" id="remote-review" data-graph-role="edge" data-source="remote" data-target="review-packet" d="M1370 2108 V2200 H175 V2320" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<text xmlns="http://www.w3.org/2000/svg" x="1030.0" y="2520" text-anchor="middle" class="node-sub">P0/P1 → owner fix + recheck; max 3 rounds; exhausted → BLOCKED + postmortem / retro; rebuild Packet for changed head.</text>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="container"><rect data-graph-role="container" x="40" y="2600" width="2000" height="200" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-dasharray="7 6" /><text x="700" y="2630" class="section">05 · RELEASE → ACCEPTANCE → CLOSEOUT → NEXT MMF</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="deploy" id="deploy"><rect x="80" y="2670" width="420" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="290.0" y="2688" text-anchor="middle" class="type">RELEASE</text><text x="290.0" y="2712" text-anchor="middle" class="node-title">Release / Deploy</text><text x="290.0" y="2736" text-anchor="middle" class="node-sub">Use target project release contract and authority</text></g>
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="acceptance" id="acceptance"><rect x="580" y="2670" width="420" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="790.0" y="2688" text-anchor="middle" class="type">ACCEPTANCE</text><text x="790.0" y="2712" text-anchor="middle" class="node-title">Business Acceptance</text><text x="790.0" y="2736" text-anchor="middle" class="node-sub">Real user flow in target environment; record N/A</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="finish-1" data-graph-role="edge" data-source="deploy" data-target="acceptance" d="M500 2714 H580" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="closeout" id="closeout"><rect x="1080" y="2670" width="420" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1290.0" y="2688" text-anchor="middle" class="type">CLOSEOUT</text><text x="1290.0" y="2712" text-anchor="middle" class="node-title">Issue / Branch / Worktree</text><text x="1290.0" y="2736" text-anchor="middle" class="node-sub">Close accepted direct issues; reclaim safely; read back</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="finish-2" data-graph-role="edge" data-source="acceptance" data-target="closeout" d="M1000 2714 H1080" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<g xmlns="http://www.w3.org/2000/svg" data-graph-role="node" data-node-id="report" id="report"><rect x="1580" y="2670" width="420" height="88" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" /><text x="1790.0" y="2688" text-anchor="middle" class="type">DONE / NEXT MMF</text><text x="1790.0" y="2712" text-anchor="middle" class="node-title">Evidence → Next MMF</text><text x="1790.0" y="2736" text-anchor="middle" class="node-sub">Report evidence / remaining gates; next approved MMF</text></g>
+<path xmlns="http://www.w3.org/2000/svg" id="finish-3" data-graph-role="edge" data-source="closeout" data-target="report" d="M1500 2714 H1580" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<path xmlns="http://www.w3.org/2000/svg" id="parity-deploy" data-graph-role="edge" data-source="parity" data-target="deploy" d="M1940 2398 V2560 H290 V2670" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow-control)" />
+<text xmlns="http://www.w3.org/2000/svg" x="1040.0" y="2860" text-anchor="middle" class="node-sub">Purple: delivery · Orange: choices · Green: bug closeout · Red: feedback loop</text>
+<text xmlns="http://www.w3.org/2000/svg" x="1040.0" y="2900" text-anchor="middle" class="node-sub">Prove implementation, merge, deploy and acceptance separately. Without authority hold locally; Unknown is not passed.</text>
 </svg>

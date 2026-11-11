@@ -8,7 +8,9 @@
 
 [查看 SVG 原图](docs/assets/development-workflow.zh-CN.svg) · [下载 PNG](docs/assets/development-workflow.zh-CN.png)
 
-流程图按 MMF 串联规划、可选拆票、实现与验证、获授权的集成与交付。具体 Skill 选择见[任务分流](#任务分流)。运行 `python3 docs/assets/render-development-workflow.py` 重建 SVG，再用 [fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) 校验并导出 PNG。
+流程图从需求入口开始，展开大需求、常规需求与 Bug 分流，串联 MMF 规划、拆票发布、实现、自动派发与集成、current-head Review、部署、业务验收和收尾。本地 Git 收口与远程交付各自遵循对应授权。具体 Skill 选择见[任务分流](#任务分流)。
+
+运行 `python3 docs/assets/render-development-workflow.py`，从 `docs/assets/workflow-source/` 中的布局源文件重建 SVG，再用 [fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph) 校验并导出 PNG。
 
 ## 任务分流
 

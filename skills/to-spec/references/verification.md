@@ -12,6 +12,9 @@
 - 每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions。
 - 重复退款规则点名了 `formal-verify-*` 或 `create-formal-verification-skill`。
 - 没有用户故事复述转移；图中没有代码名。
+- 每个新建或修改的 Module 的 Interface 用代码写：类型和函数签名，函数体留空，没有文件路径。
+- 守住“只能退款一次”的签名带 `Ensures:`；这条 R 跨 Module 时，owner 下有 `Participants:`，参与方的 `Ensures:` 回引 R 编号。
+- 没有给每个签名都写 `Ensures:`。
 
 ## 关键失败路径：无状态的需求
 

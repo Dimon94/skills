@@ -59,13 +59,15 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景、可观察影响与能走通的具体反例；证据不足写 Unknown，不算 finding。P0/P1 先在 fixed point 上核对同一问题是否已存在，按「严重度」节的基线规则定级。
 
+Spec brief 再追加一句：spec 某行的措辞容许两种可观察行为不同的实现时，不判实现对错；引该行、写出两种读法，列为 Spec 缺口。
+
 ### 5. Aggregate
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
 End with a one-line summary: per axis, the verdict, the finding count by severity, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
 
-每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口写进报告，不改变 verdict。审查中断、超时或缺少 verdict 时为未完成，不计轮次，不以实现者自评或测试通过代替。
+每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口和 Spec 缺口写进报告，不改变 verdict；Spec 缺口交调用方收紧 spec 措辞。审查中断、超时或缺少 verdict 时为未完成，不计轮次，不以实现者自评或测试通过代替。
 
 ## 严重度
 

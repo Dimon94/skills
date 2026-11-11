@@ -24,7 +24,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都写明 Interface 和 Seam，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
 <spec-template>
 
@@ -89,15 +89,17 @@ A list of implementation decisions that were made. This can include:
 
 Use `codebase-design` terms. For each Module built or modified, state:
 
-- Which T and R it owns (omit when Business Flow is `N/A`)
-- Its Interface, including invariants, ordering constraints and error modes
+- Which T and R it owns (omit when Business Flow is `N/A`). 一条 R 要靠多个 Module 共同守住时，在 owner 下写 `Participants:`，列出其余 Module；每个参与方在相关签名的 `Ensures:` 里回引 R 编号
+- Its Interface, written as code：用目标项目的语言写类型和函数签名，函数体留空。选错会破坏 T、R 或调用方的签名，在下面加 `Ensures:`，列返回承诺、错误模式和顺序约束；其余签名只留一行说明
 - Its Seam: reuse an existing one first; justify a new one by the Adapter rule in `codebase-design`
 - For a new Module, the result of the deletion test
 - Its data shape decision, when the requirement would add one more branch to an existing if/else or switch chain, or a second flag that must stay in sync with an existing one: read `principle-model-the-domain` and `principle-redesign-from-first-principles` in full from the runtime skill directory, then record the changed shape or why the branch stays
 
-Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
+Interface 代码只写控制实现所需的决定，写短。
 
-Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
+Do NOT include specific file paths. They may end up being outdated very quickly.
+
+If a prototype produced a snippet that encodes a decision more precisely than a signature can (state machine, reducer, schema), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts, not a working demo, just the important bits.
 
 ## Testing Decisions
 

@@ -1,6 +1,6 @@
 # to-spec 转为本仓自有 Skill
 
-Status: accepted
+Status: accepted（§3 被 0016 修订：增加参与方）
 
 Related: repo://skills/to-spec/SKILL.md；repo://docs/adr/0004-epic-spec-delivery-boundary.md；repo://docs/adr/0006-owned-tdd-implement.md
 

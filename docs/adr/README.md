@@ -12,6 +12,7 @@
 - [Epic 按 Spec 划分交付边界](0004-epic-spec-delivery-boundary.md)（措辞已被 0015 取代）
 - [code-review 以上游原版为基础，只加严重度](0005-code-review-upstream-severity.md)
 - [tdd 与 implement 转为本仓自有 Skill](0006-owned-tdd-implement.md)
+- [to-spec 转为本仓自有 Skill](0007-owned-to-spec.md)（§3 已被 0016 修订）
 - [Review 最多三轮，只报具体反例](0008-review-round-limit.md)（阻断线已被 0011 修订）
 - [原则以叶子快照进入套件，宿主只放指针](0009-principle-leaves-and-index.md)（§4 已被 0010 取代）
 - [dimon-mode 是工作方式入口，原则索引是其中一节](0010-dimon-mode-entry.md)（§2 已被 0012 修订）
@@ -20,6 +21,7 @@
 - [每个写任务一棵工作树，暂停落成 wip 提交](0013-worktree-per-write-task.md)（“不导入守上下文叶子”已被 0014 取代）
 - [大块读取交给子代理，同一棵树同一时刻一个写者](0014-subagents-take-bulk-reads.md)
 - [交付单位叫 MMF，Spec 是描述它的文档](0015-mmf-delivery-unit.md)
+- [Spec 用代码写 Interface，验证和审查沿 Module 收敛](0016-spec-writes-interface-as-code.md)
 
 ## 命名
 

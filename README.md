@@ -8,7 +8,7 @@ This repository combines requirement shaping, map planning, spec and ticket crea
 
 [View full-size SVG](docs/assets/development-workflow.en.svg) · [Download PNG](docs/assets/development-workflow.en.png)
 
-The diagram gives an overview. See [Task Routing](#task-routing) for detailed Skill selection and the MMF delivery rules.
+The diagram follows the MMF delivery chain: planning, optional tickets, implementation and verification, then authorized integration and delivery. See [Task Routing](#task-routing) for individual Skills. Regenerate the SVGs with `python3 docs/assets/render-development-workflow.py`, then validate and export PNGs with [fireworks-tech-graph](https://github.com/yizhiyanhua-ai/fireworks-tech-graph).
 
 ## Task Routing
 

@@ -103,6 +103,7 @@ disable-model-invocation: true
 | 任务 | owner skill |
 | --- | --- |
 | 复述用户真正要什么 | `in-your-own-words`（用户调用） |
+| 用决策地图澄清 Epic 或 MMF 的阻塞问题 | `wayfinder`（用户调用） |
 | 大需求切成多个 MMF | `to-epic`（用户调用） |
 | 给一个 MMF 写 Spec | `to-spec`（用户调用） |
 | 把一个 MMF 切成 ticket | `vertical-slicing`（用户调用） |
@@ -120,6 +121,14 @@ disable-model-invocation: true
 | 定义或改领域术语、写或改 ADR | `mattpocock-skills:domain-modeling`；执行前先读项目 `GLOSSARY.md` 的使用规则与词汇索引，再按任务读相关词条 |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |
+
+大需求不等于必有迷雾，按阻塞位置选入口：
+
+- 目标、范围和首个 MMF 已可核对：直接 `/to-epic`。局部未知由其中的 `investigate`、`research` 或 `prototype` 解决。
+- 整体拆分被需要跨 session 的决策链阻塞：先 `/wayfinder`，destination 写「可交给 `to-epic` 的 Epic 目标、范围和首个 MMF 候选」；路线清晰后运行 `/to-epic`。
+- 单个 MMF 已分出，但写 Spec 的关键决定仍需跨 session 寻路：只对该 MMF 运行 `/wayfinder`，destination 写「让这个 MMF 可写成可验收 Spec」；决策齐后由 `/to-spec` 写或改 Spec。
+
+不预先消除整个 Epic 的全部未知，也不给每个 MMF 默认建决策地图。
 
 大需求按单位逐层切：一个 Epic 由多个 MMF 组成；一个 MMF 对应一份 Spec、一个 MR，ticket 留在它的 MR 分支内。顺序：`to-epic` 切 MMF → 每个 MMF 由 `to-spec` 写一份 Spec → `vertical-slicing` 切 ticket → `ticket-sizing` 给每票拆分信号与 MMF 的票数、合计 → 用户看合计决定照此执行、回 `to-epic` 重切或转例外模式 → 超过拆分线的票走 `ticket-split-100k` → `to-tickets` 发布 → `implement`。MMF 一个上下文装得下时不拆票，Spec 直接交 `implement`。
 

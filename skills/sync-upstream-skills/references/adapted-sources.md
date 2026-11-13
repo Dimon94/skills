@@ -14,6 +14,8 @@
 | investigate | cursor/plugins | `pstack/skills/poteto-mode/playbooks/investigation.md` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/investigation.md> |
 | no-comments | cursor/plugins | `pstack/skills/no-comments`、`pstack/agents/comment-sicko.md` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/no-comments/SKILL.md> |
 | in-your-own-words | cursor/plugins | `pstack/skills/in-your-own-words` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/in-your-own-words/SKILL.md> |
+| sharpen | cursor/plugins | `pstack/skills/sharpen` | `24621dbcc59e205a7faadb0e06d540f91712b5cc` | <https://github.com/cursor/plugins/blob/24621dbcc59e205a7faadb0e06d540f91712b5cc/pstack/skills/sharpen/SKILL.md> |
+| correct | cursor/plugins | `pstack/skills/correct` | `24621dbcc59e205a7faadb0e06d540f91712b5cc` | <https://github.com/cursor/plugins/blob/24621dbcc59e205a7faadb0e06d540f91712b5cc/pstack/skills/correct/SKILL.md> |
 | test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
 | test-discipline | Dimon94/project-template | `template/docs/agents/quality-standards.md`「测试质量」 | `be3d011` | <https://github.com/Dimon94/project-template/blob/be3d011/template/docs/agents/quality-standards.md#6-测试质量> |
 | code-review | mattpocock/skills | `skills/engineering/code-review` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/code-review/SKILL.md> |
@@ -36,6 +38,8 @@
 `test-review` 借鉴固定审查范围、Standards / Spec 独立分派与分轴报告的结构；测试审查内容由本仓维护，目标项目的测试规范在调用时读取。
 
 `no-comments` 保留注释清理、必要例外、独立审查与根因修复流程；将 Comment Sicko 规则收进 Skill 的只读 reference，用宿主子 agent 替代 Cursor Task 类型。移除 poteto-mode、architect 与 principle Skill 的安装依赖，结构推演留在入口；how/why 复用现有 Skill。疑义项按 Unknown 保留，正确性抑制先修根因再删除，有效约束待编码时保留。`in-your-own-words` 保留只复述目标与问题的职责。两者使用中文，保留上游的 `disable-model-invocation: true`；Codex 显式调用策略归各自 `agents/openai.yaml`。均由本仓维护，不进入快照锁定清单。
+
+`sharpen` 保留四问与“更深不更大、不替用户决定、不执行任务”；改写后的请求补上 pstack `docs/guide/02-poteto-mode.md`「What goes in a prompt」的五项要素，缺项写 Unknown。`correct` 保留错误类别、两次才算、四级层级、旧错误上先失败与规则表；层级判断指向 `principle-encode-lessons-in-structure`，会话级教训分给 `retro`，提交改为按项目规则并需用户明确要求。两者使用中文，保留 `disable-model-invocation: true`，由本仓维护，不进入快照锁定清单。
 
 `code-review` 以上游为基础，增加调用方证据包与 WIP 范围、P0–P3 严重度与两值 verdict、审查中断不算完成、最多三轮、fixed point 已有的问题降为 P2 不阻断，并删除坏味道基线；取舍见 repo://docs/adr/0008-review-round-limit.md 与 repo://docs/adr/0011-baseline-findings-do-not-block.md。
 

@@ -21,7 +21,7 @@ disable-model-invocation: true
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
 - 改任何仓库文件前：按 `git-worktree` 建任务树，在树里写；主工作树只做集成。一行文档也不例外。
 - 提交用 `git-commit`，推送或建 PR 用 `git-push-pr`，合回 main 用 `git-rebase-main`，合并 PR 用 `gh-merge-pr`。都只在用户明确要求时执行。
-- 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。
+- 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。同一类错误在仓库里被纠正第二次：建议用户运行 `/correct`。
 - 任务中途发现某个 skill 坏了：单独报告位置和原因，不悄悄绕过。
 
 ## 原则
@@ -103,6 +103,7 @@ disable-model-invocation: true
 | 任务 | owner skill |
 | --- | --- |
 | 复述用户真正要什么 | `in-your-own-words`（用户调用） |
+| 发请求前把它改得更深、补齐完成条件和证据 | `sharpen`（用户调用） |
 | 用决策地图澄清 Epic 或 MMF 的阻塞问题 | `wayfinder`（用户调用） |
 | 大需求切成多个 MMF | `to-epic`（用户调用） |
 | 给一个 MMF 写 Spec | `to-spec`（用户调用） |

@@ -121,6 +121,10 @@ disable-model-invocation: true
 | 定义或改领域术语、写或改 ADR | `mattpocock-skills:domain-modeling`；执行前先读项目 `GLOSSARY.md` 的使用规则与词汇索引，再按任务读相关词条 |
 | 调研 | `investigate`、`how`、`why` |
 | 审查 | `code-review`；测试专项用 `test-review` |
+| 项目没有驱动真实应用、留证据的脚本化验证 | `create-verification-skill`（用户调用） |
+| 应用改过，项目 `verify-*` 的 feature map 可能过期 | `maintain-verification-skill`（用户调用） |
+| 并发、重试、状态机、解析器等承诺，测试够不着出错的情况 | `create-formal-verification-skill`（用户调用） |
+| 已验证代码经合并、重构改过，却没重跑检查 | `maintain-formal-verification-skill`（用户调用） |
 
 大需求不等于必有迷雾，按阻塞位置选入口：
 
@@ -132,4 +136,11 @@ disable-model-invocation: true
 
 大需求按单位逐层切：一个 Epic 由多个 MMF 组成；一个 MMF 对应一份 Spec、一个 MR，ticket 留在它的 MR 分支内。顺序：`to-epic` 切 MMF → 每个 MMF 由 `to-spec` 写一份 Spec → `vertical-slicing` 切 ticket → `ticket-sizing` 给每票拆分信号与 MMF 的票数、合计 → 用户看合计决定照此执行、回 `to-epic` 重切或转例外模式 → 超过拆分线的票走 `ticket-split-100k` → `to-tickets` 发布 → `implement`。MMF 一个上下文装得下时不拆票，Spec 直接交 `implement`。
 
-标“用户调用”的 Skill 模型调不了，只能由用户输入 `/名字` 运行。规划时就说明哪几步要用户调用；轮到它时交出已有产物，点名请用户运行哪个命令，然后停下。
+验证按链路时间点接入：
+
+- `to-spec` 收尾：Spec 含并发、重试、状态机、幂等等承诺，且项目没有覆盖它的 `formal-verify-*`：建议在第一张票前运行 `/create-formal-verification-skill`，先对设计建模。
+- 第一个垂直切片端到端跑通，且项目没有 `verify-*`：建议运行 `/create-verification-skill`。应用跑不起来时不建议。
+- 每张票宣告完成前：改动命中项目 `verify-*` 或 `formal-verify-*` 的覆盖面，就按它验证并留证据。
+- 合并或重构改了已覆盖的代码却没重跑检查：建议运行对应的 `/maintain-verification-skill` 或 `/maintain-formal-verification-skill`。
+
+标“用户调用”的 Skill 模型调不了，只能由用户输入 `/名字` 运行。规划时就说明哪几步要用户调用；轮到它时交出已有产物，点名请用户运行哪个命令，然后停下。一个 Skill 做完时，按本节链路和验证时间点在收口里写出下一个该运行的 `/名字` 和一句理由。

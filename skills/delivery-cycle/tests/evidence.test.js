@@ -6,7 +6,7 @@
  *   DD-532 attachments 唯一项 https://github.com/Dimon94/refresh/pull/473；
  *   gh api repos/Dimon94/refresh/pulls/473 → merged_at 2026-11-14T16:26:29Z，base.ref main = default_branch main；
  *   验收评论 a4e3cf13-…，createdAt 2026-11-14T16:28:59.708Z。
- * 期望值来源：brief 修正 2 第 4–6 条；Spec §5（状态、Done、正文声称都不算证据）。
+ * 期望值来源：Spec R14；评论可事后补写，createdAt 不证明验收事件时间，交付时间须保留 null。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,14 +59,14 @@ function adapterWith({ server = linearServer(), pr = pull(), acceptance = { 'DD-
 // 原 owner 证据齐全 → delivered
 // --------------------------------------------------------------------------
 
-test('无 delivery-cycle 标记，原 owner 证据齐全：唯一 PR 已合入默认分支 + 本 Spec 验收评论快照 → delivered', async () => {
+test('原 owner 验收和合入事实可确认交付，但评论发布时间不能证明验收事件时间', async () => {
   const { githubCalls, evidence } = adapterWith({ server: linearServer({ comments: { [COMMENT_ID]: acceptedComment() } }) });
   const input = await evidence.read(SPEC);
 
   assert.deepEqual(input.main, { state: 'verified', source: PR_URL, effectiveAt: MERGED_AT, reason: null });
-  assert.deepEqual(input.spec, { state: 'verified', source: COMMENT_URL, effectiveAt: ACCEPTED_AT, reason: null });
+  assert.deepEqual(input.spec, { state: 'verified', source: COMMENT_URL, effectiveAt: null, reason: null });
   assert.deepEqual(githubCalls, [{ owner: 'Dimon94', repo: 'refresh', number: 473 }]);
-  assert.deepEqual(assessFormalDelivery(input), { status: 'delivered', spec: input.spec, main: input.main, effectiveAt: ACCEPTED_AT });
+  assert.deepEqual(assessFormalDelivery(input), { status: 'delivered', spec: input.spec, main: input.main, effectiveAt: null });
 });
 
 test('attachments 分页读完、同一 PR 去重、非 PR 链接忽略；快照 not_met 原样传出', async () => {
@@ -84,7 +84,7 @@ test('attachments 分页读完、同一 PR 去重、非 PR 链接忽略；快照
     { id: SPEC.issueId, after: null }, { id: SPEC.issueId, after: 'c1' }]);
   assert.equal(githubCalls.length, 1);
   assert.equal(input.main.state, 'verified');
-  assert.deepEqual(input.spec, { state: 'not_met', source: COMMENT_URL, effectiveAt: ACCEPTED_AT, reason: null });
+  assert.deepEqual(input.spec, { state: 'not_met', source: COMMENT_URL, effectiveAt: null, reason: null });
 });
 
 // --------------------------------------------------------------------------

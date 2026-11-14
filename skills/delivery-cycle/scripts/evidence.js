@@ -14,7 +14,7 @@
 //          merged_at 非空且 base.ref = base.repo.default_branch → verified，source = html_url，effectiveAt = merged_at；
 //          未合并 → not_met（effectiveAt null）；0 个或多个 PR、合入非默认分支、形状不明 → unknown
 //   PARAM: spec 来源 = 原验收评论快照（owner：Spec 验收／closeout 记录）。自由文本由 agent 判断，CLI 只回读
-//          comment(id:)：issue.id 等于该 Spec issueId → state 取快照值，source = 评论 url，effectiveAt = createdAt；
+//          comment(id:)：issue.id 等于该 Spec issueId → state 取快照值，source = 评论 url，effectiveAt = null（评论发布时间不证明验收实际发生时间）；
 //          无快照、评论读不到或不属于该 Spec → unknown。快照只是引用，不存本地状态
 //   PARAM: 不读任何评论正文里的 sha／at，不用提交日期；Issue 状态、Done、正文声称都不算证据
 //   FAIL: Linear 或 GitHub 读取失败 → 该条件 unknown，reason 带 code 与原因（含 permission_denied）；read 不抛出
@@ -92,7 +92,7 @@ async function specEvidence(request, snapshot, issueId) {
   const { comment } = await readLinear(request, QUERIES.acceptance, { id: snapshot.commentId });
   if (!comment) return unknown(`读不到评论 ${snapshot.commentId}`);
   if (comment.issue?.id !== issueId) return unknown(`评论 ${snapshot.commentId} 不属于该 Spec Issue`);
-  return fact(snapshot.state, comment.url, comment.createdAt);
+  return fact(snapshot.state, comment.url, null);
 }
 
 // --------------------------------------------------------------------------

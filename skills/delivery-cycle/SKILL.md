@@ -71,7 +71,7 @@ Spec 身份只看 to-spec 产物：Issue 描述按行含全部 `## Problem State
 两项证据都复用原 owner 的事实，不新建标记或账本：
 
 - `main`：closeout 记录的 PR 合入事实（owner：`git-rebase-main` 的 closeout）。读 Spec Issue 的 attachments，只取 `https://github.com/<owner>/<repo>/pull/<n>` 形式的链接并去重。恰好一个时经 `gh api repos/<owner>/<repo>/pulls/<n>` 读回：已合并且 `base.ref` 等于仓库默认分支为 `verified`，来源是 PR 链接，事件时间是 `merged_at`；未合并为 `not_met`；合入其他分支为 `unknown`。没有 PR、多于一个 PR 或读取失败时为 `unknown`。
-- `spec`：原 Spec 验收／closeout 评论的快照（见「入口」的职责分工）。脚本回读该评论，评论属于这个 Spec Issue 时，结论取快照值，来源是评论链接，事件时间是评论 `createdAt`。没有快照、评论读不到或属于其他 Issue 时为 `unknown`。
+- `spec`：原 Spec 验收／closeout 评论的快照（见「入口」的职责分工）。脚本回读该评论，评论属于这个 Spec Issue 时，结论取快照值，来源是评论链接，事件时间为 `null`；评论可能事后补写，`createdAt` 不能证明验收实际发生时间。因此该 Adapter 即使确认已交付，也不推断所属周，保持原归属并报告 `delivery_time_unverifiable`。没有快照、评论读不到或属于其他 Issue 时为 `unknown`。
 
 评论正文里的 sha 和时间、提交日期都不作证据。读取失败（含 `permission_denied`）只让该条件为 `unknown`，原因写进 `reason`。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
 

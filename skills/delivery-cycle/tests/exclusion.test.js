@@ -189,6 +189,14 @@ test('F7：父项剔除时已完成子票在本周 Cycle → 零写入，不清�
   assert.ok(!result.items.some((i) => i.issueId === 'T1' && i.action === 'exclude'));
 });
 
+test('G8：显式剔除本周已完成的 ticket → 只加标记，不改 cycle', async () => {
+  const linear = mmf().add({ id: 'D', parentId: 'P', cycleId: 'cycle-1', statusType: 'completed' });
+  const result = await run(linear, { exclude: ['D'] });
+  assert.deepEqual(linear.mutations.filter((m) => m.issueId === 'D'), [{ issueId: 'D', patch: { addLabels: [LABEL] } }]);
+  assert.equal(cycleOf(linear, 'D'), 'cycle-1');
+  assert.equal(item(result, 'D', 'exclude').write, 'verified');
+});
+
 test('F5：平台明确拒绝清 cycle → write_failed，不误报 native_assignment_conflict', async () => {
   const linear = mmf();
   linear.issues.get('A').labels.push(LABEL);

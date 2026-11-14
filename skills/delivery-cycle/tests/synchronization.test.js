@@ -151,20 +151,17 @@ function crossWeek(...issues) {
 }
 const codesOf = (result) => result.problems.map((p) => [p.code, p.issueId]);
 
-test('R8/F1：前读已观察到原生滚入新周（本地时钟仍在旧周）→ 视为他人排期，P2 unchanged 不回移，整体 synchronized', async () => {
-  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2', cycleId: 'cycle-0' });
-  let rolled = false;
-  linear.beforeRead = (id) => {
-    if (id === 'P2' && !rolled) { rolled = true; linear.nativeRoll('cycle-0', 'cycle-1'); }
-  };
+test('G1/R8：前读发现 P2 已从目标 Cycle 滚入下一 Cycle（时钟未跨周）→ cycle_expired，P3 不写旧周', async () => {
+  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2', cycleId: 'cycle-0' }, { id: 'P3' });
+  linear.beforeRead = (id) => { if (id === 'P2') linear.nativeRoll('cycle-0', 'cycle-1'); };
   const result = await run(linear, now);
 
   assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
-  assert.equal(linear.issues.get('P2').cycleId, 'cycle-1', '不回移旧周');
-  const p2 = result.items.find((i) => i.issueId === 'P2');
-  assert.deepEqual([p2.action, p2.write], ['unchanged', 'unchanged']);
-  assert.deepEqual(codesOf(result), []);
-  assert.equal(result.status, 'synchronized');
+  assert.deepEqual(['P2', 'P3'].map((id) => linear.issues.get(id).cycleId), ['cycle-1', null], '不回移、不写旧周');
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P2']]);
+  assert.deepEqual(result.items.map((i) => [i.issueId, i.action, i.write]),
+    [['P1', 'include', 'verified'], ['P2', 'unchanged', 'failed'], ['P3', 'unchanged', 'failed']]);
+  assert.equal(result.status, 'partial');
 });
 
 test('R8/T5：前读在旧周、写入前已跨周一 → 零写入，不写旧周 Cycle', async () => {
@@ -178,8 +175,8 @@ test('R8/T5：前读在旧周、写入前已跨周一 → 零写入，不写旧�
   assert.deepEqual(codesOf(result), [['cycle_expired', 'P1']]);
 });
 
-test('R8/F1：写入后原生把项滚入新周（时钟未跨周）→ 回读不符记 failed，不中断后续项', async () => {
-  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2' });
+test('G1/R8：P1 写入后回读观察到原生单次滚动（时钟未跨周）→ cycle_expired，P2/P3 零写入', async () => {
+  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2' }, { id: 'P3' });
   linear.patchBehavior = async (id, patch, apply) => {
     apply();
     linear.nativeRoll('cycle-0', 'cycle-1');
@@ -187,9 +184,10 @@ test('R8/F1：写入后原生把项滚入新周（时钟未跨周）→ 回读�
   };
   const result = await run(linear, now);
 
-  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1', 'P2']);
-  assert.deepEqual(['P1', 'P2'].map((id) => linear.issues.get(id).cycleId), ['cycle-1', 'cycle-1'], '不回移旧周');
-  assert.deepEqual(codesOf(result), [['readback_mismatch', 'P1'], ['readback_mismatch', 'P2']]);
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.deepEqual(['P1', 'P2', 'P3'].map((id) => linear.issues.get(id).cycleId), ['cycle-1', null, null]);
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P1']]);
+  assert.deepEqual(result.items.map((i) => [i.issueId, i.write]), [['P1', 'failed'], ['P2', 'failed'], ['P3', 'failed']]);
   assert.equal(result.changed, 0);
   assert.equal(result.status, 'unsynchronized');
 });
@@ -233,25 +231,85 @@ function changeCyclesAfterP1(linear, cycles) {
   };
 }
 
-test('F2/T5：处理 P2 前目标 Cycle 改为双周边界 → configuration_mismatch，P2 不写', async () => {
-  const linear = twoMMFs();
+const threeMMFs = () => twoMMFs().add({ id: 'P3', specRef: 'spec-3' });
+const itemsOf = (result) => result.items.map((i) => [i.issueId, i.action, i.write]);
+const BLOCKED_AFTER_P1 = [['P1', 'include', 'verified'], ['P2', 'unchanged', 'failed'], ['P3', 'unchanged', 'failed']];
+
+test('F2/G2/G11：处理 P2 前目标 Cycle 改为双周边界 → configuration_mismatch（P2），P2/P3 不写且列入 items', async () => {
+  const linear = threeMMFs();
   changeCyclesAfterP1(linear, [{ id: 'cycle-1', startsAt: WEEK.start, endsAt: '2026-11-29T16:00:00.000Z' }]);
   const result = await run(linear);
 
   assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
   assert.equal(linear.issues.get('P2').cycleId, null);
-  assert.deepEqual(codesOf(result), [['configuration_mismatch', null]]);
+  assert.deepEqual(codesOf(result), [['configuration_mismatch', 'P2']]);
+  assert.deepEqual(itemsOf(result), BLOCKED_AFTER_P1);
   assert.equal(result.status, 'partial');
 });
 
-test('F2：处理 P2 前目标 Cycle 消失 → cycle_missing，P2 不写', async () => {
-  const linear = twoMMFs();
+test('F2/G2/G11：处理 P2 前目标 Cycle 消失 → cycle_missing（P2），P2/P3 记 failed，只报一条阻断', async () => {
+  const linear = threeMMFs();
   changeCyclesAfterP1(linear, []);
   const result = await run(linear);
 
   assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
-  assert.deepEqual(codesOf(result), [['cycle_missing', null]]);
-  assert.notEqual(result.status, 'synchronized');
+  assert.deepEqual(codesOf(result), [['cycle_missing', 'P2']]);
+  assert.deepEqual(itemsOf(result), BLOCKED_AFTER_P1);
+  assert.equal(result.status, 'partial');
+});
+
+test('G2：时钟跨周阻断后剩余计划项同样列入 items', async () => {
+  const linear = threeMMFs();
+  let at = '2026-11-22T15:59:00Z';
+  linear.beforeRead = (id) => { if (id === 'P2') at = WEEK.end; };
+  const result = await run(linear, () => new Date(at));
+
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P2']]);
+  assert.deepEqual(itemsOf(result), BLOCKED_AFTER_P1);
+  assert.equal(result.status, 'partial');
+});
+
+test('G3：被阻断且无符合项、即使有 write unknown 项 → unsynchronized', async () => {
+  const linear = twoMMFs();
+  let at = '2026-11-22T15:59:00Z';
+  linear.patchBehavior = async () => { throw new Error('ETIMEDOUT'); };
+  linear.beforeRead = (id) => { if (id === 'P2') at = WEEK.end; };
+  const result = await run(linear, () => new Date(at));
+
+  assert.deepEqual(result.items.map((i) => [i.issueId, i.write]), [['P1', 'unknown'], ['P2', 'failed']]);
+  assert.deepEqual(codesOf(result), [['write_unknown', 'P1'], ['cycle_expired', 'P2']]);
+  assert.equal(result.status, 'unsynchronized');
+});
+
+test('G9：P1 写入后新建下一 Cycle 并把本周的 P2 移入 → 写前重读按 G1 cycle_expired，P2/P3 不写', async () => {
+  const linear = threeMMFs();
+  linear.issues.get('P2').cycleId = 'cycle-1';
+  const next = { id: 'cycle-2', startsAt: WEEK.end, endsAt: '2026-11-29T16:00:00.000Z' };
+  linear.patchBehavior = async (id, patch, apply) => {
+    apply();
+    if (id === 'P1') { linear.cycles = [...linear.cycles, next]; linear.issues.get('P2').cycleId = 'cycle-2'; }
+    return { success: true };
+  };
+  const result = await run(linear);
+
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.deepEqual(['P2', 'P3'].map((id) => linear.issues.get(id).cycleId), ['cycle-2', null]);
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P2']]);
+  assert.deepEqual(itemsOf(result), BLOCKED_AFTER_P1);
+  assert.equal(result.status, 'partial');
+});
+
+test('G5：readIssue 按 Spec §3 原形状（缺 teamId／projectId／specRef）→ 该项 scope_invalid，零写入', async () => {
+  const linear = twoMMFs();
+  const read = linear.readIssue.bind(linear);
+  linear.readIssue = async (id) => {
+    const { teamId, projectId, specRef, ...spec } = await read(id);
+    return spec;
+  };
+  const result = await run(linear);
+  assert.equal(linear.mutations.length, 0);
+  assert.deepEqual(codesOf(result), [['scope_invalid', 'P1'], ['scope_invalid', 'P2']]);
+  assert.equal(result.status, 'unsynchronized');
 });
 
 test('F3：列表后、前读前 P1 被移到 project-9 → scope_invalid，不 patch；P2 照常', async () => {

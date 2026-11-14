@@ -50,8 +50,11 @@ export class FakeLinear {
     return this;
   }
 
-  // 模拟 Linear 原生滚动：from 周期内未完成的 Issue 全部移入 to
+  // 模拟 Linear 原生滚动：from 周期内未完成的 Issue 全部移入 to；与真实平台一致，每个周期只滚动一次
   nativeRoll(from, to) {
+    this.rolled ??= new Set();
+    if (this.rolled.has(from)) return;
+    this.rolled.add(from);
     for (const issue of this.issues.values()) {
       if (issue.cycleId === from && !['completed', 'canceled'].includes(issue.statusType)) issue.cycleId = to;
     }

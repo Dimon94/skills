@@ -126,7 +126,7 @@ test('R8/F1：下周 Cycle 的进行中项不纳入，其余照常写入，整�
   assert.equal(result.status, 'synchronized');
   assert.equal(cycleOf(linear, 'P0'), 'cycle-2');
   assert.ok(!linear.mutations.some((m) => m.issueId === 'P0'), '下周项零写入');
-  assert.equal(item(result, 'P0'), undefined);
+  assert.deepEqual([item(result, 'P0').action, item(result, 'P0').write], ['unchanged', 'unchanged'], 'G4：过滤项可见');
   assert.deepEqual(['P1', 'P2'].map((id) => [cycleOf(linear, id), item(result, id).write]),
     [['cycle-1', 'verified'], ['cycle-1', 'verified']]);
 });
@@ -152,6 +152,45 @@ test('R8/F1：前读才发现项已被移到下周 Cycle（时钟未跨周）→
   assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
   assert.deepEqual([item(result, 'P2').action, item(result, 'P2').write], ['unchanged', 'unchanged']);
   assert.ok(!result.problems.some((p) => p.issueId === 'P2'));
+});
+
+test('G4：父项在下周 Cycle、ticket 进行中被纳入本周 → 父项 unchanged 可见并报 workflow_drift，不写父项', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'started', cycleId: 'cycle-2' },
+    { id: 'T', parentId: 'P', statusType: 'started' });
+  const result = await run(linear, new FakeEvidence({ P: NOT_MET }));
+
+  assert.deepEqual(linear.mutations, [{ issueId: 'T', patch: { cycle: 'cycle-1' } }]);
+  assert.deepEqual([item(result, 'P').action, item(result, 'P').write], ['unchanged', 'unchanged']);
+  assert.deepEqual([item(result, 'T').action, item(result, 'T').write], ['include', 'verified']);
+  assert.deepEqual(codes(result, 'workflow_drift'), ['P']);
+  assert.equal(result.status, 'synchronized');
+});
+
+test('G10：只在下周 Cycle 进行中的 ticket 不把 Backlog 父项拉进本周；ticket 记 unchanged', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'backlog' },
+    { id: 'T', parentId: 'P', statusType: 'started', cycleId: 'cycle-2' });
+  const result = await run(linear, new FakeEvidence({ P: NOT_MET }));
+
+  assert.equal(linear.mutations.length, 0);
+  assert.equal(cycleOf(linear, 'P'), null);
+  assert.equal(item(result, 'P'), undefined);
+  assert.deepEqual([item(result, 'T').action, item(result, 'T').write], ['unchanged', 'unchanged']);
+  assert.equal(result.status, 'synchronized');
+});
+
+test('G6：父项上周已交付，原生滚入本周的未开始 ticket 也移出本周（not_carry，cycle=null 并回读）', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'completed', cycleId: 'cycle-0' },
+    { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' },
+    { id: 'D', parentId: 'P', statusType: 'completed', cycleId: 'cycle-1' });
+  const result = await run(linear, new FakeEvidence({ P: delivered(LAST_WEEK) }));
+
+  assert.deepEqual(linear.mutations, [{ issueId: 'T', patch: { cycle: null } }]);
+  assert.deepEqual([cycleOf(linear, 'T'), item(result, 'T').action, item(result, 'T').write], [null, 'not_carry', 'verified']);
+  assert.equal(cycleOf(linear, 'D'), 'cycle-1', '已完成 ticket 不动');
+  assert.equal(result.status, 'synchronized');
 });
 
 test('R5：Done 未交付与 Started 已交付都报 workflow_drift，归属按事实处理，不写状态', async () => {

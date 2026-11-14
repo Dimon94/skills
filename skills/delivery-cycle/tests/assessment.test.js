@@ -54,3 +54,23 @@ test('F6/R15：verified 或 not_met 缺 source 视为 unknown；形状缺失不�
   assert.equal(assessFormalDelivery({}).status, 'unknown');
   assert.equal(assessFormalDelivery({ spec: ok, main: ok }).status, 'delivered');
 });
+
+test('G7/R14：effectiveAt 不是可解析的 ISO 8601 字符串 → 置 null；两种参数顺序一致', () => {
+  // 独立预期：修复清单 G7——不可核实的时间不参与较晚值比较
+  const at = (effectiveAt) => ({ state: 'verified', source: 'owner', effectiveAt, reason: null });
+  const good = at('2026-11-16T02:00:00Z');
+  for (const bad of ['garbage', 1763258400000, 'Nov 16 2026']) {
+    for (const input of [{ spec: at(bad), main: good }, { spec: good, main: at(bad) }]) {
+      const result = assessFormalDelivery(input);
+      assert.equal(result.status, 'delivered');
+      assert.equal(result.effectiveAt, null, String(bad));
+    }
+  }
+});
+
+test('G7：assessFormalDelivery(null／undefined) 不抛错，按两条 unknown 处理', () => {
+  for (const input of [null, undefined]) {
+    const result = assessFormalDelivery(input);
+    assert.deepEqual([result.status, result.spec.state, result.main.state], ['unknown', 'unknown', 'unknown']);
+  }
+});

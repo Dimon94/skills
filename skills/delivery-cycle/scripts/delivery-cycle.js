@@ -139,7 +139,7 @@ function laterOf(a, b) {
 //          逐项 [重算当周 → 前读 → 重核当周、scope、身份、未来 Cycle → 重读目标 Cycle → 重判未来 Cycle →
 //                patch → 回读 → 重核]
 //   SCOPE: MMF 相关只由三项决定：父项仍需工作；父项在上一周期／本周 Cycle；存在不在未来 Cycle 的进行中 ticket。
-//          上一周期未完成的 ticket（含未开始的）只随已相关 MMF 结转，自身不让 MMF 相关，不相关时记 unchanged／unchanged；
+//          过去 Cycle 中未完成的 ticket（含未开始的）只随已相关 MMF 结转，自身不让 MMF 相关，不相关时记 unchanged／unchanged；
 //          更早 Cycle 中进行中的项按 R3 纳入；本周新建的未开始兄弟 ticket 不被纳入，也不拉父项；
 //          父项已交付（outside）时，本周 Cycle 里未完成的 ticket 不论是否进行中都清出（not_carry）。
 //          清出与纳入分开判定：MMF 不相关也照样清出，父项不纳入、不写；证据不是 outside 时不写，按证据规则报告；
@@ -324,14 +324,14 @@ function groupMMFs(issues, run) {
   return [...mmfs.values()];
 }
 
-// 仍需工作：进行中，或停在上一周期 Cycle 且未完成；本周 Cycle 里的未开始项不是纳入理由
-function needsWork(issue, { previousId }) {
-  const leftOver = previousId !== null && issue.cycleId === previousId && !DONE_TYPES.has(issue.statusType);
+// 仍需工作：进行中，或停在任一过去 Cycle 且未完成（跳过几周不丢原工作）；本周 Cycle 里的未开始项不是纳入理由
+function needsWork(issue, { pastIds }) {
+  const leftOver = pastIds.has(issue.cycleId) && !DONE_TYPES.has(issue.statusType);
   return issue.statusType === 'started' || leftOver;
 }
 
 // 相关 MMF 只由三项决定：父项仍需工作、父项停在上一周期／本周 Cycle（含已完成，供结转判断）、
-// 存在不在未来 Cycle 的进行中 ticket。上一周期未开始的 ticket 只随已相关 MMF 结转，自身不让 MMF 相关；
+// 存在不在未来 Cycle 的进行中 ticket。过去 Cycle 中未开始的 ticket 只随已相关 MMF 结转，自身不让 MMF 相关；
 // 不相关时记为 idle。未来 Cycle（startsAt ≥ 本周结束）的项是他人排期：不进入计划，只作为 deferred 可见
 function candidateMembers({ parent, tickets }, ctx) {
   const later = (issue) => ctx.futureIds.has(issue.cycleId);

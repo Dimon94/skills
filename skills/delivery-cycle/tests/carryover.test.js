@@ -375,3 +375,22 @@ test('H4：不相关 MMF 的父项 completed 但证据 not_met → stray 不写�
   assert.deepEqual(codes(result, 'workflow_drift'), ['P']);
   assert.equal(item(result, 'P'), undefined, 'P 不纳入');
 });
+
+// --------------------------------------------------------------------------
+// 跨多周未维护：任一过去 Cycle 中未完成的原工作都仍需工作，不只看上一周期
+// 期望值来源：Spec R4、§4「不丢未交付原工作」；brief 第 5 条（“只看上一周期”不是批准的限制）
+// --------------------------------------------------------------------------
+
+test('R4：一周没跑，更早 Cycle 中 started ticket 与未开始兄弟、未开始父项一起结转本周', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'unstarted', cycleId: 'cycle-old' },
+    { id: 'T1', parentId: 'P', statusType: 'started', cycleId: 'cycle-old' },
+    { id: 'T2', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-old' },
+    { id: 'Q', specRef: 's2', statusType: 'unstarted', cycleId: 'cycle-old' },
+    { id: 'U', parentId: 'Q', statusType: 'unstarted', cycleId: 'cycle-old' });
+  const result = await run(linear, new FakeEvidence({ P: NOT_MET, Q: UNKNOWN }));
+
+  assert.deepEqual(['P', 'T1', 'T2', 'Q', 'U'].map((id) => [cycleOf(linear, id), item(result, id)?.action]),
+    [['cycle-1', 'carry'], ['cycle-1', 'carry'], ['cycle-1', 'carry'], ['cycle-1', 'carry'], ['cycle-1', 'carry']]);
+  assert.equal(result.status, 'synchronized');
+});

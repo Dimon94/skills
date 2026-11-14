@@ -84,10 +84,12 @@ export class FakeLinear {
 export class FakeEvidence {
   constructor(byIssue = {}) {
     this.byIssue = byIssue;
+    this.reads = [];
   }
 
   async read({ issueId }) {
-    return this.byIssue[issueId] ?? { spec: NOT_MET, main: NOT_MET };
+    this.reads.push(issueId);
+    return structuredClone(this.byIssue[issueId] ?? { spec: NOT_MET, main: NOT_MET });
   }
 }
 

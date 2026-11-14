@@ -1,6 +1,6 @@
 ---
 name: delivery-cycle
-description: 手动维护一个 Linear 团队／项目的本周工作集合：核对上海时区单周 Cycle，按真实 MMF 身份纳入进行中的父 Spec Issue 与 ticket，逐项前读、最小 cycle 写入并回读。用于用户要求维护本周 Cycle、同步本周工作集合或判断正式交付时。
+description: 手动维护一个 Linear 团队／项目的本周工作集合：核对上海时区单周 Cycle，按真实 MMF 身份纳入进行中的父 Spec Issue 与 ticket，按正式交付决定跨周结转，逐项前读、最小 cycle 写入并回读。用于用户要求维护本周 Cycle、同步本周工作集合或判断正式交付时。
 ---
 
 # delivery-cycle
@@ -30,6 +30,7 @@ const result = await maintainCurrentWeek(
 2. 前置不满足时零写入，整体 `unsynchronized`，并给出稳定 code：`configuration_mismatch`、`configuration_unverifiable`、`cycle_missing`、`permission_denied`、`capability_unavailable`。
 3. 完整分页读取 Issue。带原 Spec 引用的是 MMF 父项，它的直接子项是 ticket。Epic 不进 Cycle。进行中但身份断裂的项报 `identity_unverifiable`，范围外的项报 `scope_invalid`，两者都不写。
 4. 父项进行中，或任一 ticket 进行中时，纳入父项和进行中的 ticket。父项保持原状态，未开始的兄弟票不纳入，没有进行中关联的 Backlog 也不纳入。
+   上一周期 Cycle 里的 MMF 父项（含已完成）也参与结转判断，随它处理的只有仍需工作的 ticket。见下文「跨周结转」。
 5. 每项写入前重算当周并重读 Issue。已在目标 Cycle 的项不写。跨过周一就报 `cycle_expired`，并停止旧周的后续写入。
 6. patch 只含 `cycle`。写入后回读业务字段：符合记 `verified`；不符记 `readback_mismatch`；无法判定记 `write_unknown`。mutation 返回成功不等于写入成功。
 7. 整体状态：全部符合为 `synchronized`；部分符合为 `partial`；没有符合项且有无法判定项为 `unknown`；其余为 `unsynchronized`。`changed` 只统计回读确认的变更。
@@ -38,10 +39,24 @@ const result = await maintainCurrentWeek(
 
 `assessFormalDelivery({spec, main})` 是唯一公式。两项都是 `verified` 时为 `delivered`；任一为 `not_met` 时为 `not_delivered`；其余为 `unknown`。`effectiveAt` 只在已交付且两个事件时间都存在时取较晚值，否则为 `null`。证据不足时保持 Unknown，并附 `evidence_unavailable`。
 
+工作流状态、Integration、HTTP 200、口头声称和提交时间都不替代这两项证据。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
+
+## 跨周结转
+
+按父项的正式交付结论决定整个 MMF 的归属：
+
+| 交付结论 | 归属 | action |
+| --- | --- | --- |
+| `not_delivered` 或 `unknown` | 移入本周 Cycle | 原在上一周期为 `carry`，其余为 `include` |
+| `delivered`，`effectiveAt` 在本周开始之后（含周一 00:30） | 保留或移入本周 | 同上 |
+| `delivered`，`effectiveAt` 早于本周开始 | 不得在本周：在本周的改为 `cycle=null` 并回读；旧周归属不动 | `not_carry` |
+| `delivered`，`effectiveAt = null` | 保持原归属，不写，报 `delivery_time_unverifiable` | `unchanged`，`write: unknown` |
+
+父项 Done 但未交付，或 Started 但已交付，附加 `workflow_drift` 交原 owner 核对。归属仍按上表，不改任何状态。已完成的 ticket 不复制、不重开、不移动；未来 Cycle 和更早 Cycle 的项不处理。
+
 ## 当前未实现
 
 - `exclude` 与 `restore`：非空时整次返回 `capability_unavailable`，零写入。
-- 跨周结转：按正式交付决定是否结转、`workflow_drift`、`delivery_time_unverifiable`。
 - 原生自动归属冲突，以及部分失败后的重试恢复。
 
 ## 不做

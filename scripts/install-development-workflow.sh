@@ -144,7 +144,7 @@ link_named_skill grilling "$MATTPOCOCK_SKILLS_DIR/skills/productivity/grilling"
 link_named_skill brainstorming-only "$BRAINSTORMING_SKILLS_DIR/brainstorming-only"
 link_named_skill office-hours-only "$BRAINSTORMING_SKILLS_DIR/office-hours-only"
 
-for name in delivery-pipeline delivery-pipeline-codex-app delivery-pipeline-setup ticket-sizing; do
+for name in delivery-pipeline delivery-pipeline-codex-app delivery-pipeline-setup; do
   link_named_skill "$name" "$DELIVERY_PIPELINE_DIR/skills/$name"
 done
 

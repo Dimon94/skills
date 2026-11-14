@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ticket Sizing"
+  short_description: "给出逐票 token 拆分信号，审查独立验收与依赖边界"
+  default_prompt: "使用 $ticket-sizing 给出每票 token 拆分信号并审查拆票粒度，展示逐票评估结果。"
+policy:
+  allow_implicit_invocation: true

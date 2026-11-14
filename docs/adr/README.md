@@ -22,6 +22,7 @@
 - [大块读取交给子代理，同一棵树同一时刻一个写者](0014-subagents-take-bulk-reads.md)
 - [交付单位叫 MMF，Spec 是描述它的文档](0015-mmf-delivery-unit.md)
 - [Spec 用代码写 Interface，验证和审查沿 Module 收敛](0016-spec-writes-interface-as-code.md)
+- [ticket-sizing 所有权迁入本仓](0017-owned-ticket-sizing.md)
 
 ## 命名
 

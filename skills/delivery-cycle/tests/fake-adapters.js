@@ -31,6 +31,7 @@ export class FakeLinear {
     this.config = config;
     this.cycles = cycles ?? [{ id: 'cycle-1', startsAt: WEEK.start, endsAt: WEEK.end }];
     this.issues = new Map();
+    this.labels = new Map([[SCOPE.exclusionLabelId, { id: SCOPE.exclusionLabelId, teamId: 'team-1' }]]);
     this.pageSize = pageSize;
     this.calls = [];
     this.mutations = [];
@@ -65,6 +66,12 @@ export class FakeLinear {
     return page(structuredClone([...this.issues.values()]), cursor, this.pageSize);
   }
 
+  async readLabel(labelId) {
+    this.calls.push('readLabel');
+    if (this.labelError) throw this.labelError;
+    return structuredClone(this.labels.get(labelId) ?? null);
+  }
+
   async readIssue(issueId) {
     this.calls.push('readIssue');
     if (this.beforeRead) this.beforeRead(issueId);
@@ -74,11 +81,18 @@ export class FakeLinear {
   async patchIssue(issueId, patch) {
     this.calls.push('patchIssue');
     this.mutations.push({ issueId, patch: structuredClone(patch) });
-    const apply = () => { this.issues.get(issueId).cycleId = patch.cycle; };
+    const apply = () => applyPatch(this.issues.get(issueId), patch);
     if (this.patchBehavior) return this.patchBehavior(issueId, patch, apply);
     apply();
     return { success: true };
   }
+}
+
+// 增量语义：只改出现的字段；addLabels 不重复，removeLabels 只删指定项
+function applyPatch(issue, { cycle, addLabels = [], removeLabels = [] }) {
+  if (cycle !== undefined) issue.cycleId = cycle;
+  issue.labels = [...issue.labels.filter((l) => !removeLabels.includes(l)),
+    ...addLabels.filter((l) => !issue.labels.includes(l))];
 }
 
 export class FakeEvidence {

@@ -127,6 +127,6 @@ test('T10：从已同步状态再次调用，实际被他人移出后重新核�
 test('R13：维护只调用读方法与 patchIssue', async () => {
   const linear = twoMMFs();
   await run(linear);
-  const allowed = new Set(['readCycleConfiguration', 'listCycles', 'listIssues', 'readIssue', 'patchIssue']);
+  const allowed = new Set(['readCycleConfiguration', 'listCycles', 'readLabel', 'listIssues', 'readIssue', 'patchIssue']);
   assert.ok(linear.calls.every((c) => allowed.has(c)));
 });

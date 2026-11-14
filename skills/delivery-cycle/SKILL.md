@@ -1,6 +1,6 @@
 ---
 name: delivery-cycle
-description: 手动维护一个 Linear 团队／项目的本周工作集合：核对上海时区单周 Cycle，按真实 MMF 身份纳入进行中的父 Spec Issue 与 ticket，按正式交付决定跨周结转，逐项前读、最小 cycle 写入并回读。用于用户要求维护本周 Cycle、同步本周工作集合或判断正式交付时。
+description: 手动维护一个 Linear 团队／项目的本周工作集合：核对上海时区单周 Cycle，按真实 MMF 身份纳入进行中的父 Spec Issue 与 ticket，按正式交付决定跨周结转，用专用标签持久剔除与恢复，逐项前读、最小增量写入并回读。用于用户要求维护本周 Cycle、同步本周工作集合、剔除或恢复工作项，或判断正式交付时。
 ---
 
 # delivery-cycle
@@ -27,16 +27,17 @@ const result = await maintainCurrentWeek(
 ## 维护规则
 
 1. 本周是 Asia/Shanghai 周一 00:00 起的左闭右开 7 天。团队配置必须是：启用 Cycle、上海时区、一周、周一开始、无 cooldown。目标 Cycle 边界必须与本周完全一致。双周不截半。
-2. 前置不满足时零写入，整体 `unsynchronized`，并给出稳定 code：`configuration_mismatch`、`configuration_unverifiable`、`cycle_missing`、`permission_denied`、`capability_unavailable`。
+2. 前置不满足时零写入，整体 `unsynchronized`，并给出稳定 code：`configuration_mismatch`、`configuration_unverifiable`、`cycle_missing`、`exclusion_marker_missing`、`permission_denied`、`capability_unavailable`。排除标签读不到或不属于本团队时报 `exclusion_marker_missing`，不用本地列表替代。
 3. 完整分页读取 Issue。带原 Spec 引用的是 MMF 父项，它的直接子项是 ticket。Epic 不进 Cycle。进行中但身份断裂的项报 `identity_unverifiable`，范围外的项报 `scope_invalid`，两者都不写。
 4. 父项进行中，或任一 ticket 进行中时，纳入父项和进行中的 ticket。父项保持原状态，未开始的兄弟票不纳入，没有进行中关联的 Backlog 也不纳入。
    上一周期 Cycle 里的 MMF 父项（含已完成）也参与结转判断，随它处理的只有仍需工作的 ticket。见下文「跨周结转」。
 5. 每项写入前重算当周并重读 Issue。已在目标 Cycle 的项不写。跨过周一就报 `cycle_expired`，并停止旧周的后续写入。
-6. patch 只含 `cycle`。写入后回读业务字段，结论只看回读：
+6. patch 只含 `cycle` 与专用排除标签的增减（`addLabels`／`removeLabels`），其他标签与字段不提交。写入后回读 `cycleId` 与 `labels`，结论只看回读：
    - 回读符合目标记 `verified`，即使响应超时或带 GraphQL errors。
    - 响应超时、为空或形状不明，或回读为空、出错、缺 `cycleId`，记 `write_unknown`。
    - 响应声称成功但回读不符，记 `readback_mismatch`。
    - 响应带 GraphQL errors 或 `success: false` 且回读不符，记 `write_failed`。
+   - 剔除后回读标签已加、但仍在本周 Cycle，记 `native_assignment_conflict`。
    - 写入被拒绝记 `permission_denied`。
 7. 整体状态：全部符合为 `synchronized`；至少一项符合（含原本无需变更项）但仍有失败或未知为 `partial`；没有符合项且有无法判定项为 `unknown`；其余为 `unsynchronized`。`changed` 只统计回读确认的变更。
 8. 重试就是再调用一次。每次都重新核对并前读：上次 Unknown 但实际已生效的项记 `unchanged`，不重放；`partial` 后只写仍不符合的项。已 `verified` 的项不回滚。
@@ -60,11 +61,23 @@ const result = await maintainCurrentWeek(
 
 父项 Done 但未交付，或 Started 但已交付，附加 `workflow_drift` 交原 owner 核对。归属仍按上表，不改任何状态。已完成的 ticket 不复制、不重开、不移动；未来 Cycle 和更早 Cycle 的项不处理。
 
-## 当前未实现
+## 剔除与恢复
 
-- `exclude` 与 `restore`：非空时整次返回 `capability_unavailable`，零写入。
-- 原生自动归属冲突。
+剔除只存在于 Linear：Issue 上的专用排除标签。本地不保存逐项副本，所以剔除跨调用、跨进程保留，直到用户恢复。
+
+1. `exclude` 与 `restore` 只接受已核实的 MMF 父项或 ticket。范围外的 ID 报 `scope_invalid`，身份不明的报 `identity_unverifiable`，都不写。同一 ID 同时出现在两边时按 `exclude` 处理。
+2. 先处理显式选择，再规划其余项。每个选择都前读、增量 patch、回读：
+   - `exclude` 加标记。项在本周 Cycle 时同时提交 `cycle = null`；不在本周时只加标记，旧归属不动。
+   - `restore` 只删目标自身的标记，不提交 `cycle`。之后按当前身份、状态和正式交付规则重新判断，不强制纳入。
+   - 已满足目标的选择记 `unchanged`，零 mutation，标签不重复。
+3. 标记边界：
+   - 父项有标记时，整个 MMF 不纳入，已核实的子票（含后来新建的）派生生效，标记不复制到子票。
+   - 子票有标记时只排除它自己，不影响兄弟票和父项。
+   - 恢复父项不清除子票自身的标记；恢复子票不绕过父项的标记。
+4. 每次维护都会把已剔除、但出现在本周 Cycle 的项清出本周（action `exclude`），不在本周的不动。
+5. 清空被原生自动归属抵消时报 `native_assignment_conflict`：保留标记、不改状态、不宣称成功。下次维护会再次识别并纠正。M1 不承诺平台永不加回。
+6. 本次未能回读确认的选择项不进入纳入计划；父项未定时整个 MMF 本次不动。下次调用先回读，已生效则记 `unchanged`，不重放。
 
 ## 不做
 
-不改团队配置，不创建 Cycle 或标签，不改工作流状态和其他字段，不归档、关闭或重开 Issue，不 push、merge 或部署。同步结果不作为开发、派发、预算或恢复的 gate。
+不改团队配置，不创建 Cycle 或标签，不改工作流状态、其他标签和其他字段，不归档、关闭或重开 Issue，不 push、merge 或部署。同步结果不作为开发、派发、预算或恢复的 gate。

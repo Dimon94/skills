@@ -172,6 +172,6 @@ test('R12：失败同步前后原开发资格／依赖／派发／预算／恢�
   assert.deepEqual(linear.snapshot(), issuesBefore);
   assert.deepEqual(Object.keys(result).sort(), ['changed', 'items', 'problems', 'status', 'week']);
   assert.doesNotMatch(JSON.stringify(result), /gate|hook|dispatch|budget|recover|block/i);
-  const allowed = new Set(['readCycleConfiguration', 'listCycles', 'listIssues', 'readIssue', 'patchIssue']);
+  const allowed = new Set(['readCycleConfiguration', 'listCycles', 'readLabel', 'listIssues', 'readIssue', 'patchIssue']);
   assert.ok(linear.calls.every((c) => allowed.has(c)));
 });

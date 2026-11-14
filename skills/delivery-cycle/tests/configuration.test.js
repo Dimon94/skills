@@ -110,9 +110,3 @@ test('T12：前置解除后再次调用重新读取配置并写入', async () =>
   assert.equal(result.changed, 1);
   assert.equal(linear.issues.get('P1').cycleId, 'cycle-1');
 });
-
-test('R13：exclude／restore 未实现时零写入并报 capability_unavailable', async () => {
-  const linear = blockedLinear();
-  const request = { ...REQUEST, exclude: ['P1'] };
-  assertBlocked(await run(linear, TUESDAY, request), linear, 'capability_unavailable');
-});

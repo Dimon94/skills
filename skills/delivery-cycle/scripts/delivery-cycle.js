@@ -39,9 +39,10 @@ const REQUIRED_CONFIGURATION = Object.freeze({
 
 // 前置核对失败：零写入，整体 unsynchronized，或已有符合项时 partial
 class Blocked extends Error {
-  constructor(code, message) {
+  constructor(code, message, issueId = null) {
     super(message);
     this.code = code;
+    this.issueId = issueId;
   }
 }
 
@@ -89,7 +90,10 @@ function laterOf(a, b) {
 //   CHAIN: 配置核对 → 完整分页找当周与上一周期 Cycle → 排除标签核对 → 完整分页 Issue → 身份分组 →
 //          逐个 exclude／restore 选择 [前读 → 标签（及本周 cycle）增量 patch → 回读] →
 //          已剔除且在本周的项清出本周 → 其余每 MMF 读一次父项证据 → 按交付结论定归属（carry／include／not_carry／保持原归属） →
-//          逐项 [重算当周 → 前读 → patch → 回读]；跨过周一立即停止旧周后续写入
+//          逐项 [重算当周 → 前读 → 重核 → patch → 回读 → 重核]；
+//          时钟跨过周一，或纳入目标在前读／回读时已位于下一周 Cycle（原生滚动）→ 该项 failed、
+//          cycle_expired 并停止旧周全部后续写入；已观察到新周归属的项绝不回移旧周
+//   LIMIT: 无 CAS；前读后、patch 前的未观察漂移只能由回读检出并报告，不能根除
 //   CLASSIFY: 回读符合 → verified（不论响应声称）；声称 uncertain 或回读不可读 → unknown/write_unknown；
 //             exclude 回读只剩 cycle 仍在本周 → native_assignment_conflict（保留标记）；
 //             其余 accepted 但回读不符 → readback_mismatch；rejected 且回读不符 → write_failed
@@ -97,7 +101,7 @@ function laterOf(a, b) {
 //          partial 后只补仍必要项；已 verified 项从不回滚
 //   HOLD: exclude／restore 未回读确认的项本次不再参与纳入计划；父项未定则整个 MMF 不动
 //   PICK: 同一 ID 同时出现在 exclude 与 restore 时按 exclude 处理（保守保留剔除）
-//   TEST: tests/synchronization.test.js（漂移、跨周、回读不符、重复执行）；
+//   TEST: tests/synchronization.test.js（漂移、跨周交错、原生滚动、回读不符、重复执行）；
 //         tests/recovery.test.js（响应形态分类、partial／unknown 后重试、R12 隔离）；
 //         tests/exclusion.test.js（持久剔除、父子边界恢复、原生冲突、标记缺失）
 // ==========================================================================
@@ -106,8 +110,9 @@ export async function maintainCurrentWeek(request, { linear, evidence, now }) {
   const { scope } = request;
   const deps = { linear, now, labelId: scope.exclusionLabelId };
   try {
-    const { cycleId, ...cycles } = await findCurrentCycle(scope, linear, run.week);
+    const { cycleId, nextId, ...cycles } = await findCurrentCycle(scope, linear, run.week);
     run.week.cycleId = cycleId;
+    deps.nextId = nextId;
     await verifyMarker(scope, linear);
     const listing = await listMMFs(scope, linear, run);
     const skip = await applyPicks(request, listing, deps, run);
@@ -116,7 +121,7 @@ export async function maintainCurrentWeek(request, { linear, evidence, now }) {
   } catch (err) {
     if (!(err instanceof Blocked)) throw err;
     run.blocked = true;
-    run.problems.push({ code: err.code, issueId: null, message: err.message });
+    run.problems.push({ code: err.code, issueId: err.issueId, message: err.message });
   }
   return finish(run);
 }
@@ -174,7 +179,8 @@ async function findCurrentCycle(scope, linear, week) {
   const exact = cycles.find((c) => Date.parse(c.startsAt) === start && Date.parse(c.endsAt) === Date.parse(week.end));
   const pastIds = new Set(cycles.filter((c) => Date.parse(c.endsAt) <= start).map((c) => c.id));
   const previousId = cycles.find((c) => Date.parse(c.endsAt) === start)?.id ?? null;
-  if (exact) return { cycleId: exact.id, pastIds, previousId };
+  const nextId = cycles.find((c) => Date.parse(c.startsAt) === Date.parse(week.end))?.id ?? null;
+  if (exact) return { cycleId: exact.id, pastIds, previousId, nextId };
   const covering = cycles.find((c) => Date.parse(c.startsAt) <= start && start < Date.parse(c.endsAt));
   if (covering) {
     throw new Blocked('configuration_mismatch', `Cycle ${covering.id} 边界 ${covering.startsAt}–${covering.endsAt} 不等于当周`);
@@ -397,21 +403,33 @@ function classifyReadback(claim, after, remaining, action) {
 }
 
 // 返回回读确认的 Issue（unchanged 为前读）；失败或未知返回 null
-async function applyTarget(target, { linear, now, labelId }, run) {
+async function applyTarget(target, deps, run) {
+  const { linear, labelId } = deps;
   const facts = { currentId: run.week.cycleId, labelId };
-  if (shanghaiWeek(now()).start !== run.week.start) {
-    throw new Blocked('cycle_expired', `维护途中跨过周一，停止 ${run.week.start} 周的后续写入`);
-  }
+  ensureWeek(deps, run);
   const before = await readState(linear, target.issueId);
   if ('unreadable' in before) return recordUnreadable(run, target, before.unreadable);
+  ensureWeek(deps, run, target, before);
   const patch = patchFor(target, before, facts);
   if (!Object.keys(patch).length) return record(run, target, 'unchanged') ?? before;
   const claim = await writePatch(linear, target.issueId, patch);
   if (claim === 'denied') return record(run, target, 'failed', { code: 'permission_denied', message: '写入被拒绝' });
   const after = await readState(linear, target.issueId);
+  if (!('unreadable' in after)) ensureWeek(deps, run, target, after);
   const remaining = 'unreadable' in after ? null : patchFor(target, after, facts);
   const [write, problem] = classifyReadback(claim, after, remaining, target.action);
   return record(run, target, write, problem) ?? (write === 'verified' ? after : null);
+}
+
+// 当周已过期的证据：时钟跨过周一，或纳入目标的 Issue 已被观察到在下一周 Cycle（原生滚动）。
+// 任一成立即记该项 failed 并停止全部后续写入；已观察到新周归属的项绝不回移旧周
+function ensureWeek({ now, nextId }, run, target = null, issue = null) {
+  const crossed = shanghaiWeek(now()).start !== run.week.start;
+  const rolled = target?.cycleId === run.week.cycleId && nextId !== null && issue?.cycleId === nextId;
+  if (!crossed && !rolled) return;
+  if (target) record(run, target, 'failed');
+  const reason = rolled ? `已观察到 ${target.issueId} 在新周 Cycle ${nextId}` : '维护途中跨过周一';
+  throw new Blocked('cycle_expired', `${reason}，停止 ${run.week.start} 周的后续写入`, target?.issueId ?? null);
 }
 
 function recordUnreadable(run, target, cause) {

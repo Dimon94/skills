@@ -31,7 +31,10 @@ const result = await maintainCurrentWeek(
 3. 完整分页读取 Issue。带原 Spec 引用的是 MMF 父项，它的直接子项是 ticket。Epic 不进 Cycle。进行中但身份断裂的项报 `identity_unverifiable`，范围外的项报 `scope_invalid`，两者都不写。
 4. 父项进行中，或任一 ticket 进行中时，纳入父项和进行中的 ticket。父项保持原状态，未开始的兄弟票不纳入，没有进行中关联的 Backlog 也不纳入。
    上一周期 Cycle 里的 MMF 父项（含已完成）也参与结转判断，随它处理的只有仍需工作的 ticket。见下文「跨周结转」。
-5. 每项写入前重算当周并重读 Issue。已在目标 Cycle 的项不写。跨过周一就报 `cycle_expired`，并停止旧周的后续写入。
+5. 每项写入前重算当周并重读 Issue，回读后再核对一次。已在目标 Cycle 的项不写。出现以下任一情况，该项记 `failed`，报 `cycle_expired`，并停止旧周的全部后续写入：
+   - 时钟已跨过上海周一 00:00；
+   - 纳入目标在前读或回读时已位于下一周 Cycle（Linear 原生滚动先发生）。
+   已观察到新周归属的项绝不回移旧周。下一次调用按新周重新核对和计划。没有 CAS，前读之后、写入之前的漂移只能由回读发现并报告，不能根除。
 6. patch 只含 `cycle` 与专用排除标签的增减（`addLabels`／`removeLabels`），其他标签与字段不提交。写入后回读 `cycleId` 与 `labels`，结论只看回读：
    - 回读符合目标记 `verified`，即使响应超时或带 GraphQL errors。
    - 响应超时、为空或形状不明，或回读为空、出错、缺 `cycleId`，记 `write_unknown`。

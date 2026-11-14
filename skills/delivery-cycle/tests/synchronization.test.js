@@ -83,8 +83,9 @@ test('T5/R8：第二项前读前已被原生滚动加入 → 采用最新事实�
 
 test('T5/R8：运行途中跨过上海周一 → cycle_expired，停止旧周后续写入', async () => {
   const linear = twoMMFs();
-  const times = [new Date('2026-11-22T15:59:00Z'), new Date('2026-11-22T15:59:30Z'), new Date(WEEK.end)];
-  const result = await run(linear, () => times.shift() ?? new Date(WEEK.end));
+  let at = '2026-11-22T15:59:00Z'; // 上海周日 23:59；P2 前读时到达下一周一 00:00
+  linear.beforeRead = (id) => { if (id === 'P2') at = WEEK.end; };
+  const result = await run(linear, () => new Date(at));
 
   assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
   assert.equal(linear.issues.get('P2').cycleId, null);
@@ -129,4 +130,92 @@ test('R13：维护只调用读方法与 patchIssue', async () => {
   await run(linear);
   const allowed = new Set(['readCycleConfiguration', 'listCycles', 'readLabel', 'listIssues', 'readIssue', 'patchIssue']);
   assert.ok(linear.calls.every((c) => allowed.has(c)));
+});
+
+// --------------------------------------------------------------------------
+// 跨周交错（DD-545）：原生滚动与周一边界在维护前／中／后发生
+// 手算：上海 2026-11-15 周日 23:59:59 = 2026-11-15T15:59:59Z，属旧周 cycle-0；
+//       WEEK.start = 2026-11-15T16:00:00Z 是上海 11-16 周一 00:00，属新周 cycle-1
+// --------------------------------------------------------------------------
+
+const CROSS = [
+  { id: 'cycle-0', startsAt: '2026-11-08T16:00:00.000Z', endsAt: WEEK.start },
+  { id: 'cycle-1', startsAt: WEEK.start, endsAt: WEEK.end }
+];
+const SUNDAY_LATE = '2026-11-15T15:59:59.000Z';
+
+function crossWeek(...issues) {
+  const linear = issues.reduce((l, i) => l.add({ specRef: `spec-${i.id}`, ...i }), new FakeLinear({ cycles: CROSS }));
+  const clock = { at: SUNDAY_LATE };
+  return { linear, clock, now: () => new Date(clock.at) };
+}
+const codesOf = (result) => result.problems.map((p) => [p.code, p.issueId]);
+
+test('R8：前读已观察到原生滚入新周（本地时钟仍在旧周）→ 不回移旧周，cycle_expired 停止', async () => {
+  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2', cycleId: 'cycle-0' });
+  let rolled = false;
+  linear.beforeRead = (id) => {
+    if (id === 'P2' && !rolled) { rolled = true; linear.nativeRoll('cycle-0', 'cycle-1'); }
+  };
+  const result = await run(linear, now);
+
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.deepEqual(['P1', 'P2'].map((id) => linear.issues.get(id).cycleId), ['cycle-1', 'cycle-1']);
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P2']]);
+  assert.equal(result.status, 'partial');
+});
+
+test('R8/T5：前读在旧周、写入前已跨周一 → 零写入，不写旧周 Cycle', async () => {
+  const { linear, clock, now } = crossWeek({ id: 'P1' });
+  linear.beforeRead = () => { clock.at = WEEK.start; };
+  const result = await run(linear, now);
+
+  assert.equal(linear.mutations.length, 0);
+  assert.equal(linear.issues.get('P1').cycleId, null);
+  assert.equal(result.status, 'unsynchronized');
+  assert.deepEqual(codesOf(result), [['cycle_expired', 'P1']]);
+});
+
+test('R8：写入后原生把项滚入新周 → 回读不符不算成功，停止后续旧周写入', async () => {
+  const { linear, now } = crossWeek({ id: 'P1' }, { id: 'P2' });
+  linear.patchBehavior = async (id, patch, apply) => {
+    apply();
+    linear.nativeRoll('cycle-0', 'cycle-1');
+    return { success: true };
+  };
+  const result = await run(linear, now);
+
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.deepEqual(['P1', 'P2'].map((id) => linear.issues.get(id).cycleId), ['cycle-1', null]);
+  assert.equal(result.items.find((i) => i.issueId === 'P1').write, 'failed');
+  assert.equal(result.changed, 0);
+  assert.equal(result.status, 'unsynchronized');
+});
+
+test('R8/R11：回读时已跨周一 → 旧周写入不算成功；新周首次调用按新周计划且收敛', async () => {
+  const { linear, clock, now } = crossWeek({ id: 'P1' }, { id: 'P2' }, { id: 'P3', cycleId: 'cycle-0' });
+  linear.patchBehavior = async (id, patch, apply) => {
+    clock.at = WEEK.start;
+    linear.nativeRoll('cycle-0', 'cycle-1'); // 周一原生滚动先发生，P1 的旧周写入后到
+    apply();
+    return { success: true };
+  };
+  const first = await run(linear, now);
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.equal(first.items.find((i) => i.issueId === 'P1').write, 'failed');
+  assert.deepEqual(codesOf(first), [['cycle_expired', 'P1']]);
+  assert.equal(first.status, 'unsynchronized');
+
+  linear.patchBehavior = null;
+  linear.mutations = [];
+  clock.at = '2026-11-15T16:05:00.000Z'; // 上海周一 00:05
+  const second = await run(linear, now);
+  assert.equal(second.status, 'synchronized');
+  assert.deepEqual(second.items.map((i) => [i.issueId, i.action, i.write]),
+    [['P1', 'carry', 'verified'], ['P2', 'include', 'verified'], ['P3', 'include', 'unchanged']]);
+  assert.ok(linear.mutations.every((m) => m.patch.cycle === 'cycle-1'), '新周调用不写旧周 Cycle');
+
+  const third = await run(linear, now);
+  assert.equal(third.changed, 0);
+  assert.equal(linear.mutations.length, 2);
 });

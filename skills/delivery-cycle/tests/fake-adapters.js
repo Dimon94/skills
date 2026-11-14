@@ -45,6 +45,13 @@ export class FakeLinear {
     return this;
   }
 
+  // 模拟 Linear 原生滚动：from 周期内未完成的 Issue 全部移入 to
+  nativeRoll(from, to) {
+    for (const issue of this.issues.values()) {
+      if (issue.cycleId === from && !['completed', 'canceled'].includes(issue.statusType)) issue.cycleId = to;
+    }
+  }
+
   snapshot() {
     return structuredClone([...this.issues.values()]);
   }

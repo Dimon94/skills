@@ -200,6 +200,7 @@ export function createKeychainTransport({ user = userInfo().username, execFile =
     });
     const body = await response.json().catch(() => null);
     if (response.ok) return body;
-    throw Object.assign(new Error(`Linear HTTP ${response.status}`), { status: response.status, errors: body?.errors });
+    const reason = (body?.errors ?? []).map((e) => e?.message).filter(Boolean).join('; ');
+    throw Object.assign(new Error(`Linear HTTP ${response.status}${reason ? `：${reason}` : ''}`), { status: response.status, errors: body?.errors });
   };
 }

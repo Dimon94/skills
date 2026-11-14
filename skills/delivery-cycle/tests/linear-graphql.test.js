@@ -242,3 +242,16 @@ test('transport 非 2xx 抛出带 status 与 GraphQL errors 的错误，错误�
   assert.ok(!JSON.stringify({ message: err.message, stack: err.stack, ...err }).includes('SECRET'));
   await assert.rejects(createLinearAdapter({ request: transport }).listIssues(SCOPE, null), { code: 'permission_denied' });
 });
+
+// 真实录制形状（2026-11-14 Dawn 只读实测）：HTTP 400 + FORBIDDEN errors；原因必须原样带到 problem.message
+test('真实 HTTP 400 Invalid scope 响应经 transport+Adapter 报 permission_denied，消息保留平台原因', async () => {
+  const body = { errors: [{ message: 'Invalid scope: `read` required', extensions: { code: 'FORBIDDEN' } }] };
+  const { transport } = transportWith(jsonResponse(400, body));
+  const linear = createLinearAdapter({ request: transport });
+  await assert.rejects(linear.readCycleConfiguration('team-1'), (err) => {
+    assert.equal(err.code, 'permission_denied');
+    assert.match(err.message, /Invalid scope: `read` required/);
+    assert.doesNotMatch(err.message, /lin_api_SECRET/);
+    return true;
+  });
+});

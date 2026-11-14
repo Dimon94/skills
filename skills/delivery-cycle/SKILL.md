@@ -32,8 +32,14 @@ const result = await maintainCurrentWeek(
 4. 父项进行中，或任一 ticket 进行中时，纳入父项和进行中的 ticket。父项保持原状态，未开始的兄弟票不纳入，没有进行中关联的 Backlog 也不纳入。
    上一周期 Cycle 里的 MMF 父项（含已完成）也参与结转判断，随它处理的只有仍需工作的 ticket。见下文「跨周结转」。
 5. 每项写入前重算当周并重读 Issue。已在目标 Cycle 的项不写。跨过周一就报 `cycle_expired`，并停止旧周的后续写入。
-6. patch 只含 `cycle`。写入后回读业务字段：符合记 `verified`；不符记 `readback_mismatch`；无法判定记 `write_unknown`。mutation 返回成功不等于写入成功。
-7. 整体状态：全部符合为 `synchronized`；部分符合为 `partial`；没有符合项且有无法判定项为 `unknown`；其余为 `unsynchronized`。`changed` 只统计回读确认的变更。
+6. patch 只含 `cycle`。写入后回读业务字段，结论只看回读：
+   - 回读符合目标记 `verified`，即使响应超时或带 GraphQL errors。
+   - 响应超时、为空或形状不明，或回读为空、出错、缺 `cycleId`，记 `write_unknown`。
+   - 响应声称成功但回读不符，记 `readback_mismatch`。
+   - 响应带 GraphQL errors 或 `success: false` 且回读不符，记 `write_failed`。
+   - 写入被拒绝记 `permission_denied`。
+7. 整体状态：全部符合为 `synchronized`；至少一项符合（含原本无需变更项）但仍有失败或未知为 `partial`；没有符合项且有无法判定项为 `unknown`；其余为 `unsynchronized`。`changed` 只统计回读确认的变更。
+8. 重试就是再调用一次。每次都重新核对并前读：上次 Unknown 但实际已生效的项记 `unchanged`，不重放；`partial` 后只写仍不符合的项。已 `verified` 的项不回滚。
 
 ## 正式交付
 
@@ -57,7 +63,7 @@ const result = await maintainCurrentWeek(
 ## 当前未实现
 
 - `exclude` 与 `restore`：非空时整次返回 `capability_unavailable`，零写入。
-- 原生自动归属冲突，以及部分失败后的重试恢复。
+- 原生自动归属冲突。
 
 ## 不做
 

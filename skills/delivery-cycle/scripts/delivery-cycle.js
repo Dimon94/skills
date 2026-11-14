@@ -14,6 +14,9 @@
 //   PARAM: listCycles / listIssues(scope, cursor) → {nodes, pageInfo: {hasNextPage, endCursor}}
 //   PARAM: Issue → {id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}
 //          specRef 非空 = MMF 父 Spec Issue；其直接子项 = ticket；身份只看 id／parentId／specRef
+//   PARAM: patchIssue → 平台响应体，只作声称：{success: true} 且无 errors = accepted；
+//          errors 非空或 success=false = rejected；空体、其他形状或非 permission_denied 抛错 = uncertain
+//   PARAM: readIssue → Issue；null、抛错或缺 cycleId 字段 = 不可读（cycleId: null 是合法事实）
 //   FAIL: port 抛出带 code 的错误，code ∈ {permission_denied, capability_unavailable} 原样上报
 // ==========================================================================
 
@@ -71,17 +74,24 @@ function laterOf(a, b) {
 //   OUT: {status, week: {start, end, cycleId}, changed, items, problems}
 //        synchronized：无前置阻断且全部相关项 verified／unchanged；partial：有符合项也有失败；
 //        unknown：无符合项且至少一项 write_unknown；unsynchronized：其余
-//   INVARIANT: changed 只计回读确认的变更；patch 只含 cycle；scope 外对象零写入
+//   INVARIANT: changed 只计回读确认的变更；patch 只含 cycle；scope 外对象零写入；
+//              不读写原开发资格／依赖／派发／预算／恢复／授权，结果不含 gate 指令
 //   INVARIANT: 不写 status／state；旧周 Cycle 历史不改；not_carry 只把本周 Cycle 改为 null
 //   FAIL: 稳定 code 见 repo://docs/proposals/2026-11-14-delivery-cycle-m1-spec.md 第 6 节
-//   TEST: tests/configuration.test.js、tests/identity.test.js、tests/synchronization.test.js、tests/carryover.test.js
+//   TEST: tests/configuration.test.js、tests/identity.test.js、tests/synchronization.test.js、
+//         tests/recovery.test.js、tests/carryover.test.js
 // L6
 //   WHY: 无 CAS，只能逐项前读、最小 patch、业务字段回读，并如实报告观察到的事实
 //   CHAIN: 配置核对 → 完整分页找当周与上一周期 Cycle → 完整分页 Issue → 身份分组 →
 //          每 MMF 读一次父项证据 → 按交付结论定归属（carry／include／not_carry／保持原归属） →
 //          逐项 [重算当周 → 前读 → patch → 回读]；跨过周一立即停止旧周后续写入
+//   CLASSIFY: 回读符合 → verified（不论响应声称）；声称 uncertain 或回读不可读 → unknown/write_unknown；
+//             accepted 但回读不符 → readback_mismatch；rejected 且回读不符 → write_failed
+//   RETRY: 不保存上次结果；每次调用都是新维护，前读已符合即 unchanged，故 Unknown 后不重放、
+//          partial 后只补仍必要项；已 verified 项从不回滚
 //   FAIL: exclude／restore 尚未实现（DD-543），非空时 capability_unavailable 且零写入
-//   TEST: tests/synchronization.test.js（漂移、跨周、回读不符、重复执行）
+//   TEST: tests/synchronization.test.js（漂移、跨周、回读不符、重复执行）；
+//         tests/recovery.test.js（响应形态分类、partial／unknown 后重试、R12 隔离）
 // ==========================================================================
 export async function maintainCurrentWeek(request, { linear, evidence, now }) {
   const run = { blocked: false, week: { ...shanghaiWeek(now()), cycleId: null }, changed: 0, items: [], problems: [] };
@@ -268,18 +278,41 @@ function record(run, target, write, problem) {
   if (problem) run.problems.push({ ...problem, issueId: target.issueId });
 }
 
+// mutation 响应只是平台的声称：accepted／rejected／uncertain；结论一律以回读为准
+function patchClaim(response) {
+  if (!response || typeof response !== 'object') return 'uncertain';
+  if (response.errors?.length || response.success === false) return 'rejected';
+  return response.success === true ? 'accepted' : 'uncertain';
+}
+
 async function writeCycle(linear, issueId, cycleId) {
   try {
-    await linear.patchIssue(issueId, { cycle: cycleId });
-    return null;
+    return patchClaim(await linear.patchIssue(issueId, { cycle: cycleId }));
   } catch (err) {
     return err?.code === 'permission_denied' ? 'denied' : 'uncertain';
   }
 }
 
+// 读不到 Issue 或缺 cycleId 字段都算不可读；cycleId = null 是合法事实
+async function readCycle(linear, issueId) {
+  const issue = await linear.readIssue(issueId).catch((err) => err);
+  return issue instanceof Error || issue?.cycleId === undefined ? { unreadable: issue } : issue;
+}
+
 // not_carry 目标（cycleId=null）只要求不在本周 Cycle，旧周历史归属保持不动
-function fits(target, cycleId, currentId) {
-  return target.cycleId === null ? cycleId !== currentId : cycleId === target.cycleId;
+function fits(target, issue, currentId) {
+  if ('unreadable' in issue) return false;
+  return target.cycleId === null ? issue.cycleId !== currentId : issue.cycleId === target.cycleId;
+}
+
+const MISMATCH_CODE = { accepted: 'readback_mismatch', rejected: 'write_failed' };
+
+function classifyReadback(claim, after, matched) {
+  if (matched) return ['verified'];
+  if (claim === 'uncertain' || 'unreadable' in after) {
+    return ['unknown', { code: 'write_unknown', message: '写入或回读无法判定；下次先回读，不重放' }];
+  }
+  return ['failed', { code: MISMATCH_CODE[claim], message: `回读 cycleId=${after.cycleId}` }];
 }
 
 async function applyTarget(target, { linear, now }, run) {
@@ -288,19 +321,16 @@ async function applyTarget(target, { linear, now }, run) {
   if (shanghaiWeek(now()).start !== run.week.start) {
     throw new Blocked('cycle_expired', `维护途中跨过周一，停止 ${run.week.start} 周的后续写入`);
   }
-  const before = await linear.readIssue(target.issueId).catch((err) => err);
-  if (before instanceof Error || !before) {
-    return record(run, target, 'failed', { code: PORT_CODES.has(before?.code) ? before.code : 'capability_unavailable', message: '前读失败' });
+  const before = await readCycle(linear, target.issueId);
+  if ('unreadable' in before) {
+    const code = PORT_CODES.has(before.unreadable?.code) ? before.unreadable.code : 'capability_unavailable';
+    return record(run, target, 'failed', { code, message: '前读失败，本项不写' });
   }
-  if (fits(target, before.cycleId, currentId)) return record(run, target, 'unchanged');
-  const outcome = await writeCycle(linear, target.issueId, cycleId);
-  if (outcome === 'denied') return record(run, target, 'failed', { code: 'permission_denied', message: 'cycle 写入被拒绝' });
-  const after = await linear.readIssue(target.issueId).catch(() => null);
-  if (after && fits(target, after.cycleId, currentId)) return record(run, target, 'verified');
-  if (outcome === 'uncertain' || !after) {
-    return record(run, target, 'unknown', { code: 'write_unknown', message: '写入或回读无法判定' });
-  }
-  return record(run, target, 'failed', { code: 'readback_mismatch', message: `回读 cycleId=${after.cycleId}` });
+  if (fits(target, before, currentId)) return record(run, target, 'unchanged');
+  const claim = await writeCycle(linear, target.issueId, cycleId);
+  if (claim === 'denied') return record(run, target, 'failed', { code: 'permission_denied', message: 'cycle 写入被拒绝' });
+  const after = await readCycle(linear, target.issueId);
+  return record(run, target, ...classifyReadback(claim, after, fits(target, after, currentId)));
 }
 
 function finish({ blocked, week, changed, items, problems }) {

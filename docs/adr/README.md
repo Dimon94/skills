@@ -24,6 +24,7 @@
 - [Spec 用代码写 Interface，验证和审查沿 Module 收敛](0016-spec-writes-interface-as-code.md)
 - [ticket-sizing 所有权迁入本仓](0017-owned-ticket-sizing.md)
 - [automate-me 成为通用的个人工作方式 Skill 生成器](0018-owned-automate-me.md)
+- [本仓任务统一由 Linear 管理](0019-linear-issue-tracker.md)
 
 ## 命名
 

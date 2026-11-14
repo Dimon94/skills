@@ -13,7 +13,7 @@ Status: current
 - 运行入口：`skills/<name>/SKILL.md` 由 agent 运行时（Claude Code / Codex / pi 等）读取；脚本由 SKILL.md 显式调用。
 - 部署拓扑：无部署；`~/.agents/skills` 与 `~/.claude/skills` 经 symlink 消费本仓。
 - 持久状态 owner：skill 文档与脚本本身；运行期状态归调用方项目。
-- 外部系统：GitHub（Dimon94/skills 及 repo://skills/sync-upstream-skills/references/sources.json 声明的上游来源）；Linear（Issue 归档与回读）。
+- 外部系统：GitHub（Dimon94/skills 的代码与 PR，以及 repo://skills/sync-upstream-skills/references/sources.json 声明的上游来源）；Linear（本仓 Issue、Epic、Spec 与 ticket 的唯一 tracker，坐标见 repo://docs/agents/issue-tracker.md；另提供 Issue 归档与回读）。
 - CI：GitHub Actions 当前未配置，状态为 absent。
 
 当前模块清单：

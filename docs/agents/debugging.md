@@ -83,14 +83,14 @@
 
 完成标准：结论可由另一位开发者复跑。
 
-## 8. 缺陷落账（GitHub）
+## 8. 缺陷落账（Linear）
 
-第 7 节的记录产物归本仓 GitHub issue，不落本地笔记：
+第 7 节的记录产物归本仓 Linear Issue，不落本地笔记：
 
 - 可复现的缺陷先开 issue 再修；issue 描述写现象、复现命令、环境。无法复现的按第 1 节标 Unknown，挂 `needs-info`。
 - 标签流转按 repo://docs/agents/triage-labels.md：`needs-triage` 进场，评估后转 `ready-for-agent` / `ready-for-human` / `wontfix`。
-- 修复提交或 PR 描述写 `Closes #<number>`；根因、复现与验证命令写进 issue 的 resolution comment 再关闭。
-- issue 的脚本化读写给 `gh` CLI；禁止凭推断猜 issue 状态，以 `gh` 读回为准。
+- 修复提交或 PR 描述引用完整 `DD-<number>` 与 Linear URL；根因、复现与验证命令写进 Issue 的 resolution comment，验收后再转完成状态。
+- Issue 读写与状态回读按 repo://docs/agents/issue-tracker.md 执行。
 
 约定细节见 repo://docs/agents/issue-tracker.md。
 

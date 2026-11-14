@@ -12,21 +12,25 @@
 //   PARAM: now() → Date；Asia/Shanghai 固定 UTC+8（无夏令时），周 = 周一 00:00 起的左闭右开 7 天
 //   PARAM: readCycleConfiguration → {cyclesEnabled, timezone, cycleDurationWeeks, cycleStartDay, cooldownWeeks}
 //          cycleStartDay 采用 JS getDay 编号（1 = 周一）；缺字段、null 或 'unknown' 均视为无法核实
-//   PARAM: listCycles / listIssues(scope, cursor) → {nodes, pageInfo: {hasNextPage, endCursor}}
+//   PARAM: listCycles / listIssues(scope, cursor) → {nodes, pageInfo: {hasNextPage, endCursor}}；
+//          hasNextPage 为真而 endCursor 为空或未前进 = capability_unavailable（不死循环、不截断）
 //   PARAM: Issue → {id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}
 //          specRef 非空 = MMF 父 Spec Issue；其直接子项 = ticket；身份只看 id／parentId／specRef
 //   PARAM: readLabel(labelId) → {id, teamId} | null；null、抛错或 teamId ≠ scope.teamId = 标记缺失
 //   PARAM: patchIssue(issueId, {cycle?, addLabels?, removeLabels?}) 增量语义，未出现的字段不变；
 //          响应体，只作声称：{success: true} 且无 errors = accepted；
-//          errors 非空或 success=false = rejected；空体、其他形状或非 permission_denied 抛错 = uncertain
+//          errors 非空或 success=false = rejected；空体、其他形状或不带 FAIL code 的抛错 = uncertain
 //   PARAM: readIssue → Issue；null、抛错、缺 cycleId 字段或 labels 非数组 = 不可读（cycleId: null 是合法事实）
-//   FAIL: port 抛出带 code 的错误，code ∈ {permission_denied, capability_unavailable} 原样上报
+//   FAIL: port 抛出带 code 的错误，code ∈ {permission_denied, capability_unavailable} 原样上报；
+//         patchIssue 抛出这两类 code 为确定失败，该项 failed，不归 write_unknown
+//   PARAM: Evidence 形状不合法，或 verified／not_met 缺 source → 该条件 unknown（evidence_unavailable）
 // ==========================================================================
 
 const SHANGHAI_OFFSET_MS = 8 * 3600 * 1000;
 const DAY_MS = 24 * 3600 * 1000;
 const PORT_CODES = new Set(['permission_denied', 'capability_unavailable']);
 const DONE_TYPES = new Set(['completed', 'canceled']);
+const EVIDENCE_STATES = new Set(['verified', 'not_met', 'unknown']);
 // 父项状态与正式交付冲突 → workflow_drift；只报告，不改状态
 const DRIFT = Object.freeze({ completed: 'not_delivered', started: 'delivered' });
 const REQUIRED_CONFIGURATION = Object.freeze({
@@ -50,14 +54,25 @@ class Blocked extends Error {
 // L4 assessFormalDelivery
 //   IN: {spec: Evidence, main: Evidence}；Evidence = {state, source, effectiveAt, reason}
 //   OUT: {status, spec, main, effectiveAt}；verified+verified → delivered，任一 not_met → not_delivered，
-//        其余 unknown；effectiveAt 仅在 delivered 且两时间齐全时取较晚值，否则 null
+//        其余 unknown；形状不合法或 verified／not_met 缺 source 的条件先降为 unknown；effectiveAt 仅在 delivered 且两时间齐全时取较晚值，否则 null
 //   INVARIANT: 不读 Linear 状态，不改输入，不产生写入
 //   TEST: tests/assessment.test.js（九组合）、tests/carryover.test.js（与维护入口同一结果）
 // ==========================================================================
-export function assessFormalDelivery({ spec, main }) {
+export function assessFormalDelivery({ spec: rawSpec, main: rawMain } = {}) {
+  const spec = checkedEvidence(rawSpec);
+  const main = checkedEvidence(rawMain);
   const status = deliveryStatus(spec.state, main.state);
   const effectiveAt = status === 'delivered' ? laterOf(spec.effectiveAt, main.effectiveAt) : null;
   return { status, spec, main, effectiveAt };
+}
+
+// 形状不合法，或 verified／not_met 没有来源 → 该条件降为 unknown；无来源的结论不是证据
+function checkedEvidence(evidence) {
+  if (!EVIDENCE_STATES.has(evidence?.state)) {
+    return { state: 'unknown', source: null, effectiveAt: null, reason: '证据形状不合法' };
+  }
+  if (evidence.state === 'unknown' || evidence.source) return evidence;
+  return { ...evidence, state: 'unknown', reason: `${evidence.state} 缺来源` };
 }
 
 function deliveryStatus(spec, main) {
@@ -82,25 +97,33 @@ function laterOf(a, b) {
 //              不读写原开发资格／依赖／派发／预算／恢复／授权，结果不含 gate 指令
 //   INVARIANT: 不写 status／state；旧周 Cycle 历史不改；not_carry 只把本周 Cycle 改为 null
 //   INVARIANT: 剔除只存在于 Linear 标签；父 MMF 标记派生到已核实子票，不复制；restore 只删目标自身标记
-//   FAIL: 稳定 code 见 repo://docs/proposals/2026-11-14-delivery-cycle-m1-spec.md 第 6 节
+//   FAIL: 稳定 code 见 repo://docs/proposals/2026-11-14-delivery-cycle-m1-spec.md 第 6 节；
+//         实现补充 pick_conflict（同一 ID 同时 exclude／restore，按 exclude 处理，只报告）
 //   TEST: tests/configuration.test.js、tests/identity.test.js、tests/synchronization.test.js、
 //         tests/recovery.test.js、tests/carryover.test.js、tests/exclusion.test.js
 // L6
 //   WHY: 无 CAS，只能逐项前读、最小 patch、业务字段回读，并如实报告观察到的事实
-//   CHAIN: 配置核对 → 完整分页找当周与上一周期 Cycle → 排除标签核对 → 完整分页 Issue → 身份分组 →
+//   CHAIN: 配置核对 → 完整分页找当周、上一周期与未来 Cycle → 排除标签核对 → 完整分页 Issue → 身份分组 →
 //          逐个 exclude／restore 选择 [前读 → 标签（及本周 cycle）增量 patch → 回读] →
-//          已剔除且在本周的项清出本周 → 其余每 MMF 读一次父项证据 → 按交付结论定归属（carry／include／not_carry／保持原归属） →
-//          逐项 [重算当周 → 前读 → 重核 → patch → 回读 → 重核]；
-//          时钟跨过周一，或纳入目标在前读／回读时已位于下一周 Cycle（原生滚动）→ 该项 failed、
-//          cycle_expired 并停止旧周全部后续写入；已观察到新周归属的项绝不回移旧周
+//          已剔除、未完成且在本周的项清出本周 → 其余每 MMF 读一次父项证据 →
+//          按交付结论定归属（carry／include／not_carry／保持原归属） →
+//          逐项 [重算当周 → 前读 → 重核当周、scope、身份 → 重读目标 Cycle → patch → 回读 → 重核]
+//   SCOPE: 进行中，或停在上一周期且未完成的项才是纳入理由；更早 Cycle 中进行中的项按 R3 纳入，未开始项不处理；
+//          本周 Cycle 里未开始的子票不拉父项、不被移动；
+//          未来 Cycle（startsAt ≥ 本周结束）的项是他人排期，规划不纳入；前读才发现已在未来 Cycle → 该项
+//          action／write unchanged，不报 failure，其余继续；已观察到新周归属的项绝不回移旧周
+//   EXPIRE: cycle_expired 只在上海时钟跨过周一时触发：该项 failed 并停止全部后续写入
+//   RECHECK: 写前重读目标 Cycle 边界不再等于当周 → configuration_mismatch；消失 → cycle_missing；都停止后续写入；
+//            前读 teamId／projectId 离开 scope → scope_invalid；parentId／specRef 与计划不同 → identity_unverifiable；该项不写
+//   DRIFT: 父项状态与交付冲突，或父项本周前已交付而 ticket 仍进行中 → workflow_drift（只报告）
 //   LIMIT: 无 CAS；前读后、patch 前的未观察漂移只能由回读检出并报告，不能根除
 //   CLASSIFY: 回读符合 → verified（不论响应声称）；声称 uncertain 或回读不可读 → unknown/write_unknown；
-//             exclude 回读只剩 cycle 仍在本周 → native_assignment_conflict（保留标记）；
+//             accepted 的 exclude 回读只剩 cycle 仍在本周 → native_assignment_conflict（保留标记）；
 //             其余 accepted 但回读不符 → readback_mismatch；rejected 且回读不符 → write_failed
 //   RETRY: 不保存上次结果；每次调用都是新维护，前读已符合即 unchanged，故 Unknown 后不重放、
 //          partial 后只补仍必要项；已 verified 项从不回滚
 //   HOLD: exclude／restore 未回读确认的项本次不再参与纳入计划；父项未定则整个 MMF 不动
-//   PICK: 同一 ID 同时出现在 exclude 与 restore 时按 exclude 处理（保守保留剔除）
+//   PICK: 同一 ID 同时出现在 exclude 与 restore 时按 exclude 处理（保守保留剔除），并报 pick_conflict
 //   TEST: tests/synchronization.test.js（漂移、跨周交错、原生滚动、回读不符、重复执行）；
 //         tests/recovery.test.js（响应形态分类、partial／unknown 后重试、R12 隔离）；
 //         tests/exclusion.test.js（持久剔除、父子边界恢复、原生冲突、标记缺失）
@@ -108,22 +131,28 @@ function laterOf(a, b) {
 export async function maintainCurrentWeek(request, { linear, evidence, now }) {
   const run = { blocked: false, week: { ...shanghaiWeek(now()), cycleId: null }, changed: 0, items: [], problems: [] };
   const { scope } = request;
-  const deps = { linear, now, labelId: scope.exclusionLabelId };
+  const deps = { linear, now, scope, labelId: scope.exclusionLabelId };
   try {
-    const { cycleId, nextId, ...cycles } = await findCurrentCycle(scope, linear, run.week);
-    run.week.cycleId = cycleId;
-    deps.nextId = nextId;
-    await verifyMarker(scope, linear);
-    const listing = await listMMFs(scope, linear, run);
-    const skip = await applyPicks(request, listing, deps, run);
-    const targets = await planTargets(listing.groups, { evidence, skip, cycleId, labelId: deps.labelId, ...cycles }, run);
-    for (const target of targets) await applyTarget(target, deps, run);
+    await maintain(request, deps, evidence, run);
   } catch (err) {
     if (!(err instanceof Blocked)) throw err;
     run.blocked = true;
     run.problems.push({ code: err.code, issueId: err.issueId, message: err.message });
   }
   return finish(run);
+}
+
+async function maintain(request, deps, evidence, run) {
+  const { scope, linear, labelId } = deps;
+  const { cycleId, ...cycles } = await findCurrentCycle(scope, linear, run.week);
+  run.week.cycleId = cycleId;
+  deps.futureIds = cycles.futureIds;
+  await verifyMarker(scope, linear);
+  const listing = await listMMFs(scope, linear, run);
+  deps.planned = listing.inScope;
+  const skip = await applyPicks(request, listing, deps, run);
+  const targets = await planTargets(listing.groups, { evidence, skip, cycleId, labelId, ...cycles }, run);
+  for (const target of targets) await applyTarget(target, deps, run);
 }
 
 function shanghaiWeek(date) {
@@ -153,9 +182,16 @@ async function readAllPages(fetchPage) {
   do {
     const page = await fetchPage(cursor);
     nodes.push(...page.nodes);
-    cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    cursor = nextCursor(page.pageInfo, cursor);
   } while (cursor !== null);
   return nodes;
+}
+
+// 声称有下一页却给空游标或原地不动 → 无法完整读取，不能当作读完
+function nextCursor({ hasNextPage, endCursor }, cursor) {
+  if (!hasNextPage) return null;
+  if (endCursor && endCursor !== cursor) return endCursor;
+  throw Object.assign(new Error(`分页游标未前进：${endCursor}`), { code: 'capability_unavailable' });
 }
 
 function verifyConfiguration(config) {
@@ -174,18 +210,30 @@ function verifyConfiguration(config) {
 async function findCurrentCycle(scope, linear, week) {
   const config = await callPort(() => linear.readCycleConfiguration(scope.teamId), 'configuration_unverifiable');
   verifyConfiguration(config);
+  return readWeekCycles(scope, linear, week);
+}
+
+// 完整分页读 Cycle 并定位当周；入口与每项写入前都经这里（Spec §2：写前重读目标 Cycle）
+async function readWeekCycles(scope, linear, week) {
   const cycles = await callPort(() => readAllPages((c) => linear.listCycles(scope, c)), 'capability_unavailable');
-  const start = Date.parse(week.start);
-  const exact = cycles.find((c) => Date.parse(c.startsAt) === start && Date.parse(c.endsAt) === Date.parse(week.end));
-  const pastIds = new Set(cycles.filter((c) => Date.parse(c.endsAt) <= start).map((c) => c.id));
-  const previousId = cycles.find((c) => Date.parse(c.endsAt) === start)?.id ?? null;
-  const nextId = cycles.find((c) => Date.parse(c.startsAt) === Date.parse(week.end))?.id ?? null;
-  if (exact) return { cycleId: exact.id, pastIds, previousId, nextId };
+  const [start, end] = [Date.parse(week.start), Date.parse(week.end)];
+  const ids = (keep) => new Set(cycles.filter(keep).map((c) => c.id));
+  const exact = cycles.find((c) => Date.parse(c.startsAt) === start && Date.parse(c.endsAt) === end);
+  if (!exact) throw missingWeek(cycles, week, start);
+  return {
+    cycleId: exact.id,
+    pastIds: ids((c) => Date.parse(c.endsAt) <= start),
+    futureIds: ids((c) => Date.parse(c.startsAt) >= end),
+    previousId: cycles.find((c) => Date.parse(c.endsAt) === start)?.id ?? null
+  };
+}
+
+function missingWeek(cycles, week, start) {
   const covering = cycles.find((c) => Date.parse(c.startsAt) <= start && start < Date.parse(c.endsAt));
   if (covering) {
-    throw new Blocked('configuration_mismatch', `Cycle ${covering.id} 边界 ${covering.startsAt}–${covering.endsAt} 不等于当周`);
+    return new Blocked('configuration_mismatch', `Cycle ${covering.id} 边界 ${covering.startsAt}–${covering.endsAt} 不等于当周`);
   }
-  throw new Blocked('cycle_missing', `没有 ${week.start}–${week.end} 的 Cycle`);
+  return new Blocked('cycle_missing', `没有 ${week.start}–${week.end} 的 Cycle`);
 }
 
 // 排除标签是剔除的唯一持久载体；不可核实时整体零写入，不用本地列表替代
@@ -218,16 +266,19 @@ function groupMMFs(issues, run) {
   return [...mmfs.values()];
 }
 
-// 仍需工作：进行中，或停在上一周期／本周 Cycle 且未完成
-function needsWork(issue, held) {
-  return issue.statusType === 'started' || (held.has(issue.cycleId) && !DONE_TYPES.has(issue.statusType));
+// 仍需工作：进行中，或停在上一周期 Cycle 且未完成；本周 Cycle 里的未开始项不是纳入理由
+function needsWork(issue, { previousId }) {
+  const leftOver = previousId !== null && issue.cycleId === previousId && !DONE_TYPES.has(issue.statusType);
+  return issue.statusType === 'started' || leftOver;
 }
 
-// 相关 MMF：父项或 ticket 仍需工作，或父项停在上一周期／本周 Cycle（含已完成，供结转判断）
-function candidateMembers({ parent, tickets }, held) {
-  const live = tickets.filter((t) => needsWork(t, held));
-  const relevant = needsWork(parent, held) || held.has(parent.cycleId) || live.length > 0;
-  return relevant ? [parent, ...live] : [];
+// 相关 MMF：父项或 ticket 仍需工作，或父项停在上一周期／本周 Cycle（含已完成，供结转判断）；
+// 未来 Cycle（startsAt ≥ 本周结束）的项是他人排期，不进入计划
+function candidateMembers({ parent, tickets }, ctx) {
+  const live = tickets.filter((t) => needsWork(t, ctx));
+  const held = parent.cycleId !== null && [ctx.previousId, ctx.cycleId].includes(parent.cycleId);
+  const relevant = needsWork(parent, ctx) || held || live.length > 0;
+  return relevant ? [parent, ...live].filter((i) => !ctx.futureIds.has(i.cycleId)) : [];
 }
 
 // 剔除边界：父项标记覆盖整个 MMF；子票标记只覆盖自身；skip（本次剔除／恢复未定）不参与任何计划
@@ -239,9 +290,9 @@ function splitExcluded({ parent, tickets }, { labelId, skip }) {
   return { excluded: kept.filter(marked), mmf: { parent, tickets: kept.filter((t) => !marked(t)) } };
 }
 
-// 已剔除却在本周 Cycle（手工或原生加回）→ 清出本周；不在本周的不动
+// 已剔除却在本周 Cycle（手工或原生加回）且未完成 → 清出本周；不在本周或已完成的不动
 function evictions(excluded, cycleId) {
-  return excluded.filter((i) => i.cycleId === cycleId)
+  return excluded.filter((i) => i.cycleId === cycleId && !DONE_TYPES.has(i.statusType))
     .map((i) => ({ issueId: i.id, action: 'exclude', cycleId: null, delivery: null }));
 }
 
@@ -252,14 +303,18 @@ function placement(delivery, weekStart) {
   return Date.parse(delivery.effectiveAt) < Date.parse(weekStart) ? 'outside' : 'current';
 }
 
-function reportDrift(parent, delivery, run) {
-  if (DRIFT[parent.statusType] !== delivery.status) return;
-  run.problems.push({ code: 'workflow_drift', issueId: parent.id, message: `状态 ${parent.statusType} 与交付 ${delivery.status} 不符，交原 owner 核对` });
+// 父项状态与交付冲突，或父项本周前已交付而 ticket 仍进行中 → workflow_drift；只报告，不改状态
+function reportDrift(parent, members, delivery, where, run) {
+  const drifted = DRIFT[parent.statusType] === delivery.status ? [parent] : [];
+  if (where === 'outside') drifted.push(...members.filter((i) => i !== parent && i.statusType === 'started'));
+  for (const issue of drifted) {
+    run.problems.push({ code: 'workflow_drift', issueId: issue.id, message: `状态 ${issue.statusType} 与交付 ${delivery.status} 不符，交原 owner 核对` });
+  }
 }
 
-function keepAssignment(members, delivery, run) {
+function keepAssignment(members, delivery, run, parentId) {
   for (const issue of members) run.items.push({ issueId: issue.id, action: 'unchanged', write: 'unknown', delivery });
-  run.problems.push({ code: 'delivery_time_unverifiable', issueId: members[0].id, message: '已正式交付但事件时间缺失，保持原归属' });
+  run.problems.push({ code: 'delivery_time_unverifiable', issueId: parentId, message: '已正式交付但事件时间缺失，保持原归属' });
   return [];
 }
 
@@ -274,12 +329,12 @@ async function planMMF(group, ctx, run) {
 }
 
 async function planIncluded(mmf, ctx, run) {
-  const members = candidateMembers(mmf, ctx.held);
+  const members = candidateMembers(mmf, ctx);
   if (!members.length) return [];
   const delivery = await readDelivery(ctx.evidence, mmf.parent, run);
-  reportDrift(mmf.parent, delivery, run);
   const where = placement(delivery, run.week.start);
-  if (where === 'keep') return keepAssignment(members, delivery, run);
+  reportDrift(mmf.parent, members, delivery, where, run);
+  if (where === 'keep') return keepAssignment(members, delivery, run, mmf.parent.id);
   return members.map((issue) => toTarget(issue, where, delivery, ctx));
 }
 
@@ -288,7 +343,7 @@ async function readDelivery(evidence, parent, run) {
     spec: { state: 'unknown', source: null, effectiveAt: null, reason: String(err?.message ?? err) },
     main: { state: 'unknown', source: null, effectiveAt: null, reason: String(err?.message ?? err) }
   }));
-  const delivery = assessFormalDelivery(input);
+  const delivery = assessFormalDelivery(input ?? {});
   if (delivery.status === 'unknown') {
     run.problems.push({ code: 'evidence_unavailable', issueId: parent.id, message: '正式交付证据不足，保持 Unknown' });
   }
@@ -301,11 +356,10 @@ async function listMMFs(scope, linear, run) {
   for (const issue of listed.filter((i) => !inScope.includes(i))) {
     reject(run, issue.id, 'scope_invalid', '返回的 Issue 不在授权团队／项目内，不写入');
   }
-  return { groups: groupMMFs(inScope, run), inScope: new Set(inScope.map((i) => i.id)) };
+  return { groups: groupMMFs(inScope, run), inScope: new Map(inScope.map((i) => [i.id, i])) };
 }
 
-async function planTargets(groups, { previousId, ...rest }, run) {
-  const ctx = { ...rest, held: new Set([previousId, rest.cycleId].filter(Boolean)) };
+async function planTargets(groups, ctx, run) {
   const targets = [];
   for (const group of groups) targets.push(...await planMMF(group, ctx, run));
   return targets;
@@ -322,6 +376,7 @@ const PICK_TARGET = Object.freeze({
 
 // 未核实身份或不在范围内的选择零写入；已在列表阶段报告过的不重复报告
 function verifiedPicks({ exclude = [], restore = [] }, { groups, inScope }, run) {
+  reportPickConflicts(exclude, restore, run);
   const picks = new Map([...restore.map((id) => [id, 'restore']), ...exclude.map((id) => [id, 'exclude'])]);
   const members = new Map(groups.flatMap((g) => [g.parent, ...g.tickets]).map((i) => [i.id, i]));
   const reported = new Set(run.items.map((i) => i.issueId));
@@ -330,6 +385,13 @@ function verifiedPicks({ exclude = [], restore = [] }, { groups, inScope }, run)
     else reject(run, id, 'scope_invalid', '选择的 Issue 不在授权团队／项目内，不写入');
   }
   return [...picks].filter(([id]) => members.has(id)).map(([id, kind]) => [members.get(id), kind]);
+}
+
+// 同一 ID 两边都选：保守按 exclude 处理，并如实报告被忽略的 restore
+function reportPickConflicts(exclude, restore, run) {
+  for (const id of new Set(exclude.filter((e) => restore.includes(e)))) {
+    run.problems.push({ code: 'pick_conflict', issueId: id, message: '同时出现在 exclude 与 restore，按 exclude 处理' });
+  }
 }
 
 // 回读确认后用回读事实更新本次计划；未确认的项进入 skip
@@ -362,13 +424,16 @@ function patchClaim(response) {
   return response.success === true ? 'accepted' : 'uncertain';
 }
 
+// port 明确的失败 code 原样作为声称返回；其他抛错（超时等）为 uncertain，交回读分类
 async function writePatch(linear, issueId, patch) {
   try {
     return patchClaim(await linear.patchIssue(issueId, patch));
   } catch (err) {
-    return err?.code === 'permission_denied' ? 'denied' : 'uncertain';
+    return PORT_CODES.has(err?.code) ? err.code : 'uncertain';
   }
 }
+
+const PORT_FAILURE = Object.freeze({ permission_denied: '写入被拒绝', capability_unavailable: '写入能力不可用' });
 
 // 读不到 Issue、缺 cycleId 字段或 labels 非数组都算不可读；cycleId = null 是合法事实
 async function readState(linear, issueId) {
@@ -397,39 +462,71 @@ function classifyReadback(claim, after, remaining, action) {
   if (claim === 'uncertain' || !remaining) {
     return ['unknown', { code: 'write_unknown', message: '写入或回读无法判定；下次先回读，不重放' }];
   }
-  const native = action === 'exclude' && Object.keys(remaining).join() === 'cycle';
+  const native = claim === 'accepted' && action === 'exclude' && Object.keys(remaining).join() === 'cycle';
   if (native) return ['failed', { code: 'native_assignment_conflict', message: `清空后回读仍在 ${after.cycleId}；保留剔除标记` }];
   return ['failed', { code: MISMATCH_CODE[claim], message: `回读 cycleId=${after.cycleId}，labels=${after.labels}` }];
 }
 
-// 返回回读确认的 Issue（unchanged 为前读）；失败或未知返回 null
+// 返回回读确认的 Issue（unchanged 为前读）；失败、未知或不处理返回 null
 async function applyTarget(target, deps, run) {
-  const { linear, labelId } = deps;
-  const facts = { currentId: run.week.cycleId, labelId };
-  ensureWeek(deps, run);
-  const before = await readState(linear, target.issueId);
-  if ('unreadable' in before) return recordUnreadable(run, target, before.unreadable);
-  ensureWeek(deps, run, target, before);
-  const patch = patchFor(target, before, facts);
+  const before = await preRead(target, deps, run);
+  if (!before) return null;
+  const patch = patchFor(target, before, factsOf(deps, run));
   if (!Object.keys(patch).length) return record(run, target, 'unchanged') ?? before;
-  const claim = await writePatch(linear, target.issueId, patch);
-  if (claim === 'denied') return record(run, target, 'failed', { code: 'permission_denied', message: '写入被拒绝' });
-  const after = await readState(linear, target.issueId);
-  if (!('unreadable' in after)) ensureWeek(deps, run, target, after);
-  const remaining = 'unreadable' in after ? null : patchFor(target, after, facts);
+  await recheckWeek(deps, run, target);
+  const claim = await writePatch(deps.linear, target.issueId, patch);
+  if (PORT_FAILURE[claim]) return record(run, target, 'failed', { code: claim, message: PORT_FAILURE[claim] });
+  return readBack(target, claim, deps, run);
+}
+
+const factsOf = ({ labelId }, run) => ({ currentId: run.week.cycleId, labelId });
+
+// 前读：重算当周 → 读 Issue → 重核当周、scope 与身份；已在未来 Cycle 的纳入目标是他人排期，不写
+async function preRead(target, deps, run) {
+  ensureClock(deps, run);
+  const before = await readState(deps.linear, target.issueId);
+  if ('unreadable' in before) return recordUnreadable(run, target, before.unreadable);
+  ensureClock(deps, run, target);
+  const drift = identityDrift(before, deps);
+  if (drift) return record(run, target, 'failed', drift);
+  const later = target.cycleId === run.week.cycleId && deps.futureIds.has(before.cycleId);
+  if (later) return record(run, { ...target, action: 'unchanged' }, 'unchanged');
+  return before;
+}
+
+function identityDrift(issue, { scope, planned }) {
+  if (issue.teamId !== scope.teamId || issue.projectId !== scope.projectId) {
+    return { code: 'scope_invalid', message: '前读时已不在授权团队／项目内，不写入' };
+  }
+  const was = planned.get(issue.id);
+  if (issue.parentId === was?.parentId && issue.specRef === was?.specRef) return null;
+  return { code: 'identity_unverifiable', message: '前读时父子关系或 Spec 引用已变，不写入' };
+}
+
+// 写前重读目标 Cycle：边界不再等于当周 → configuration_mismatch，消失 → cycle_missing，都停止后续写入
+async function recheckWeek(deps, run, target) {
+  const fresh = await readWeekCycles(deps.scope, deps.linear, run.week);
+  if (fresh.cycleId !== run.week.cycleId) {
+    throw new Blocked('configuration_mismatch', `当周 Cycle 已由 ${run.week.cycleId} 变为 ${fresh.cycleId}`);
+  }
+  deps.futureIds = fresh.futureIds;
+  ensureClock(deps, run, target);
+}
+
+async function readBack(target, claim, deps, run) {
+  const after = await readState(deps.linear, target.issueId);
+  const readable = !('unreadable' in after);
+  if (readable) ensureClock(deps, run, target);
+  const remaining = readable ? patchFor(target, after, factsOf(deps, run)) : null;
   const [write, problem] = classifyReadback(claim, after, remaining, target.action);
   return record(run, target, write, problem) ?? (write === 'verified' ? after : null);
 }
 
-// 当周已过期的证据：时钟跨过周一，或纳入目标的 Issue 已被观察到在下一周 Cycle（原生滚动）。
-// 任一成立即记该项 failed 并停止全部后续写入；已观察到新周归属的项绝不回移旧周
-function ensureWeek({ now, nextId }, run, target = null, issue = null) {
-  const crossed = shanghaiWeek(now()).start !== run.week.start;
-  const rolled = target?.cycleId === run.week.cycleId && nextId !== null && issue?.cycleId === nextId;
-  if (!crossed && !rolled) return;
+// 当周过期 = 上海时钟已跨过周一 00:00；记该项 failed 并停止全部后续写入，绝不回移旧周
+function ensureClock({ now }, run, target = null) {
+  if (shanghaiWeek(now()).start === run.week.start) return;
   if (target) record(run, target, 'failed');
-  const reason = rolled ? `已观察到 ${target.issueId} 在新周 Cycle ${nextId}` : '维护途中跨过周一';
-  throw new Blocked('cycle_expired', `${reason}，停止 ${run.week.start} 周的后续写入`, target?.issueId ?? null);
+  throw new Blocked('cycle_expired', `维护途中跨过周一，停止 ${run.week.start} 周的后续写入`, target?.issueId ?? null);
 }
 
 function recordUnreadable(run, target, cause) {

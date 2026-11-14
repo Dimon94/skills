@@ -141,37 +141,30 @@ test('T11/R9：从 partial 重试只补仍必要项，已成功项不回滚、�
 });
 
 // --------------------------------------------------------------------------
-// R12：失败同步不触碰原开发链路；结果不携带 gate 指令
+// R12：失败同步不改 Issue 事实；结果不携带 gate 指令
 // --------------------------------------------------------------------------
-function developmentSpy() {
-  const state = {
-    eligibility: { P1: 'eligible' }, dependencies: { P1: ['X-1'] }, dispatch: { P1: 'agent-a' },
-    budget: { P1: 120 }, recovery: { P1: 'resume-token' }, authorization: { P1: ['write'] }
-  };
-  const accesses = [];
-  const spy = new Proxy(state, {
-    get: (t, k) => { accesses.push(['get', k]); return t[k]; },
-    set: (t, k, v) => { accesses.push(['set', k]); t[k] = v; return true; },
-    deleteProperty: (t, k) => { accesses.push(['delete', k]); return delete t[k]; }
-  });
-  return { spy, accesses, before: structuredClone(state), state };
-}
-
-test('R12：失败同步前后原开发资格／依赖／派发／预算／恢复／授权与调用记录不变', async () => {
+// 开发链路状态不在本 skill 的 port 内：只断言结果形状与 Linear 调用面，不伪造开发链路替身
+test('R12：失败同步只返回维护结果，不含 gate／派发／预算指令，Issue 事实与调用面不越界', async () => {
   const linear = new FakeLinear()
     .add({ id: 'P1', specRef: 'spec-1', blockedBy: ['X-1'], assignee: 'agent-a' })
     .add({ id: 'P2', specRef: 'spec-2' });
   linear.patchBehavior = async (id) => (id === 'P1' ? TIMEOUT() : GRAPHQL_ERRORS);
   const issuesBefore = linear.snapshot();
-  const dev = developmentSpy();
-  const result = await run(linear, { development: dev.spy });
+  const result = await run(linear);
 
   assert.equal(result.status, 'unknown');
-  assert.deepEqual(dev.accesses, []);
-  assert.deepEqual(dev.state, dev.before);
   assert.deepEqual(linear.snapshot(), issuesBefore);
   assert.deepEqual(Object.keys(result).sort(), ['changed', 'items', 'problems', 'status', 'week']);
   assert.doesNotMatch(JSON.stringify(result), /gate|hook|dispatch|budget|recover|block/i);
   const allowed = new Set(['readCycleConfiguration', 'listCycles', 'readLabel', 'listIssues', 'readIssue', 'patchIssue']);
   assert.ok(linear.calls.every((c) => allowed.has(c)));
+});
+
+test('F4：patchIssue 抛 capability_unavailable → 确定失败原样上报，不归 write_unknown', async () => {
+  const linear = new FakeLinear().add({ id: 'P1', specRef: 'spec-1' });
+  linear.patchBehavior = async () => { throw portError('capability_unavailable'); };
+  const result = await run(linear);
+  assert.deepEqual(codes(result), [['capability_unavailable', 'P1']]);
+  assert.deepEqual(writes(result), [['P1', 'failed']]);
+  assert.equal(result.status, 'unsynchronized');
 });

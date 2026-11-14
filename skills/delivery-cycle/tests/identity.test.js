@@ -92,3 +92,29 @@ test('R4（最小）：证据 Unknown 不阻断纳入，结果附 evidence_unava
   assert.equal(result.items[0].delivery.status, 'unknown');
   assert.deepEqual(result.problems.map((p) => p.code), ['evidence_unavailable']);
 });
+
+test('F8：本周 Cycle 里的未开始 ticket 不让 Backlog 父项被纳入', async () => {
+  const linear = new FakeLinear()
+    .add({ id: 'P', specRef: 'spec-1', statusType: 'backlog' })
+    .add({ id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' })
+    .add({ id: 'S', parentId: 'P', statusType: 'backlog' });
+  await run(linear);
+  assert.ok(!linear.mutations.some((m) => m.issueId === 'P'), '父项零写入');
+  assert.equal(cycleOf(linear, 'P'), null);
+});
+
+test('F9：分页声称有下一页但游标为空或不前进 → capability_unavailable，零写入', async () => {
+  for (const mode of ['null', 'empty', 'same']) {
+    const linear = new FakeLinear().add({ id: 'P1', specRef: 'spec-1' });
+    let calls = 0;
+    linear.listIssues = async (scope, cursor) => {
+      calls += 1; // 防止错误实现死循环：多次后交出数据
+      if (calls > 5) return { nodes: [structuredClone(linear.issues.get('P1'))], pageInfo: { hasNextPage: false, endCursor: null } };
+      const endCursor = { null: null, empty: '', same: cursor ?? 'c1' }[mode];
+      return { nodes: [], pageInfo: { hasNextPage: true, endCursor } };
+    };
+    const result = await run(linear);
+    assert.deepEqual(result.problems.map((p) => p.code), ['capability_unavailable'], mode);
+    assert.equal(linear.mutations.length, 0, mode);
+  }
+});

@@ -13,7 +13,8 @@ const CYCLES = [
   { id: 'cycle-old', startsAt: '2026-11-01T16:00:00.000Z', endsAt: '2026-11-08T16:00:00.000Z' },
   { id: 'cycle-0', startsAt: '2026-11-08T16:00:00.000Z', endsAt: WEEK.start },
   { id: 'cycle-1', startsAt: WEEK.start, endsAt: WEEK.end },
-  { id: 'cycle-2', startsAt: WEEK.end, endsAt: '2026-11-29T16:00:00.000Z' }
+  { id: 'cycle-2', startsAt: WEEK.end, endsAt: '2026-11-29T16:00:00.000Z' },
+  { id: 'cycle-3', startsAt: '2026-11-29T16:00:00.000Z', endsAt: '2026-12-06T16:00:00.000Z' }
 ];
 const LAST_WEEK = '2026-11-12T03:00:00.000Z';
 const THIS_WEEK = '2026-11-16T03:00:00.000Z';
@@ -111,6 +112,48 @@ test('R4：未交付与 Unknown 的上周原工作结转本周；已完成子票
   assert.ok(linear.mutations.every((m) => m.patch.cycle === 'cycle-1'));
 });
 
+// --------------------------------------------------------------------------
+// R8／F1：未来 Cycle（startsAt >= 本周结束）的项是他人排期，不拉回本周
+// --------------------------------------------------------------------------
+
+test('R8/F1：下周 Cycle 的进行中项不纳入，其余照常写入，整体 synchronized', async () => {
+  const linear = linearWith(
+    { id: 'P0', specRef: 's0', statusType: 'started', cycleId: 'cycle-2' },
+    { id: 'P1', specRef: 's1', statusType: 'started', cycleId: null },
+    { id: 'P2', specRef: 's2', statusType: 'unstarted', cycleId: 'cycle-0' });
+  const result = await run(linear, new FakeEvidence({ P0: NOT_MET, P1: NOT_MET, P2: UNKNOWN }));
+
+  assert.equal(result.status, 'synchronized');
+  assert.equal(cycleOf(linear, 'P0'), 'cycle-2');
+  assert.ok(!linear.mutations.some((m) => m.issueId === 'P0'), '下周项零写入');
+  assert.equal(item(result, 'P0'), undefined);
+  assert.deepEqual(['P1', 'P2'].map((id) => [cycleOf(linear, id), item(result, id).write]),
+    [['cycle-1', 'verified'], ['cycle-1', 'verified']]);
+});
+
+test('R8/F1：更远 Cycle（cycle-3）的进行中项同样不写回本周', async () => {
+  const linear = linearWith({ id: 'P3', specRef: 's3', statusType: 'started', cycleId: 'cycle-3' });
+  const result = await run(linear, new FakeEvidence({ P3: NOT_MET }));
+
+  assert.equal(result.status, 'synchronized');
+  assert.equal(cycleOf(linear, 'P3'), 'cycle-3');
+  assert.equal(linear.mutations.length, 0);
+});
+
+test('R8/F1：前读才发现项已被移到下周 Cycle（时钟未跨周）→ 该项 unchanged，不报 failure，其余继续', async () => {
+  const linear = linearWith(
+    { id: 'P1', specRef: 's1', statusType: 'started' },
+    { id: 'P2', specRef: 's2', statusType: 'started' });
+  linear.beforeRead = (id) => { if (id === 'P2') linear.issues.get('P2').cycleId = 'cycle-2'; };
+  const result = await run(linear, new FakeEvidence({ P1: NOT_MET, P2: NOT_MET }));
+
+  assert.equal(result.status, 'synchronized');
+  assert.equal(cycleOf(linear, 'P2'), 'cycle-2');
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P1']);
+  assert.deepEqual([item(result, 'P2').action, item(result, 'P2').write], ['unchanged', 'unchanged']);
+  assert.ok(!result.problems.some((p) => p.issueId === 'P2'));
+});
+
 test('R5：Done 未交付与 Started 已交付都报 workflow_drift，归属按事实处理，不写状态', async () => {
   const linear = linearWith(
     { id: 'DONE', specRef: 's1', statusType: 'completed', cycleId: 'cycle-0' },
@@ -135,6 +178,8 @@ test('R4/R15：ticket 沿用父 MMF 判断，只读父项证据', async () => {
   assert.deepEqual(item(result, 'T1').delivery, item(result, 'P1').delivery);
   assert.deepEqual([cycleOf(linear, 'P1'), cycleOf(linear, 'T1')], [null, null]);
   assert.equal(item(result, 'T1').action, 'not_carry');
+  // F11：父项本周前已交付，ticket 仍 started → 给该 ticket 附 workflow_drift
+  assert.deepEqual(codes(result, 'workflow_drift'), ['T1']);
 });
 
 test('R15：同一证据经公开判断与维护入口结果相同；statusType 不影响；无本地覆盖状态', async () => {
@@ -148,4 +193,15 @@ test('R15：同一证据经公开判断与维护入口结果相同；statusType 
 
   const later = await run(linear, new FakeEvidence({ P1: NOT_MET }));
   assert.equal(item(later, 'P1').delivery.status, 'not_delivered');
+});
+
+test('F6：Evidence 返回 undefined、{} 或 verified 缺 source → Unknown + evidence_unavailable，不判已交付', async () => {
+  const noSource = { state: 'verified', effectiveAt: LAST_WEEK, reason: null };
+  for (const shape of [undefined, {}, { spec: noSource, main: noSource }]) {
+    const linear = linearWith({ id: 'P1', specRef: 's1', statusType: 'completed', cycleId: 'cycle-1' });
+    const result = await run(linear, { read: async () => shape });
+    assert.equal(item(result, 'P1').delivery.status, 'unknown', JSON.stringify(shape));
+    assert.deepEqual(codes(result, 'evidence_unavailable'), ['P1']);
+    assert.equal(linear.mutations.length, 0, '不按已交付移出本周');
+  }
 });

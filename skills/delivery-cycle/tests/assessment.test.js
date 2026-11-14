@@ -44,3 +44,13 @@ test('R14: 已交付但任一时间缺失时 effectiveAt=null', async () => {
   assert.equal(result.status, 'delivered');
   assert.equal(result.effectiveAt, null);
 });
+
+test('F6/R15：verified 或 not_met 缺 source 视为 unknown；形状缺失不抛错', () => {
+  // 独立预期：修复清单 F6——无来源的结论不是证据
+  const ok = { state: 'verified', source: 'owner', effectiveAt: '2026-11-16T02:00:00Z', reason: null };
+  const noSource = (state) => ({ state, source: null, effectiveAt: '2026-11-16T02:00:00Z', reason: null });
+  assert.equal(assessFormalDelivery({ spec: noSource('verified'), main: ok }).status, 'unknown');
+  assert.equal(assessFormalDelivery({ spec: noSource('not_met'), main: ok }).status, 'unknown');
+  assert.equal(assessFormalDelivery({}).status, 'unknown');
+  assert.equal(assessFormalDelivery({ spec: ok, main: ok }).status, 'delivered');
+});

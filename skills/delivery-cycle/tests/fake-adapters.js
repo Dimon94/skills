@@ -26,6 +26,9 @@ function page(items, cursor, size) {
   return { nodes, pageInfo: { hasNextPage: next < items.length, endCursor: String(next) } };
 }
 
+// R13 范围外的写方法：真实 adapter 若暴露也绝不可被调用
+const FORBIDDEN_WRITES = Object.freeze(['createIssue', 'updateIssueState', 'updateTeam', 'createLabel', 'createCycle', 'archiveIssue']);
+
 export class FakeLinear {
   constructor({ config = COMPLIANT_CONFIG, cycles, pageSize = 2 } = {}) {
     this.config = config;
@@ -36,6 +39,8 @@ export class FakeLinear {
     this.calls = [];
     this.mutations = [];
     this.patchBehavior = null; // (issueId, patch, apply) => Promise
+    this.forbidden = []; // R13：越界写方法被调用时记录方法名
+    for (const name of FORBIDDEN_WRITES) this[name] = async () => { this.forbidden.push(name); };
   }
 
   add(issue) {

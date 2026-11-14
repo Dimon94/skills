@@ -178,3 +178,39 @@ test('R9：剔除写入结果未知时不纳入该项，下次先回读、不重
   assert.equal(item(retry, 'A', 'exclude').write, 'unchanged');
   assert.equal(linear.mutations.length, 0);
 });
+
+test('F7：父项剔除时已完成子票在本周 Cycle → 零写入，不清出', async () => {
+  const linear = new FakeLinear()
+    .add({ id: 'P', specRef: 'spec-1', cycleId: 'cycle-1', labels: [LABEL] })
+    .add({ id: 'T1', parentId: 'P', cycleId: 'cycle-1', statusType: 'completed' });
+  const result = await run(linear);
+  assert.ok(!linear.mutations.some((m) => m.issueId === 'T1'), '已完成子票不移动');
+  assert.equal(cycleOf(linear, 'T1'), 'cycle-1');
+  assert.ok(!result.items.some((i) => i.issueId === 'T1' && i.action === 'exclude'));
+});
+
+test('F5：平台明确拒绝清 cycle → write_failed，不误报 native_assignment_conflict', async () => {
+  const linear = mmf();
+  linear.issues.get('A').labels.push(LABEL);
+  linear.patchBehavior = async () => ({ success: false, errors: [{ message: 'denied by workflow' }] });
+  const result = await run(linear, { exclude: ['A'] });
+  assert.deepEqual(codes(result), [['write_failed', 'A']]);
+  assert.equal(item(result, 'A', 'exclude').write, 'failed');
+});
+
+test('F10：同一 ID 同时 exclude 与 restore → 按 exclude 处理并报 pick_conflict', async () => {
+  const linear = mmf();
+  const result = await run(linear, { exclude: ['A'], restore: ['A'] });
+  assert.deepEqual(labelsOf(linear, 'A'), ['keep-me', LABEL]);
+  assert.equal(item(result, 'A', 'exclude').write, 'verified');
+  assert.deepEqual(codes(result), [['pick_conflict', 'A']]);
+});
+
+test('F12/T1：纯纳入调用（无 exclude／restore）排除标签不存在 → exclusion_marker_missing，零写入', async () => {
+  const linear = new FakeLinear().add({ id: 'Q', specRef: 'spec-2' });
+  linear.labels.clear();
+  const result = await run(linear);
+  assert.equal(result.status, 'unsynchronized');
+  assert.deepEqual(codes(result), [['exclusion_marker_missing', null]]);
+  assert.equal(linear.mutations.length, 0);
+});

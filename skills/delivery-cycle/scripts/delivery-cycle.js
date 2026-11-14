@@ -8,7 +8,9 @@
 //   TEST: node --test skills/delivery-cycle/tests/*.test.js
 //   PROTOCOL: 公开签名或结果形状变化时同步 repo://skills/delivery-cycle/SKILL.md 与
 //             repo://docs/proposals/2026-11-14-delivery-cycle-m1-spec.md（Linear DD-540 为准）
-//             DD-540 §3 待回写：readIssue 字段扩展、readLabel、配置字段名、pick_conflict
+//             DD-540 §3 待回写：readIssue 字段扩展、readLabel、配置字段名、pick_conflict；
+//             §6 待 Root 确认：运行中途阻断且已有符合项时为 partial（见 maintainCurrentWeek L4 OUT）；
+//             DD-541 验收句待回写：本周新出现的未开始兄弟不纳入，上一周期未完成 ticket 随已相关 MMF 结转
 // L5
 //   PARAM: now() → Date；Asia/Shanghai 固定 UTC+8（无夏令时），周 = 周一 00:00 起的左闭右开 7 天
 //   PARAM: readCycleConfiguration → {cyclesEnabled, timezone, cycleDurationWeeks, cycleStartDay, cooldownWeeks}
@@ -25,7 +27,8 @@
 //   PARAM: readIssue → Issue；null、抛错、缺 cycleId 字段或 labels 非数组 = 不可读（cycleId: null 是合法事实）
 //   FAIL: port 抛出带 code 的错误，code ∈ {permission_denied, capability_unavailable} 原样上报；
 //         patchIssue 抛出这两类 code 为确定失败，该项 failed，不归 write_unknown
-//   PARAM: Evidence 形状不合法，或 verified／not_met 缺 source → 该条件 unknown（evidence_unavailable）
+//   PARAM: Evidence 形状不合法，或 verified／not_met 缺 source → 该条件 unknown（evidence_unavailable）；
+//          effectiveAt 须带时区，且日期部分是真实日历日（2026-02-30 → null）
 // ==========================================================================
 
 const SHANGHAI_OFFSET_MS = 8 * 3600 * 1000;
@@ -59,7 +62,8 @@ class Blocked extends Error {
 // L4 assessFormalDelivery
 //   IN: {spec: Evidence, main: Evidence}；Evidence = {state, source, effectiveAt, reason}
 //   OUT: {status, spec, main, effectiveAt}；verified+verified → delivered，任一 not_met → not_delivered，
-//        其余 unknown；形状不合法或 verified／not_met 缺 source 的条件先降为 unknown；effectiveAt 仅在 delivered 且两时间齐全时取较晚值，否则 null
+//        其余 unknown；形状不合法或 verified／not_met 缺 source 的条件先降为 unknown；effectiveAt 仅在 delivered 且两时间齐全时取较晚值，否则 null；
+//        不存在的日历日期（如 2026-02-30）按时间缺失处理
 //   INVARIANT: 不读 Linear 状态，不改输入，不产生写入
 //   TEST: tests/assessment.test.js（九组合）、tests/carryover.test.js（与维护入口同一结果）
 // ==========================================================================
@@ -84,7 +88,13 @@ function checkedEvidence(evidence) {
 
 function instantOrNull(value) {
   const valid = typeof value === 'string' && ISO_INSTANT.test(value) && Number.isFinite(Date.parse(value));
-  return valid ? value : null;
+  return valid && realDate(value.slice(0, 10)) ? value : null;
+}
+
+// Date.parse 会把不存在的日期（2026-02-30）滚到下月：日期部分按 UTC 回写，必须与原文前 10 位相同
+function realDate(day) {
+  const ms = Date.parse(`${day}T00:00:00Z`);
+  return Number.isFinite(ms) && new Date(ms).toISOString().startsWith(day);
 }
 
 function deliveryStatus(spec, main) {
@@ -106,6 +116,10 @@ function laterOf(a, b) {
 //        synchronized：无前置阻断且全部相关项 verified／unchanged；partial：有符合项也有失败；
 //        unknown：未被阻断、无符合项且至少一项 write_unknown；unsynchronized：其余
 //        被阻断：有符合项 → partial，否则 unsynchronized；当前项与未处理项都列入 items（unchanged／failed）
+//        「符合项」只算有写入目标的项；只观察的项（未来 Cycle 的 deferred、不相关 MMF 的 leftover、
+//        未清出的 stray）记 unchanged／unchanged 可见，但不计为符合，也不阻止 synchronized
+//        运行中途 cycle_missing／configuration_mismatch 且已有符合项 → partial（部分写入已真实落地，
+//        报 unsynchronized 会误导重试判断）；入口即阻断 → unsynchronized。此口径待 Root 在 Spec §6 确认
 //   INVARIANT: changed 只计回读确认的变更；patch 只含 cycle 与排除标签增减；scope 外对象零写入；
 //              不读写原开发资格／依赖／派发／预算／恢复／授权，结果不含 gate 指令
 //   INVARIANT: 不写 status／state；旧周 Cycle 历史不改；not_carry 只把本周 Cycle 改为 null
@@ -118,13 +132,16 @@ function laterOf(a, b) {
 //   WHY: 无 CAS，只能逐项前读、最小 patch、业务字段回读，并如实报告观察到的事实
 //   CHAIN: 配置核对 → 完整分页找当周、上一周期与未来 Cycle → 排除标签核对 → 完整分页 Issue → 身份分组 →
 //          逐个 exclude／restore 选择 [前读 → 标签（及本周 cycle）增量 patch → 回读] →
-//          已剔除、未完成且在本周的项清出本周 → 其余每 MMF 读一次父项证据 →
+//          已剔除、未完成且在本周的项清出本周 → 相关 MMF 每个读一次父项证据 →
 //          按交付结论定归属（carry／include／not_carry／保持原归属） →
+//          不相关 MMF 在本周有未完成 ticket 时单独读父项证据，只判清出（outside → not_carry） →
 //          逐项 [重算当周 → 前读 → 重核当周、scope、身份、未来 Cycle → 重读目标 Cycle → 重判未来 Cycle →
 //                patch → 回读 → 重核]
-//   SCOPE: 进行中，或停在上一周期且未完成的项（含未开始的 ticket）随 MMF 结转；更早 Cycle 中进行中的项按 R3 纳入；
-//          本周新建的未开始兄弟 ticket 不被纳入，也不拉父项；
-//          父项已交付（outside）时，本周 Cycle 里未完成的 ticket 不论是否进行中都清出（not_carry）；
+//   SCOPE: MMF 相关只由三项决定：父项仍需工作；父项在上一周期／本周 Cycle；存在不在未来 Cycle 的进行中 ticket。
+//          上一周期未完成的 ticket（含未开始的）只随已相关 MMF 结转，自身不让 MMF 相关，不相关时记 unchanged／unchanged；
+//          更早 Cycle 中进行中的项按 R3 纳入；本周新建的未开始兄弟 ticket 不被纳入，也不拉父项；
+//          父项已交付（outside）时，本周 Cycle 里未完成的 ticket 不论是否进行中都清出（not_carry）。
+//          清出与纳入分开判定：MMF 不相关也照样清出，父项不纳入、不写；证据不是 outside 时不写，按证据规则报告；
 //          未来 Cycle（startsAt ≥ 本周结束）的项是他人排期：先于纳入判断滤出，记 unchanged／unchanged，不写、不拉父项；
 //          父项在未来 Cycle 而 ticket 已纳入本周 → 父项报 workflow_drift；显式剔除已完成项只加标记，不改 cycle
 //   EXPIRE: cycle_expired 两类触发：上海时钟跨过周一；或计划时在目标 Cycle 的项，前读、写前重读或回读时
@@ -151,7 +168,7 @@ function laterOf(a, b) {
 // ==========================================================================
 export async function maintainCurrentWeek(request, { linear, evidence, now }) {
   const week = { ...shanghaiWeek(now()), cycleId: null };
-  const run = { blocked: false, week, changed: 0, items: [], problems: [], pending: [] };
+  const run = { blocked: false, week, changed: 0, items: [], problems: [], pending: [], observed: new Set() };
   const { scope } = request;
   const deps = { linear, now, scope, labelId: scope.exclusionLabelId, plan: null };
   try {
@@ -312,16 +329,18 @@ function needsWork(issue, { previousId }) {
   return issue.statusType === 'started' || leftOver;
 }
 
-// 相关 MMF：父项或本周外的 ticket 仍需工作，或父项停在上一周期／本周 Cycle（含已完成，供结转判断）；
-// 未来 Cycle（startsAt ≥ 本周结束）的项是他人排期：先于 needsWork 滤出，不进入计划，只作为 deferred 可见
+// 相关 MMF 只由三项决定：父项仍需工作、父项停在上一周期／本周 Cycle（含已完成，供结转判断）、
+// 存在不在未来 Cycle 的进行中 ticket。上一周期未开始的 ticket 只随已相关 MMF 结转，自身不让 MMF 相关；
+// 不相关时记为 idle。未来 Cycle（startsAt ≥ 本周结束）的项是他人排期：不进入计划，只作为 deferred 可见
 function candidateMembers({ parent, tickets }, ctx) {
   const later = (issue) => ctx.futureIds.has(issue.cycleId);
   const working = tickets.filter((t) => needsWork(t, ctx));
-  const live = working.filter((t) => !later(t));
   const held = parent.cycleId !== null && [ctx.previousId, ctx.cycleId].includes(parent.cycleId);
-  const relevant = needsWork(parent, ctx) || held || live.length > 0;
+  const live = working.some((t) => t.statusType === 'started' && !later(t));
+  const relevant = needsWork(parent, ctx) || held || live;
   const deferred = [...(relevant ? [parent] : []), ...working].filter(later);
-  return { members: relevant ? [parent, ...live].filter((i) => !later(i)) : [], deferred };
+  const idle = relevant ? [] : working.filter((t) => !later(t));
+  return { members: relevant ? [parent, ...working].filter((i) => !later(i)) : [], deferred, idle };
 }
 
 // 剔除边界：父项标记覆盖整个 MMF；子票标记只覆盖自身；skip（本次剔除／恢复未定）不参与任何计划
@@ -372,9 +391,10 @@ async function planMMF(group, ctx, run) {
 }
 
 async function planIncluded(mmf, ctx, run) {
-  const { members, deferred } = candidateMembers(mmf, ctx);
+  const { members, deferred, idle } = candidateMembers(mmf, ctx);
   recordDeferred(deferred, members, mmf.parent, run);
-  if (!members.length) return [];
+  recordObserved(run, idle);
+  if (!members.length) return planStrays(mmf, ctx, run);
   const delivery = await readDelivery(ctx.evidence, mmf.parent, run);
   const where = placement(delivery, run.week.start);
   const affected = where === 'outside' ? [...members, ...strays(mmf, members, ctx)] : members;
@@ -383,9 +403,32 @@ async function planIncluded(mmf, ctx, run) {
   return affected.map((issue) => toTarget(issue, where, delivery, ctx));
 }
 
+// 清出与纳入分开判定：不相关 MMF 在本周 Cycle 里有未完成 ticket 时单独读父项证据；
+// outside → 这些 ticket not_carry；其余不写、保持原归属，按证据规则报告；父项不纳入、不写
+async function planStrays(mmf, ctx, run) {
+  const stray = strays(mmf, [], ctx);
+  if (!stray.length) return [];
+  const delivery = await readDelivery(ctx.evidence, mmf.parent, run);
+  const where = placement(delivery, run.week.start);
+  reportDrift(mmf.parent, stray, delivery, where, run);
+  if (where === 'keep') return keepAssignment(stray, delivery, run, mmf.parent.id);
+  if (where === 'outside') return stray.map((issue) => toTarget(issue, where, delivery, ctx));
+  recordObserved(run, stray, delivery);
+  return [];
+}
+
+// 只观察、本次没有写入目标的项：可见（unchanged／unchanged），但不计入已核实符合目标项
+function recordObserved(run, issues, delivery = null) {
+  for (const issue of issues) {
+    const entry = { issueId: issue.id, action: 'unchanged', write: 'unchanged', delivery };
+    run.items.push(entry);
+    run.observed.add(entry);
+  }
+}
+
 // 未来 Cycle 的项可见但不写；父项被排到未来而 ticket 已纳入本周 → 父项 workflow_drift
 function recordDeferred(deferred, members, parent, run) {
-  for (const issue of deferred) run.items.push({ issueId: issue.id, action: 'unchanged', write: 'unchanged', delivery: null });
+  recordObserved(run, deferred);
   if (!members.length || !deferred.includes(parent)) return;
   run.problems.push({ code: 'workflow_drift', issueId: parent.id, message: '父项被排到未来 Cycle，ticket 已纳入本周，交原 owner 核对' });
 }
@@ -564,7 +607,12 @@ function scheduledLater(target, issue, { plan }, run) {
 }
 
 const inNextCycle = ({ nextId }, issue) => nextId !== null && issue.cycleId === nextId;
-const skipLater = (run, target) => record(run, { ...target, action: 'unchanged' }, 'unchanged');
+// 前读才发现的他人排期：与 deferred 同义，可见但不计入符合项
+function skipLater(run, target) {
+  record(run, { ...target, action: 'unchanged' }, 'unchanged');
+  run.observed.add(run.items.at(-1));
+  return null;
+}
 const expired = (why) => new Blocked('cycle_expired', `${why}，停止旧周的后续写入，绝不回移`);
 
 function identityDrift(issue, { scope, plan }) {
@@ -608,12 +656,14 @@ function recordUnreadable(run, target, cause) {
   return record(run, target, 'failed', { code, message: '前读失败，本项不写' });
 }
 
-// 被阻断：有符合项 → partial，否则 unsynchronized（write unknown 不改变阻断结论）
-function finish({ blocked, week, changed, items, problems }) {
-  const conforming = items.filter((i) => i.write === 'verified' || i.write === 'unchanged').length;
+// 被阻断：有符合项 → partial，否则 unsynchronized（write unknown 不改变阻断结论）；
+// observed 项（deferred、idle、未清出的 stray）可见但不算已核实符合目标项，也不阻止 synchronized
+function finish({ blocked, week, changed, items, problems, observed }) {
+  const targeted = items.filter((i) => !observed.has(i));
+  const conforming = targeted.filter((i) => i.write === 'verified' || i.write === 'unchanged').length;
   let status = 'unsynchronized';
-  if (!blocked && conforming === items.length) status = 'synchronized';
+  if (!blocked && conforming === targeted.length) status = 'synchronized';
   else if (conforming > 0) status = 'partial';
-  else if (!blocked && items.some((i) => i.write === 'unknown')) status = 'unknown';
+  else if (!blocked && targeted.some((i) => i.write === 'unknown')) status = 'unknown';
   return { status, week, changed, items, problems };
 }

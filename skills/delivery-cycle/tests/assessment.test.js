@@ -74,3 +74,14 @@ test('G7：assessFormalDelivery(null／undefined) 不抛错，按两条 unknown 
     assert.deepEqual([result.status, result.spec.state, result.main.state], ['unknown', 'unknown', 'unknown']);
   }
 });
+
+test('H6/R14：effectiveAt 是不存在的日历日期 → 置 null；合法的带偏移时间保留', () => {
+  // 独立预期：修复清单 r3 H6；2026 年 2 月只有 28 天，11 月只有 30 天
+  const at = (effectiveAt) => ({ state: 'verified', source: 'owner', effectiveAt, reason: null });
+  const good = at('2026-11-16T02:00:00Z');
+  for (const bad of ['2026-02-30T03:00:00Z', '2026-11-31T00:00:00+08:00']) {
+    assert.equal(assessFormalDelivery({ spec: at(bad), main: good }).effectiveAt, null, bad);
+  }
+  const offset = '2026-11-16T03:00:00+08:00';
+  assert.equal(assessFormalDelivery({ spec: at(offset), main: at('2026-11-15T10:00:00Z') }).effectiveAt, offset);
+});

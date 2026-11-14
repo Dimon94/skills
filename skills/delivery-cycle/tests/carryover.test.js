@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assessFormalDelivery, maintainCurrentWeek } from '../scripts/delivery-cycle.js';
-import { FakeEvidence, FakeLinear, REQUEST, TUESDAY, WEEK } from './fake-adapters.js';
+import { FakeEvidence, FakeLinear, REQUEST, TUESDAY, WEEK, portError } from './fake-adapters.js';
 
 const CYCLES = [
   { id: 'cycle-old', startsAt: '2026-11-01T16:00:00.000Z', endsAt: '2026-11-08T16:00:00.000Z' },
@@ -243,4 +243,91 @@ test('F6：Evidence 返回 undefined、{} 或 verified 缺 source → Unknown + 
     assert.deepEqual(codes(result, 'evidence_unavailable'), ['P1']);
     assert.equal(linear.mutations.length, 0, '不按已交付移出本周');
   }
+});
+
+// --------------------------------------------------------------------------
+// 第 3 轮：相关性只由父项与进行中 ticket 决定（H1）；不相关 MMF 的清出单独判定（H4）
+// 期望值来源：修复清单 r3 H1／H4 裁决、Spec R3「不得把无进行中关联的 Backlog 灌入」与 R4
+// --------------------------------------------------------------------------
+
+test('H1：上一周期未开始的 ticket 不让 Backlog 父项变相关 → 零 mutation，T unchanged，不报 problem', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'backlog', cycleId: null },
+    { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-0' });
+  const result = await run(linear, new FakeEvidence({ P: NOT_MET }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.equal(item(result, 'P'), undefined, 'P 不纳入');
+  assert.deepEqual([item(result, 'T').action, item(result, 'T').write], ['unchanged', 'unchanged']);
+  assert.equal(cycleOf(linear, 'T'), 'cycle-0');
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.status, 'synchronized');
+});
+
+test('H4：父项不在上一周期／本周（null 或更早 Cycle）且上周已交付 → 本周未完成 ticket not_carry，父项不写', async () => {
+  for (const parentCycle of [null, 'cycle-old']) {
+    const linear = linearWith(
+      { id: 'P', specRef: 's1', statusType: 'completed', cycleId: parentCycle },
+      { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' });
+    const result = await run(linear, new FakeEvidence({ P: delivered(LAST_WEEK) }));
+
+    assert.deepEqual(linear.mutations, [{ issueId: 'T', patch: { cycle: null } }], String(parentCycle));
+    assert.deepEqual([cycleOf(linear, 'T'), item(result, 'T').action, item(result, 'T').write], [null, 'not_carry', 'verified']);
+    assert.equal(cycleOf(linear, 'P'), parentCycle);
+    assert.equal(item(result, 'P'), undefined, 'P 不纳入');
+    assert.equal(result.status, 'synchronized');
+  }
+});
+
+test('H4：同上但父项证据 Unknown → 不写，T 保持本周，报 evidence_unavailable，父项不被拉入', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'backlog', cycleId: null },
+    { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' });
+  const result = await run(linear, new FakeEvidence({ P: UNKNOWN }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.deepEqual([cycleOf(linear, 'P'), cycleOf(linear, 'T')], [null, 'cycle-1']);
+  assert.deepEqual(codes(result, 'evidence_unavailable'), ['P']);
+});
+
+// --------------------------------------------------------------------------
+// H5：他人排在未来 Cycle 的项可见但不是「已核实符合目标项」
+// 期望值来源：修复清单 r3 H5、Spec §6「无已核实符合目标项为 unsynchronized」
+// --------------------------------------------------------------------------
+
+test('H5：只有 deferred 项 + 写入 permission_denied → unsynchronized', async () => {
+  const linear = linearWith(
+    { id: 'P0', specRef: 's0', statusType: 'started', cycleId: 'cycle-2' },
+    { id: 'P1', specRef: 's1', statusType: 'started', cycleId: null });
+  linear.patchBehavior = async () => { throw portError('permission_denied'); };
+  const result = await run(linear, new FakeEvidence({ P0: NOT_MET, P1: NOT_MET }));
+
+  assert.deepEqual([item(result, 'P0').action, item(result, 'P0').write], ['unchanged', 'unchanged']);
+  assert.equal(item(result, 'P1').write, 'failed');
+  assert.equal(result.status, 'unsynchronized');
+});
+
+test('H5：只有 deferred 项 + 写前重读 cycle_missing → unsynchronized', async () => {
+  const linear = linearWith(
+    { id: 'P0', specRef: 's0', statusType: 'started', cycleId: 'cycle-2' },
+    { id: 'P1', specRef: 's1', statusType: 'started', cycleId: null });
+  linear.beforeRead = () => { linear.cycles = CYCLES.filter((c) => c.id !== 'cycle-1'); };
+  const result = await run(linear, new FakeEvidence({ P0: NOT_MET, P1: NOT_MET }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.deepEqual(codes(result, 'cycle_missing'), ['P1']);
+  assert.equal(result.status, 'unsynchronized');
+});
+
+// --------------------------------------------------------------------------
+// H6：不存在的日历日期不是可核实的交付时间（维护入口经证据路径）
+// --------------------------------------------------------------------------
+
+test('H6：effectiveAt=2026-02-30 → 时间不可核实，保持原归属并报 delivery_time_unverifiable', async () => {
+  const linear = linearWith({ id: 'P', specRef: 's1', statusType: 'completed', cycleId: 'cycle-1' });
+  const result = await run(linear, new FakeEvidence({ P: delivered('2026-02-30T03:00:00.000Z', LAST_WEEK) }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.equal(cycleOf(linear, 'P'), 'cycle-1');
+  assert.deepEqual(codes(result, 'delivery_time_unverifiable'), ['P']);
 });

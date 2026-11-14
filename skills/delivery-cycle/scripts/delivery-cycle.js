@@ -27,6 +27,8 @@
 //   PARAM: readIssue → Issue；null、抛错、缺 cycleId 字段或 labels 非数组 = 不可读（cycleId: null 是合法事实）
 //   FAIL: port 抛出带 code 的错误，code ∈ {permission_denied, capability_unavailable} 原样上报；
 //         patchIssue 抛出这两类 code 为确定失败，该项 failed，不归 write_unknown
+//   PAIR: 真实 Adapter = repo://skills/delivery-cycle/scripts/linear-graphql.js（LinearPort）、
+//         repo://skills/delivery-cycle/scripts/evidence.js（EvidencePort）；CLI 装配在 scripts/run.js
 //   PARAM: Evidence 形状不合法，或 verified／not_met 缺 source → 该条件 unknown（evidence_unavailable）；
 //          effectiveAt 须带时区，且日期部分是真实日历日（2026-02-30 → null）
 // ==========================================================================

@@ -13,16 +13,22 @@ description: 手动维护一个 Linear 团队／项目的本周工作集合：�
 
 ## 入口
 
-```js
-import { assessFormalDelivery, maintainCurrentWeek } from './scripts/delivery-cycle.js';
-
-const result = await maintainCurrentWeek(
-  { scope: { teamId, projectId, exclusionLabelId }, exclude: [], restore: [] },
-  { linear, evidence, now: () => new Date() }
-);
+```bash
+node skills/delivery-cycle/scripts/run.js --team <teamId> --project <projectId> --exclusion-label <labelId> \
+  [--exclude id1,id2] [--restore id1,id2] [--repo <本地仓库路径>]
 ```
 
-`linear` 与 `evidence` 是 Adapter，合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块。现有 Linear MCP 读不到完整周期配置，也没有回读过的写入能力。缺这些能力时，Adapter 必须抛出 `capability_unavailable` 或返回 `'unknown'`，不能拿基本 team 字段补齐。`readIssue` 必须返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。
+stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。Linear API key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头，不进入输出。`--repo` 是 main 合入校验所用的本地仓库，默认当前目录。
+
+脚本内调用同一入口：
+
+```js
+import { maintainCurrentWeek } from './scripts/delivery-cycle.js';
+import { createKeychainTransport, createLinearAdapter } from './scripts/linear-graphql.js';
+import { createEvidenceAdapter, createGitAncestry } from './scripts/evidence.js';
+```
+
+Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块，GraphQL 映射与错误码写在 [scripts/linear-graphql.js](scripts/linear-graphql.js)。key 缺少读权限（`Invalid scope`）、401／403 都报 `permission_denied`，零写入；其余读取失败报 `capability_unavailable`。`readIssue` 返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。有父项且有子项的 Issue 视为父 Spec Issue（推断，待确认），不看标题。
 
 ## 维护规则
 
@@ -53,7 +59,16 @@ const result = await maintainCurrentWeek(
 
 `assessFormalDelivery({spec, main})` 是唯一公式。两项都是 `verified` 时为 `delivered`；任一为 `not_met` 时为 `not_delivered`；其余为 `unknown`。`effectiveAt` 只在已交付且两个事件时间都存在时取较晚值，否则为 `null`。事件时间必须是带时区的 ISO 8601 字符串，日期必须真实存在（`2026-02-30` 不算），其余形状按缺失处理。证据不足时保持 Unknown，并附 `evidence_unavailable`。证据形状不合法，或 `verified`／`not_met` 缺 `source`，该条件按 `unknown` 处理。
 
-工作流状态、Integration、HTTP 200、口头声称和提交时间都不替代这两项证据。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
+工作流状态、Integration、HTTP 200、口头声称和提交时间都不替代这两项证据。
+
+证据来自父 Spec Issue 上的严格标记评论（新增约定，待根协调者确认）。一条评论只写一行，同一条件取最新的一条：
+
+```text
+delivery-cycle:spec state=verified|not_met at=<带时区的 ISO 8601，可空>
+delivery-cycle:main sha=<40 位小写 sha> at=<带时区的 ISO 8601，可空>
+```
+
+`spec` 的来源是该评论 URL。`main` 只有在 `--repo` 中 `git merge-base --is-ancestor <sha> main` 为真时才是 `verified`，来源为 `git:main@<sha>`。事件时间只取标记里的 `at`，缺失为 `null`，不用提交日期补。没有标记、sha 不在 main 上或 git 无法校验时，该条件为 `unknown`。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
 
 ## 跨周结转
 

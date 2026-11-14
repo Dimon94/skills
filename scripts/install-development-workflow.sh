@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# TEST: node --test test/install-development-workflow.test.js
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_ROOT="${WORKFLOW_SKILL_SOURCE_ROOT:-$HOME/.local/share/dimon-agent-workflow}"
 AGENTS_SKILLS_DIR="${AGENTS_SKILLS_DIR:-$HOME/.agents/skills}"
@@ -89,12 +91,13 @@ sync_repo 'https://github.com/Kappaemme-git/codex-complexity-optimizer.git' "$CO
 
 verify_link() {
   local target="$1" source="$2"
-  [ -L "$target" ] && [ "$(readlink "$target")" = "$source" ] || {
+  [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ] || {
     printf 'error: expected symlink %s -> %s\n' "$target" "$source" >&2
     exit 1
   }
 }
 
+# INVARIANT: 已解析到规定来源的链接保持原样，避免抢写其他管理器的中间链接。
 link_skill() {
   local target="$1" source="$2"
   if [ "$CHECK_ONLY" -eq 1 ]; then
@@ -104,6 +107,9 @@ link_skill() {
   if [ -e "$target" ] && [ ! -L "$target" ]; then
     printf 'error: refusing to replace non-symlink: %s\n' "$target" >&2
     exit 1
+  fi
+  if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+    return
   fi
   ln -sfn "$source" "$target"
   verify_link "$target" "$source"

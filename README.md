@@ -45,6 +45,8 @@ The script clones or fast-forwards standalone dependency repositories, then link
 
 To let an AI Agent inspect the environment, install runtime dependencies, and verify the result, paste the prompt from the [one-paste Agent bootstrap guide](docs/agent-bootstrap.md).
 
+To deliver work with several coordinated agents after installing, follow the [multi-agent onboarding guide](docs/onboarding.md) (Chinese) from ticket slicing to merging back into main.
+
 ## Dependency Repositories
 
 | Repository | Workflow responsibility | Standalone install |

@@ -43,6 +43,8 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 
 让 AI Agent 处理环境识别、运行时依赖和验证时，直接复制 [Agent 一次安装指南](docs/agent-bootstrap.md) 中的提示词。
 
+装好后用多个 agent 协同交付需求时，按 [多 Agent 协同上手指南](docs/onboarding.md) 从切票走到合回 main。
+
 ## 依赖仓库
 
 | 仓库 | 链路职责 | 独立安装 |

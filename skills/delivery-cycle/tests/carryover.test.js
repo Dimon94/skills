@@ -331,3 +331,47 @@ test('H6：effectiveAt=2026-02-30 → 时间不可核实，保持原归属并报
   assert.equal(cycleOf(linear, 'P'), 'cycle-1');
   assert.deepEqual(codes(result, 'delivery_time_unverifiable'), ['P']);
 });
+
+// --------------------------------------------------------------------------
+// 第 4 轮审查补测：前读才发现的他人排期不计符合项；不相关 MMF 的 stray 在非 outside 时不写
+// 期望值来源：修复清单 r3 H4／H5、Spec §6「无已核实符合目标项为 unsynchronized」、R4、R14
+// --------------------------------------------------------------------------
+
+test('H5：前读才发现已在未来 Cycle 的项 + 其余写入 permission_denied → unsynchronized', async () => {
+  const linear = linearWith(
+    { id: 'P1', specRef: 's1', statusType: 'started', cycleId: null },
+    { id: 'P2', specRef: 's2', statusType: 'started', cycleId: null });
+  linear.beforeRead = (id) => { if (id === 'P1') linear.issues.get('P1').cycleId = 'cycle-2'; };
+  linear.patchBehavior = async () => { throw portError('permission_denied'); };
+  const result = await run(linear, new FakeEvidence({ P1: NOT_MET, P2: NOT_MET }));
+
+  assert.deepEqual(linear.mutations.map((m) => m.issueId), ['P2']);
+  assert.deepEqual([item(result, 'P1').write, item(result, 'P2').write], ['unchanged', 'failed']);
+  assert.equal(cycleOf(linear, 'P1'), 'cycle-2');
+  assert.equal(result.status, 'unsynchronized');
+});
+
+test('H4：不相关 MMF 的父项已交付但缺时间 → stray 不写，报 delivery_time_unverifiable，整体 unknown', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'completed', cycleId: null },
+    { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' });
+  const result = await run(linear, new FakeEvidence({ P: delivered(LAST_WEEK, null) }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.deepEqual([cycleOf(linear, 'P'), cycleOf(linear, 'T')], [null, 'cycle-1']);
+  assert.deepEqual(codes(result, 'delivery_time_unverifiable'), ['P']);
+  assert.equal(item(result, 'T').write, 'unknown');
+  assert.equal(result.status, 'unknown');
+});
+
+test('H4：不相关 MMF 的父项 completed 但证据 not_met → stray 不写，报 workflow_drift', async () => {
+  const linear = linearWith(
+    { id: 'P', specRef: 's1', statusType: 'completed', cycleId: null },
+    { id: 'T', parentId: 'P', statusType: 'unstarted', cycleId: 'cycle-1' });
+  const result = await run(linear, new FakeEvidence({ P: NOT_MET }));
+
+  assert.deepEqual(linear.mutations, []);
+  assert.equal(cycleOf(linear, 'T'), 'cycle-1');
+  assert.deepEqual(codes(result, 'workflow_drift'), ['P']);
+  assert.equal(item(result, 'P'), undefined, 'P 不纳入');
+});

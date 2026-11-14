@@ -37,7 +37,7 @@ const result = await maintainCurrentWeek(
    - 真正写入前再分页重读 Cycle：本周 Cycle 边界不再等于本周，报 `configuration_mismatch`；本周 Cycle 消失，报 `cycle_missing`。两者都停止后续写入。重读后按新的 Cycle 列表重判当前项的前读值。
    - `cycle_expired` 有两类触发：上海时钟已跨过周一 00:00；或计划时在本周 Cycle 的项，在前读、写前重读或回读时已在紧接的下一 Cycle。Linear 原生滚动与他人周中手动移动无法区分，两者都保守停止。该项记 `failed`，停止旧周的全部后续写入。
    - 计划时不在本周 Cycle、前读才发现已在未来 Cycle 的纳入目标视为他人排期：该项记 `unchanged`，不报失败，其余继续。
-   - 停止后续写入时，当前项与全部未处理项都列入 `items`（`unchanged`／`failed`），只报一条阻断。
+   - 停止后续写入时，当前项与全部未处理项都列入 `items`（`unchanged`／`failed`），只报一条阻断。剔除／恢复先于纳入执行；在这一阶段阻断时纳入计划尚未生成，纳入项不列入 `items`。
    已观察到新周归属的项绝不回移旧周。下一次调用按新周重新核对和计划。没有 CAS，前读之后、写入之前的漂移只能由回读发现并报告，不能根除。
 6. patch 只含 `cycle` 与专用排除标签的增减（`addLabels`／`removeLabels`），其他标签与字段不提交。写入后回读 `cycleId` 与 `labels`，结论只看回读：
    - 回读符合目标记 `verified`，即使响应超时或带 GraphQL errors。

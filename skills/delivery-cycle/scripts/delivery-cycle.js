@@ -116,6 +116,7 @@ function laterOf(a, b) {
 //        synchronized：无前置阻断且全部相关项 verified／unchanged；partial：有符合项也有失败；
 //        unknown：未被阻断、无符合项且至少一项 write_unknown；unsynchronized：其余
 //        被阻断：有符合项 → partial，否则 unsynchronized；当前项与未处理项都列入 items（unchanged／failed）
+//        剔除／恢复阶段阻断时纳入计划尚未生成：items 只含已处理与未处理的剔除／恢复目标，纳入项不列入
 //        「符合项」只算有写入目标的项；只观察的项（未来 Cycle 的 deferred、不相关 MMF 的 leftover、
 //        未清出的 stray）记 unchanged／unchanged 可见，但不计为符合，也不阻止 synchronized
 //        运行中途 cycle_missing／configuration_mismatch 且已有符合项 → partial（部分写入已真实落地，

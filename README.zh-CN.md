@@ -22,6 +22,7 @@
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
 | Bug | 独立 Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | 理解既有代码 | `investigate` 做只读调研：机制问题路由到 `how`，动机问题叠加 `why`，方案决策给推荐与取舍表 |
+| 创建或迭代个人工作方式 Skill | 运行 `/automate-me`：采集跨会话证据，校准偏好，再写独立的 `<handle>-mode` |
 | 评估改动影响面 | `blast-radius` 跑真实代码证明改动在 diff 之外会不会炸；影响面起雾时转 `wayfinder` |
 | 项目缺少行为验证手段 | 每个项目跑一次 `create-verification-skill` 生成本地 `verify-<app>` skill；漂移后用 `maintain-verification-skill` 校正 |
 

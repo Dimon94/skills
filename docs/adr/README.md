@@ -23,6 +23,7 @@
 - [交付单位叫 MMF，Spec 是描述它的文档](0015-mmf-delivery-unit.md)
 - [Spec 用代码写 Interface，验证和审查沿 Module 收敛](0016-spec-writes-interface-as-code.md)
 - [ticket-sizing 所有权迁入本仓](0017-owned-ticket-sizing.md)
+- [automate-me 成为通用的个人工作方式 Skill 生成器](0018-owned-automate-me.md)
 
 ## 命名
 

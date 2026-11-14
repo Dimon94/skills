@@ -22,6 +22,7 @@ Run `python3 docs/assets/render-development-workflow.py` to rebuild the SVGs fro
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
 | Bug | `git-worktree` → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | Understand existing code | `investigate` runs a read-only investigation: it routes mechanism questions to `how`, adds `why` for motivation, and answers decisions with a recommendation and tradeoffs |
+| Create or update a personal working-style Skill | run `/automate-me`: gather cross-session evidence, calibrate preferences, then write an independent `<handle>-mode` |
 | Assess a change's blast radius | `blast-radius` proves what a change breaks beyond the diff by running real code; foggy, wide impact goes to `wayfinder` |
 | No scripted way to prove a project works | Run `create-verification-skill` once per project to generate a local `verify-<app>` skill; `maintain-verification-skill` keeps its feature map honest |
 

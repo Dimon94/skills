@@ -1,0 +1,6 @@
+interface:
+  display_name: "Automate Me"
+  short_description: "从跨会话证据创建或增量更新自己的个人工作方式 Skill"
+  default_prompt: "使用 $automate-me，在当前项目创建或增量更新我的 <handle>-mode。先读项目规则和已有 Skill，核对跨会话证据，与我校准候选，再按项目授权写入并验证。"
+policy:
+  allow_implicit_invocation: false

@@ -1,107 +1,121 @@
 // ==========================================================================
 // L3
 //   COORD: skills/delivery-cycle/scripts/evidence.js
-//   INPUT: 父 Spec Issue 的 Linear 评论（request(query, variables)）；本地仓库 git 祖先校验（git(args)）
-//   OUTPUT: createEvidenceAdapter（EvidencePort 实现）、createGitAncestry
-//   POS: 只把外部证据转成 EvidencePort 形状；正式交付判断归 delivery-cycle.js 的 assessFormalDelivery
+//   INPUT: Spec Issue 的 Linear attachments 与指定评论（request(query, variables)）；
+//          GitHub PR 合入事实（github({owner, repo, number})，默认 gh api 只读）；
+//          agent 传入的原验收评论快照 acceptance = {[specRef]: {commentId, state}}
+//   OUTPUT: createEvidenceAdapter（EvidencePort 实现）、createGhPullReader
+//   POS: 只把原 owner 事实转成 EvidencePort 形状；正式交付判断归 delivery-cycle.js 的 assessFormalDelivery
 //   TEST: node --test skills/delivery-cycle/tests/evidence.test.js
-//   PROTOCOL: 标记格式变化时同步 repo://skills/delivery-cycle/SKILL.md「正式交付」节
+//   PROTOCOL: 证据来源变化时同步 repo://skills/delivery-cycle/SKILL.md「正式交付」节
 // L5
-//   PARAM（新增约定，待根协调者确认）：证据只认父 Spec Issue 上整条评论为一行的严格标记：
-//          delivery-cycle:spec state=verified|not_met at=<ISO 8601 带时区，可空>
-//          delivery-cycle:main sha=<40 位小写 hex> at=<ISO 8601 带时区，可空>
-//          同一条件多条标记时取 createdAt 最新者；Issue 状态、Done、正文声称都不算证据
-//   PARAM: spec 来源 = 评论 URL；main 须 `git merge-base --is-ancestor <sha> main` 为真才 verified，
-//          来源 = git:main@<sha>；effectiveAt 只取标记 at，缺失为 null，不拿提交日期补
-//   FAIL: 无标记、sha 不在 main、git 校验失败 → 该条件 unknown 并给 reason
-//   FAIL: 评论读取失败 → 抛出（核心转 evidence_unavailable）；拒绝访问 = permission_denied，其余 = capability_unavailable
+//   PARAM: main 来源 = closeout 的 PR 合入事实（owner：repo://skills/git-rebase-main/references/closeout.md）。
+//          Spec Issue attachments 中唯一匹配 ^https://github.com/<owner>/<repo>/pull/<n>$ 的 URL（去重）；
+//          merged_at 非空且 base.ref = base.repo.default_branch → verified，source = html_url，effectiveAt = merged_at；
+//          未合并 → not_met（effectiveAt null）；0 个或多个 PR、合入非默认分支、形状不明 → unknown
+//   PARAM: spec 来源 = 原验收评论快照（owner：Spec 验收／closeout 记录）。自由文本由 agent 判断，CLI 只回读
+//          comment(id:)：issue.id 等于该 Spec issueId → state 取快照值，source = 评论 url，effectiveAt = createdAt；
+//          无快照、评论读不到或不属于该 Spec → unknown。快照只是引用，不存本地状态
+//   PARAM: 不读任何评论正文里的 sha／at，不用提交日期；Issue 状态、Done、正文声称都不算证据
+//   FAIL: Linear 或 GitHub 读取失败 → 该条件 unknown，reason 带 code 与原因（含 permission_denied）；read 不抛出
 // ==========================================================================
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
-import { portError } from './linear-graphql.js';
+import { portError, readLinear } from './linear-graphql.js';
 
-const COMMENTS = `query DeliveryCycleEvidence($id: String!, $after: String) {
-  issue(id: $id) { comments(after: $after, first: 50) {
-    nodes { body url createdAt } pageInfo { hasNextPage endCursor } } } }`;
-
-const MARKERS = Object.freeze({
-  spec: /^delivery-cycle:spec state=(verified|not_met) at=(\S*)$/,
-  main: /^delivery-cycle:main sha=([0-9a-f]{40}) at=(\S*)$/
+const QUERIES = Object.freeze({
+  attachments: `query DeliveryCycleAttachments($id: String!, $after: String) {
+    issue(id: $id) { attachments(after: $after, first: 50) { nodes { url } pageInfo { hasNextPage endCursor } } } }`,
+  acceptance: `query DeliveryCycleAcceptance($id: String!) { comment(id: $id) { id url createdAt issue { id } } }`
 });
 
+const PULL_URL = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)$/;
+const GH_TIMEOUT_MS = 30_000;
+
 const unknown = (reason) => ({ state: 'unknown', source: null, effectiveAt: null, reason });
+const fact = (state, source, effectiveAt) => ({ state, source, effectiveAt, reason: null });
+
+// 读取失败不抛出：该条件降为 unknown，原因可追溯
+const settle = (work, what) => work.catch((err) => unknown(`${what}失败：${[err?.code, err?.message ?? err].filter(Boolean).join(' ')}`));
 
 // --------------------------------------------------------------------------
-// 评论分页：读取失败抛出；分页异常 fail-close
+// main：Spec Issue 唯一 PR 的合入事实
 // --------------------------------------------------------------------------
 
-async function readComments(request, issueId) {
-  const comments = [];
+function pullRef(attachment) {
+  const m = PULL_URL.exec(String(attachment?.url ?? ''));
+  return m && { owner: m[1], repo: m[2], number: Number(m[3]) };
+}
+
+function nextCursor(pageInfo, after) {
+  if (!pageInfo?.hasNextPage) return null;
+  if (!pageInfo.endCursor || pageInfo.endCursor === after) throw portError('capability_unavailable', 'attachments 分页游标未前进');
+  return pageInfo.endCursor;
+}
+
+async function readPullRefs(request, issueId) {
+  const refs = new Map();
   let after = null;
   do {
-    const body = await request(COMMENTS, { id: issueId, after }).catch((err) => ({ errors: [err] }));
-    if (body?.errors?.length) throw failure(body.errors);
-    const conn = body?.data?.issue?.comments;
-    if (!Array.isArray(conn?.nodes)) throw portError('capability_unavailable', '评论响应无法解析');
-    comments.push(...conn.nodes);
-    if (conn.pageInfo?.hasNextPage && (!conn.pageInfo.endCursor || conn.pageInfo.endCursor === after)) {
-      throw portError('capability_unavailable', '评论分页游标未前进');
-    }
-    after = conn.pageInfo?.hasNextPage ? conn.pageInfo.endCursor : null;
+    const conn = (await readLinear(request, QUERIES.attachments, { id: issueId, after })).issue?.attachments;
+    if (!Array.isArray(conn?.nodes)) throw portError('capability_unavailable', 'attachments 响应无法解析');
+    for (const ref of conn.nodes.map(pullRef).filter(Boolean)) refs.set(`${ref.owner}/${ref.repo}#${ref.number}`, ref);
+    after = nextCursor(conn.pageInfo, after);
   } while (after !== null);
-  return comments;
+  return [...refs.values()];
 }
 
-function failure(errors) {
-  const text = JSON.stringify(errors.map((e) => ({ message: e?.message, status: e?.status, extensions: e?.extensions })));
-  const denied = /AUTHENTICATION_ERROR|FORBIDDEN|Invalid scope|"status":40[13]/i.test(text);
-  return portError(denied ? 'permission_denied' : 'capability_unavailable', '读取证据评论失败');
+function mergeFact(pr) {
+  const base = pr?.base;
+  const shaped = typeof pr?.html_url === 'string' && (pr.merged_at === null || typeof pr.merged_at === 'string')
+    && typeof base?.ref === 'string' && typeof base.repo?.default_branch === 'string';
+  if (!shaped) return unknown('PR 响应形状不明');
+  if (pr.merged_at === null) return fact('not_met', pr.html_url, null);
+  if (base.ref !== base.repo.default_branch) return unknown(`PR 合入 ${base.ref}，不是默认分支 ${base.repo.default_branch}`);
+  return fact('verified', pr.html_url, pr.merged_at);
 }
 
-// 每个条件取 createdAt 最新的严格标记
-function latestMarker(comments, kind) {
-  const hits = comments
-    .map((c) => ({ c, m: MARKERS[kind].exec(String(c.body ?? '').trim()) }))
-    .filter(({ m }) => m !== null)
-    .sort((a, b) => Date.parse(b.c.createdAt) - Date.parse(a.c.createdAt));
-  return hits[0] ?? null;
+async function mainEvidence(request, github, issueId) {
+  const refs = await readPullRefs(request, issueId);
+  if (refs.length === 0) return unknown('Spec Issue 没有关联 PR');
+  if (refs.length > 1) return unknown(`Spec Issue 关联了 ${refs.length} 个 PR，无法确定唯一合入`);
+  return mergeFact(await github(refs[0]));
+}
+
+// --------------------------------------------------------------------------
+// spec：回读快照评论，核对归属
+// --------------------------------------------------------------------------
+
+async function specEvidence(request, snapshot, issueId) {
+  if (!snapshot) return unknown('未提供原验收记录快照');
+  const { comment } = await readLinear(request, QUERIES.acceptance, { id: snapshot.commentId });
+  if (!comment) return unknown(`读不到评论 ${snapshot.commentId}`);
+  if (comment.issue?.id !== issueId) return unknown(`评论 ${snapshot.commentId} 不属于该 Spec Issue`);
+  return fact(snapshot.state, comment.url, comment.createdAt);
 }
 
 // --------------------------------------------------------------------------
 // EvidencePort
 // --------------------------------------------------------------------------
 
-function specEvidence(hit) {
-  if (!hit) return unknown('父 Spec Issue 上没有 delivery-cycle:spec 标记');
-  return { state: hit.m[1], source: hit.c.url, effectiveAt: hit.m[2] || null, reason: null };
-}
-
-async function mainEvidence(hit, git) {
-  if (!hit) return unknown('父 Spec Issue 上没有 delivery-cycle:main 标记');
-  const sha = hit.m[1];
-  const ancestor = await git(['merge-base', '--is-ancestor', sha, 'main']).catch(() => null);
-  if (ancestor === null) return unknown(`git 无法校验 ${sha}`);
-  if (!ancestor) return unknown(`${sha} 不在 main 上`);
-  return { state: 'verified', source: `git:main@${sha}`, effectiveAt: hit.m[2] || null, reason: null };
-}
-
-export function createEvidenceAdapter({ request, git }) {
+export function createEvidenceAdapter({ request, github = createGhPullReader(), acceptance = {} }) {
   return {
-    async read({ issueId }) {
-      const comments = await readComments(request, issueId);
-      return {
-        spec: specEvidence(latestMarker(comments, 'spec')),
-        main: await mainEvidence(latestMarker(comments, 'main'), git)
-      };
+    async read({ issueId, specRef }) {
+      const snapshot = Object.hasOwn(acceptance, specRef ?? '') ? acceptance[specRef] : null;
+      const [spec, main] = await Promise.all([
+        settle(specEvidence(request, snapshot, issueId), '读取原验收评论'),
+        settle(mainEvidence(request, github, issueId), '读取 PR 合入事实')
+      ]);
+      return { spec, main };
     }
   };
 }
 
-// 退出码 0 = 是祖先，1 = 不是；其余（无此 sha、不是仓库）抛出
-export function createGitAncestry(repo, execFile = promisify(execFileCb)) {
-  return (args) => execFile('git', ['-C', repo, ...args]).then(() => true, (err) => {
-    if (err?.code === 1) return false;
-    throw err;
-  });
+// 默认 github：只读 gh api；参数经 execFile 传递，不经 shell
+export function createGhPullReader(execFile = promisify(execFileCb)) {
+  return async ({ owner, repo, number }) => {
+    const { stdout } = await execFile('gh', ['api', `repos/${owner}/${repo}/pulls/${number}`], { timeout: GH_TIMEOUT_MS });
+    return JSON.parse(stdout);
+  };
 }

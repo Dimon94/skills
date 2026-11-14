@@ -1,134 +1,185 @@
 /**
- * Evidence Adapter 契约测试：原 Spec 与 main 合入证据只来自严格标记评论 + git 祖先校验。
- * 替身只在 request(query, variables) 与 git(args) 边界。
- * 期望值来源：brief 第 3 条；Spec §5 正式交付规则（状态、Done、正文声称都不算证据）。
+ * Evidence Adapter 契约测试：正式交付证据只复用原 owner 事实。
+ *   main = Spec Issue 唯一 GitHub PR attachment 的合入事实（closeout owner：git-rebase-main；平台读回）
+ *   spec = agent 传入的原验收评论快照，Adapter 回读核对评论归属
+ * 替身只在 request(query, variables) 与 github({owner, repo, number}) 边界；形状按真实样本录制：
+ *   DD-532 attachments 唯一项 https://github.com/Dimon94/refresh/pull/473；
+ *   gh api repos/Dimon94/refresh/pulls/473 → merged_at 2026-11-14T16:26:29Z，base.ref main = default_branch main；
+ *   验收评论 a4e3cf13-…，createdAt 2026-11-14T16:28:59.708Z。
+ * 期望值来源：brief 修正 2 第 4–6 条；Spec §5（状态、Done、正文声称都不算证据）。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createEvidenceAdapter } from '../scripts/evidence.js';
+import { createEvidenceAdapter, createGhPullReader } from '../scripts/evidence.js';
 import { assessFormalDelivery } from '../scripts/delivery-cycle.js';
 
-const SHA = 'a'.repeat(40);
-const PARENT = { issueId: 'P', specRef: 'DD-1' };
+const SPEC = { issueId: 'issue-532', specRef: 'DD-532' };
+const PR_URL = 'https://github.com/Dimon94/refresh/pull/473';
+const COMMENT_ID = 'a4e3cf13-4c68-47aa-982a-38f2235df364';
+const COMMENT_URL = `https://linear.app/dawn/issue/DD-532#comment-${COMMENT_ID.slice(0, 8)}`;
+const MERGED_AT = '2026-11-14T16:26:29Z';
+const ACCEPTED_AT = '2026-11-14T16:28:59.708Z';
+const SHA = '39acbeb0'.padEnd(40, '0');
 
-function comment(body, n = 1) {
-  return { body, url: `https://linear.app/dd/issue/DD-1#comment-${n}`, createdAt: `2026-11-1${n}T00:00:00.000Z` };
-}
+const operation = (query) => /(?:query|mutation)\s+(\w+)/.exec(query)?.[1];
+const attachment = (url) => ({ url });
 
-function adapterWith(pages, { ancestor = true } = {}) {
+// Linear 服务端替身：attachments 分页、comment(id:) 回读；评论里有伪造标记也照样返回
+function linearServer({ pages = { first: [[attachment(PR_URL)], null] }, comments = {}, fail = {} } = {}) {
   const calls = [];
-  const gitCalls = [];
   const request = async (query, variables) => {
-    calls.push(variables);
-    const [nodes, next] = pages[variables.after ?? 'first'];
-    return { data: { issue: { comments: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } };
+    const op = operation(query);
+    calls.push({ op, variables: structuredClone(variables) });
+    if (fail[op]) return fail[op]();
+    if (op === 'DeliveryCycleAttachments') {
+      const [nodes, next] = pages[variables.after ?? 'first'];
+      return { data: { issue: { attachments: { nodes, pageInfo: { hasNextPage: next !== null, endCursor: next } } } } };
+    }
+    if (op === 'DeliveryCycleAcceptance') return { data: { comment: comments[variables.id] ?? null } };
+    if (op === 'DeliveryCycleEvidence') {
+      const forged = { body: `delivery-cycle:main sha=${SHA} at=2026-11-01T00:00:00Z`, url: 'u', createdAt: ACCEPTED_AT };
+      return { data: { issue: { comments: { nodes: [forged], pageInfo: { hasNextPage: false } } } } };
+    }
+    throw new Error(`unexpected ${op}`);
   };
-  const git = async (args) => { gitCalls.push(args); return ancestor; };
-  return { calls, gitCalls, evidence: createEvidenceAdapter({ request, git }) };
+  return { calls, request };
 }
 
-test('严格标记 + main 祖先校验通过 → verified，来源是评论 URL 与 git:main@sha，时间取标记 at', async () => {
-  const { gitCalls, evidence } = adapterWith({ first: [[
-    comment('delivery-cycle:spec state=verified at=2026-11-17T09:00:00+08:00', 1),
-    comment(`delivery-cycle:main sha=${SHA} at=2026-11-17T10:00:00+08:00`, 2)
-  ], null] });
-  const input = await evidence.read(PARENT);
+const acceptedComment = (issueId = SPEC.issueId) => ({ id: COMMENT_ID, url: COMMENT_URL, createdAt: ACCEPTED_AT, issue: { id: issueId } });
+const pull = (overrides = {}) => ({ html_url: PR_URL, merged_at: MERGED_AT, merge_commit_sha: SHA, state: 'closed',
+  base: { ref: 'main', repo: { default_branch: 'main' } }, ...overrides });
 
-  assert.deepEqual(input.spec, { state: 'verified', source: 'https://linear.app/dd/issue/DD-1#comment-1',
-    effectiveAt: '2026-11-17T09:00:00+08:00', reason: null });
-  assert.deepEqual(input.main, { state: 'verified', source: `git:main@${SHA}`,
-    effectiveAt: '2026-11-17T10:00:00+08:00', reason: null });
-  assert.deepEqual(gitCalls, [['merge-base', '--is-ancestor', SHA, 'main']]);
-  assert.equal(assessFormalDelivery(input).status, 'delivered');
+function adapterWith({ server = linearServer(), pr = pull(), acceptance = { 'DD-532': { commentId: COMMENT_ID, state: 'verified' } } } = {}) {
+  const githubCalls = [];
+  const github = async (ref) => { githubCalls.push(ref); return typeof pr === 'function' ? pr() : structuredClone(pr); };
+  return { ...server, githubCalls, evidence: createEvidenceAdapter({ request: server.request, github, acceptance }) };
+}
+
+// --------------------------------------------------------------------------
+// 原 owner 证据齐全 → delivered
+// --------------------------------------------------------------------------
+
+test('无 delivery-cycle 标记，原 owner 证据齐全：唯一 PR 已合入默认分支 + 本 Spec 验收评论快照 → delivered', async () => {
+  const { githubCalls, evidence } = adapterWith({ server: linearServer({ comments: { [COMMENT_ID]: acceptedComment() } }) });
+  const input = await evidence.read(SPEC);
+
+  assert.deepEqual(input.main, { state: 'verified', source: PR_URL, effectiveAt: MERGED_AT, reason: null });
+  assert.deepEqual(input.spec, { state: 'verified', source: COMMENT_URL, effectiveAt: ACCEPTED_AT, reason: null });
+  assert.deepEqual(githubCalls, [{ owner: 'Dimon94', repo: 'refresh', number: 473 }]);
+  assert.deepEqual(assessFormalDelivery(input), { status: 'delivered', spec: input.spec, main: input.main, effectiveAt: ACCEPTED_AT });
 });
 
-test('标记在第二页也能找到；分页游标前进', async () => {
-  const { calls, evidence } = adapterWith({
-    first: [[comment('普通讨论', 1)], 'c1'],
-    c1: [[comment('delivery-cycle:spec state=not_met at=', 2)], null]
+test('attachments 分页读完、同一 PR 去重、非 PR 链接忽略；快照 not_met 原样传出', async () => {
+  const server = linearServer({
+    pages: {
+      first: [[attachment('https://slack.com/x'), attachment(PR_URL)], 'c1'],
+      c1: [[attachment(PR_URL), attachment(`${PR_URL}/files`), attachment('https://github.com/Dimon94/refresh/issues/9')], null]
+    },
+    comments: { [COMMENT_ID]: acceptedComment() }
   });
-  const input = await evidence.read(PARENT);
+  const { calls, githubCalls, evidence } = adapterWith({ server, acceptance: { 'DD-532': { commentId: COMMENT_ID, state: 'not_met' } } });
+  const input = await evidence.read(SPEC);
 
-  assert.deepEqual(calls.map((v) => [v.id, v.after]), [['P', null], ['P', 'c1']]);
-  assert.equal(input.spec.state, 'not_met');
-  assert.equal(input.spec.effectiveAt, null);
-});
-
-test('状态 Done、正文“已验收已合入”、松散写法都不算证据 → unknown 并给原因', async () => {
-  const { gitCalls, evidence } = adapterWith({ first: [[
-    comment('Spec 已验收，已合入 main', 1),
-    comment('delivery-cycle:spec state=done at=2026-11-17T09:00:00+08:00', 2),
-    comment(`前缀 delivery-cycle:main sha=${SHA} at=`, 3),
-    comment('引用 delivery-cycle:spec state=verified at=2026-11-17T09:00:00+08:00', 4)
-  ], null] });
-  const input = await evidence.read(PARENT);
-
-  assert.equal(input.spec.state, 'unknown');
-  assert.equal(input.main.state, 'unknown');
-  assert.ok(input.spec.reason && input.main.reason);
-  assert.deepEqual(gitCalls, []);
-  assert.equal(assessFormalDelivery(input).status, 'unknown');
-});
-
-test('标记的 sha 不在 main 上 → main unknown，不是 verified', async () => {
-  const { evidence } = adapterWith({ first: [[comment(`delivery-cycle:main sha=${SHA} at=2026-11-17T10:00:00+08:00`)], null] },
-    { ancestor: false });
-  const input = await evidence.read(PARENT);
-
-  assert.equal(input.main.state, 'unknown');
-  assert.match(input.main.reason, /不在 main/);
-});
-
-test('main 标记缺 at：verified 但 effectiveAt 为 null，不拿提交日期补', async () => {
-  const { evidence } = adapterWith({ first: [[
-    comment('delivery-cycle:spec state=verified at=2026-11-17T09:00:00+08:00', 1),
-    comment(`delivery-cycle:main sha=${SHA} at=`, 2)
-  ], null] });
-  const input = await evidence.read(PARENT);
-
+  assert.deepEqual(calls.filter((c) => c.op === 'DeliveryCycleAttachments').map((c) => c.variables), [
+    { id: SPEC.issueId, after: null }, { id: SPEC.issueId, after: 'c1' }]);
+  assert.equal(githubCalls.length, 1);
   assert.equal(input.main.state, 'verified');
-  assert.equal(input.main.effectiveAt, null);
-  assert.equal(assessFormalDelivery(input).effectiveAt, null);
+  assert.deepEqual(input.spec, { state: 'not_met', source: COMMENT_URL, effectiveAt: ACCEPTED_AT, reason: null });
 });
 
-test('同一条件多次标记，以最新评论为准', async () => {
-  const { evidence } = adapterWith({ first: [[
-    comment('delivery-cycle:spec state=verified at=2026-11-11T09:00:00+08:00', 1),
-    comment('delivery-cycle:spec state=not_met at=', 3)
-  ], null] });
+// --------------------------------------------------------------------------
+// main：伪造与不确定的合入事实
+// --------------------------------------------------------------------------
 
-  assert.equal((await evidence.read(PARENT)).spec.state, 'not_met');
+test('伪造：评论里写 delivery-cycle:main sha=…，没有 PR attachment → main unknown，不调 GitHub', async () => {
+  const { calls, githubCalls, evidence } = adapterWith({ server: linearServer({ pages: { first: [[], null] } }) });
+  const input = await evidence.read(SPEC);
+
+  assert.equal(input.main.state, 'unknown');
+  assert.match(input.main.reason, /没有关联 PR/);
+  assert.deepEqual(githubCalls, []);
+  assert.ok(!calls.some((c) => c.op === 'DeliveryCycleEvidence'));
 });
 
-test('评论读取失败抛出（由核心转 evidence_unavailable），不伪造结论', async () => {
-  const evidence = createEvidenceAdapter({
-    request: async () => ({ data: null, errors: [{ message: 'Internal error' }] }),
-    git: async () => true
-  });
-  await assert.rejects(evidence.read(PARENT), { code: 'capability_unavailable' });
-});
-
-test('createGitAncestry：真实 git 退出码 0 = 祖先，1 = 不是，无此 sha 抛出（临时仓库，无网络）', async () => {
-  const { execFileSync } = await import('node:child_process');
-  const { mkdtempSync, rmSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const { join } = await import('node:path');
-  const { createGitAncestry } = await import('../scripts/evidence.js');
-  const repo = mkdtempSync(join(tmpdir(), 'delivery-cycle-git-'));
-  const git = (...args) => execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', ...args]).toString().trim();
-  try {
-    git('init', '-q', '-b', 'main');
-    git('commit', '-q', '--allow-empty', '-m', 'one');
-    const onMain = git('rev-parse', 'HEAD');
-    git('checkout', '-q', '-b', 'side');
-    git('commit', '-q', '--allow-empty', '-m', 'two');
-    const offMain = git('rev-parse', 'HEAD');
-    const ancestry = createGitAncestry(repo);
-
-    assert.equal(await ancestry(['merge-base', '--is-ancestor', onMain, 'main']), true);
-    assert.equal(await ancestry(['merge-base', '--is-ancestor', offMain, 'main']), false);
-    await assert.rejects(ancestry(['merge-base', '--is-ancestor', 'b'.repeat(40), 'main']));
-  } finally {
-    rmSync(repo, { recursive: true, force: true });
+test('PR 未合并（open 或 closed 未合并）→ main not_met，来源为 PR，时间为 null', async () => {
+  for (const state of ['open', 'closed']) {
+    const { evidence } = adapterWith({ pr: pull({ state, merged_at: null, merge_commit_sha: null }) });
+    assert.deepEqual((await evidence.read(SPEC)).main, { state: 'not_met', source: PR_URL, effectiveAt: null, reason: null });
   }
+});
+
+test('合入非默认分支 → main unknown（未进入 main）', async () => {
+  const { evidence } = adapterWith({ pr: pull({ base: { ref: 'release', repo: { default_branch: 'main' } } }) });
+  const { main } = await evidence.read(SPEC);
+
+  assert.equal(main.state, 'unknown');
+  assert.match(main.reason, /release/);
+});
+
+test('多个 PR attachment → main unknown，不调 GitHub', async () => {
+  const other = 'https://github.com/Dimon94/refresh/pull/474';
+  const { githubCalls, evidence } = adapterWith({ server: linearServer({ pages: { first: [[attachment(PR_URL), attachment(other)], null] } }) });
+  const { main } = await evidence.read(SPEC);
+
+  assert.equal(main.state, 'unknown');
+  assert.match(main.reason, /2 个 PR/);
+  assert.deepEqual(githubCalls, []);
+});
+
+test('github 抛错、返回形状不明，或 attachments 读取被拒 → main unknown 并带原因，不抛出', async () => {
+  const cases = [
+    adapterWith({ pr: () => { throw new Error('gh: HTTP 404'); } }),
+    adapterWith({ pr: { message: 'Not Found' } }),
+    adapterWith({ server: linearServer({ fail: { DeliveryCycleAttachments: () => ({ errors: [{ message: 'Invalid scope: read required' }] }) } }) })
+  ];
+  const reasons = [];
+  for (const { evidence } of cases) {
+    const { main } = await evidence.read(SPEC);
+    assert.equal(main.state, 'unknown');
+    reasons.push(main.reason);
+  }
+  assert.match(reasons[0], /gh: HTTP 404/);
+  assert.match(reasons[2], /permission_denied/);
+});
+
+// --------------------------------------------------------------------------
+// spec：快照必须回读到本 Spec 的评论
+// --------------------------------------------------------------------------
+
+test('快照指向其他 Issue 的评论、评论不存在或回读失败 → spec unknown', async () => {
+  const servers = [
+    linearServer({ comments: { [COMMENT_ID]: acceptedComment('issue-other') } }),
+    linearServer(),
+    linearServer({ fail: { DeliveryCycleAcceptance: () => { throw Object.assign(new Error('Linear HTTP 403'), { status: 403 }); } } })
+  ];
+  const reasons = [];
+  for (const server of servers) {
+    const { spec } = await adapterWith({ server }).evidence.read(SPEC);
+    assert.equal(spec.state, 'unknown');
+    assert.equal(spec.source, null);
+    reasons.push(spec.reason);
+  }
+  assert.match(reasons[0], /不属于/);
+  assert.match(reasons[2], /permission_denied/);
+});
+
+test('无快照 → spec unknown，不读任何评论', async () => {
+  const { calls, evidence } = adapterWith({ acceptance: { 'DD-999': { commentId: COMMENT_ID, state: 'verified' } } });
+  const { spec } = await evidence.read(SPEC);
+
+  assert.equal(spec.state, 'unknown');
+  assert.match(spec.reason, /未提供原验收记录快照/);
+  assert.ok(!calls.some((c) => c.op === 'DeliveryCycleAcceptance'));
+});
+
+// --------------------------------------------------------------------------
+// 默认 github 实现：只读 gh api
+// --------------------------------------------------------------------------
+
+test('createGhPullReader：execFile gh api repos/<o>/<r>/pulls/<n> 并解析 JSON', async () => {
+  const exec = [];
+  const github = createGhPullReader(async (file, args) => { exec.push([file, args]); return { stdout: JSON.stringify(pull()) }; });
+
+  assert.deepEqual(await github({ owner: 'Dimon94', repo: 'refresh', number: 473 }), pull());
+  assert.deepEqual(exec, [['gh', ['api', 'repos/Dimon94/refresh/pulls/473']]]);
 });

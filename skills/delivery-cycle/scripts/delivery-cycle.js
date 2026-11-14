@@ -19,6 +19,7 @@
 //          hasNextPage 为真而 endCursor 为空或未前进 = capability_unavailable（不死循环、不截断）
 //   PARAM: Issue → {id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}
 //          specRef 非空 = MMF 父 Spec Issue；其直接子项 = ticket；身份只看 id／parentId／specRef
+//          specRef 来源 = to-spec 模板结构（owner：to-spec；映射见 linear-graphql.js L5），与层级无关
 //          teamId、projectId、specRef 是对 Spec §3 readIssue 形状的扩展；缺 teamId／projectId → scope_invalid，零写入
 //   PARAM: readLabel(labelId) → {id, teamId} | null；null、抛错或 teamId ≠ scope.teamId = 标记缺失
 //   PARAM: patchIssue(issueId, {cycle?, addLabels?, removeLabels?}) 增量语义，未出现的字段不变；
@@ -29,6 +30,8 @@
 //         patchIssue 抛出这两类 code 为确定失败，该项 failed，不归 write_unknown
 //   PAIR: 真实 Adapter = repo://skills/delivery-cycle/scripts/linear-graphql.js（LinearPort）、
 //         repo://skills/delivery-cycle/scripts/evidence.js（EvidencePort）；CLI 装配在 scripts/run.js
+//   PARAM: Evidence 来源 = 原 owner 事实：main = Spec Issue 唯一 PR 的合入读回，spec = 原验收评论快照回读
+//          （映射见 evidence.js L5）；不认任何 delivery-cycle 自建标记
 //   PARAM: Evidence 形状不合法，或 verified／not_met 缺 source → 该条件 unknown（evidence_unavailable）；
 //          effectiveAt 须带时区，且日期部分是真实日历日（2026-02-30 → null）
 // ==========================================================================

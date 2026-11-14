@@ -21,16 +21,23 @@ function recorder(respond) {
   return { calls, request };
 }
 
-// Linear Issue 节点的录制形状
-function node({ id, state = 'started', cycle = null, parent = null, children = [], labels = [],
-  team = 'team-1', project = 'project-1', moreLabels = false }) {
+// Linear Issue 节点的录制形状（查询不再请求 children；层级只由 parent 表达）
+function node({ id, state = 'started', cycle = null, parent = null, labels = [],
+  team = 'team-1', project = 'project-1', moreLabels = false, description = null, title = `Issue ${id}` }) {
   return {
-    id, identifier: `DD-${id}`, team: { id: team }, project: project && { id: project },
+    id, identifier: `DD-${id}`, title, description, team: { id: team }, project: project && { id: project },
     state: { type: state }, cycle: cycle && { id: cycle }, parent: parent && { id: parent },
-    labels: { nodes: labels.map((l) => ({ id: l })), pageInfo: { hasNextPage: moreLabels } },
-    children: { nodes: children.map((c) => ({ id: c })) }
+    labels: { nodes: labels.map((l) => ({ id: l })), pageInfo: { hasNextPage: moreLabels } }
   };
 }
+
+// 期望值来源：repo://skills/to-spec/SKILL.md 与上游 mattpocock to-spec 共有的六个二级标题；
+// ticket 模板来自 to-tickets（## Parent／## What to build／## Acceptance criteria）；Epic 样本 DD-539 以 `# Epic：` 开头
+const SPEC_HEADINGS = ['Problem Statement', 'Solution', 'User Stories', 'Implementation Decisions', 'Testing Decisions', 'Out of Scope'];
+const specBody = (headings = SPEC_HEADINGS, suffix = '') => headings.map((h) => `## ${h}${suffix}\n\n正文\n`).join('\n');
+const SPEC_BODY = specBody();
+const TICKET_BODY = '## Parent\n\nDD-S\n\n## What to build\n\n正文\n\n## Acceptance criteria\n\n- [ ] 结果';
+const EPIC_BODY = '# Epic：周期维护\n\n## 目标\n\n正文';
 
 const connection = (nodes, endCursor = null) => ({ nodes, pageInfo: { hasNextPage: endCursor !== null, endCursor } });
 const DENIED = [{ message: 'Invalid scope: read required' }];
@@ -39,12 +46,12 @@ const DENIED = [{ message: 'Invalid scope: read required' }];
 // 读：过滤、分页、映射
 // --------------------------------------------------------------------------
 
-test('listIssues 同时按团队与项目过滤，游标原样传 after，Spec 身份来自真实父子结构而非标题', async () => {
+test('listIssues 同时按团队与项目过滤，游标原样传 after，请求 description；Spec 身份来自 to-spec 模板', async () => {
   const { calls, request } = recorder(() => ({
     data: { issues: connection([
-      node({ id: 'E', state: 'unstarted', children: ['S'] }),
-      node({ id: 'S', parent: 'E', children: ['T'], cycle: 'cycle-0', labels: ['l1'] }),
-      node({ id: 'T', parent: 'S' })
+      node({ id: 'E', state: 'unstarted', description: EPIC_BODY }),
+      node({ id: 'S', parent: 'E', cycle: 'cycle-0', labels: ['l1'], description: SPEC_BODY }),
+      node({ id: 'T', parent: 'S', description: TICKET_BODY })
     ], 'c2') }
   }));
   const page = await createLinearAdapter({ request }).listIssues(SCOPE, 'c1');
@@ -52,6 +59,7 @@ test('listIssues 同时按团队与项目过滤，游标原样传 after，Spec �
   assert.deepEqual(calls[0].variables, {
     after: 'c1', filter: { team: { id: { eq: 'team-1' } }, project: { id: { eq: 'project-1' } } }
   });
+  assert.match(calls[0].query, /\bdescription\b/);
   assert.deepEqual(page, {
     nodes: [
       { id: 'E', teamId: 'team-1', projectId: 'project-1', statusType: 'unstarted', labels: [], parentId: null, cycleId: null, specRef: null },
@@ -60,6 +68,27 @@ test('listIssues 同时按团队与项目过滤，游标原样传 after，Spec �
     ],
     pageInfo: { hasNextPage: true, endCursor: 'c2' }
   });
+});
+
+const specRefOf = async (fields) => (await createLinearAdapter({ request: async () => ({ data: { issue: node(fields) } }) }).readIssue('A')).specRef;
+
+test('无父项、无子项的独立 Spec（零 ticket MMF／无 Epic）按模板识别；标题后允许空白', async () => {
+  assert.equal(await specRefOf({ id: 'X', description: SPEC_BODY }), 'DD-X');
+  assert.equal(await specRefOf({ id: 'Y', description: specBody(SPEC_HEADINGS, '  ').replaceAll('\n', '\r\n') }), 'DD-Y');
+});
+
+test('有父项、自己也有子项但是 ticket 模板的深层 Issue 不是 Spec', async () => {
+  assert.equal(await specRefOf({ id: 'T', parent: 'S', description: TICKET_BODY }), null);
+});
+
+test('Epic、空描述、缺描述、只含部分标题、标题前缀不在行首、标题写“Spec：”但无模板 → 不是 Spec（与层级无关）', async () => {
+  const bodies = [EPIC_BODY, '', null, specBody(SPEC_HEADINGS.slice(1)),
+    specBody(SPEC_HEADINGS).replace('## Out of Scope', '> ## Out of Scope'),
+    specBody(SPEC_HEADINGS).replace('## Solution', '## Solutions')];
+  for (const description of bodies) {
+    assert.equal(await specRefOf({ id: 'A', parent: 'E', description }), null, String(description).slice(0, 30));
+  }
+  assert.equal(await specRefOf({ id: 'B', parent: 'E', title: 'Spec：周期维护', description: TICKET_BODY }), null);
 });
 
 test('listCycles 按团队过滤并映射 startsAt／endsAt', async () => {
@@ -156,13 +185,17 @@ test('patchIssue 只发出现的增量字段，绝不发 labelIds；cycle: null 
 // 经核心公开入口：两页拼接、Epic 不进 Cycle、写超时归 write_unknown
 // --------------------------------------------------------------------------
 
-function linearServer({ onUpdate } = {}) {
-  const issues = new Map([
-    ['E', node({ id: 'E', state: 'unstarted', children: ['P'] })],
-    ['P', node({ id: 'P', parent: 'E', children: ['T'], state: 'unstarted' })],
-    ['T', node({ id: 'T', parent: 'P' })]
-  ]);
-  const pages = { null: [['E', 'P'], 'c1'], c1: [['T'], null] };
+const R2_ISSUES = () => [
+  node({ id: 'E', state: 'unstarted', description: EPIC_BODY }),
+  node({ id: 'P', parent: 'E', state: 'unstarted', description: SPEC_BODY }),
+  node({ id: 'T', parent: 'P', description: TICKET_BODY })
+];
+
+// 两页：第一页除最后一项外全部，第二页只放最后一项
+function linearServer({ onUpdate, issues: list = R2_ISSUES() } = {}) {
+  const issues = new Map(list.map((n) => [n.id, n]));
+  const ids = [...issues.keys()];
+  const pages = { null: [ids.slice(0, -1), 'c1'], c1: [ids.slice(-1), null] };
   const team = { cyclesEnabled: true, timezone: 'Asia/Shanghai', cycleDuration: 1, cycleStartDay: 1, cycleCooldownTime: 0 };
   const respond = (op, v) => {
     if (op === 'DeliveryCycleTeam') return { data: { team } };
@@ -170,8 +203,8 @@ function linearServer({ onUpdate } = {}) {
     if (op === 'DeliveryCycleLabel') return { data: { issueLabel: { id: SCOPE.exclusionLabelId, team: { id: 'team-1' } } } };
     if (op === 'DeliveryCycleIssue') return { data: { issue: issues.get(v.id) } };
     if (op === 'DeliveryCycleIssues') {
-      const [ids, next] = pages[v.after];
-      return { data: { issues: connection(ids.map((id) => issues.get(id)), next) } };
+      const [page, next] = pages[v.after];
+      return { data: { issues: connection(page.map((id) => issues.get(id)), next) } };
     }
     if (onUpdate) return onUpdate(v);
     issues.get(v.id).cycle = { id: v.input.cycleId };
@@ -182,16 +215,39 @@ function linearServer({ onUpdate } = {}) {
 
 const runWith = (request) => maintainCurrentWeek({ scope: SCOPE, exclude: [], restore: [] },
   { linear: createLinearAdapter({ request }), evidence: new FakeEvidence(), now: TUESDAY });
+const updatesOf = (calls) => calls.filter((c) => c.op === 'DeliveryCycleUpdate').map((c) => c.variables)
+  .sort((a, b) => a.id.localeCompare(b.id));
 
 test('R2：第二页的进行中 ticket 拉入父 Spec；Epic 不进 Cycle；只写 cycleId', async () => {
   const { calls, request } = linearServer();
   const result = await runWith(request);
-  const updates = calls.filter((c) => c.op === 'DeliveryCycleUpdate').map((c) => c.variables);
 
   assert.equal(result.status, 'synchronized');
   assert.deepEqual(calls.filter((c) => c.op === 'DeliveryCycleIssues').slice(0, 2).map((c) => c.variables.after), [null, 'c1']);
-  assert.deepEqual(updates.sort((a, b) => a.id.localeCompare(b.id)),
-    [{ id: 'P', input: { cycleId: 'cycle-1' } }, { id: 'T', input: { cycleId: 'cycle-1' } }]);
+  assert.deepEqual(updatesOf(calls), [{ id: 'P', input: { cycleId: 'cycle-1' } }, { id: 'T', input: { cycleId: 'cycle-1' } }]);
+});
+
+test('经核心入口：进行中的无 Epic 独立 Spec（零 ticket）纳入本周', async () => {
+  const { calls, request } = linearServer({ issues: [
+    node({ id: 'O', state: 'unstarted', description: TICKET_BODY }),
+    node({ id: 'X', description: SPEC_BODY })
+  ] });
+  const result = await runWith(request);
+
+  assert.equal(result.status, 'synchronized');
+  assert.deepEqual(updatesOf(calls), [{ id: 'X', input: { cycleId: 'cycle-1' } }]);
+});
+
+test('经核心入口：ticket 模板的深层 Issue 有子项也不当 Spec，其进行中的子项不当 ticket 纳入', async () => {
+  const { calls, request } = linearServer({ issues: [
+    node({ id: 'S', parent: 'E', state: 'unstarted', description: SPEC_BODY }),
+    node({ id: 'T', parent: 'S', state: 'unstarted', description: TICKET_BODY }),
+    node({ id: 'D', parent: 'T', description: TICKET_BODY })
+  ] });
+  const result = await runWith(request);
+
+  assert.deepEqual(updatesOf(calls), []);
+  assert.deepEqual(result.problems.filter((p) => p.issueId === 'D').map((p) => p.code), ['identity_unverifiable']);
 });
 
 test('写入网络超时不是确定失败：该项归 write_unknown', async () => {

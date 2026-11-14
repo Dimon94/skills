@@ -3,7 +3,8 @@
 //   COORD: skills/delivery-cycle/scripts/linear-graphql.js
 //   INPUT: request(query, variables) → Promise<GraphQL 响应体 {data?, errors?}>；
 //          默认 transport 从 macOS 钥匙串读 Linear API key（service refresh-linear-api-key）
-//   OUTPUT: createLinearAdapter（LinearPort 实现）、createKeychainTransport
+//   OUTPUT: createLinearAdapter（LinearPort 实现）、createKeychainTransport；
+//           portError、readLinear（同一错误映射，供 evidence.js 只读查询复用）
 //   POS: LinearPort 唯一真实 Adapter；只做 GraphQL 形状与错误码转换，不做周期判断
 //   TEST: node --test skills/delivery-cycle/tests/linear-graphql.test.js
 //   PROTOCOL: LinearPort 形状以 repo://skills/delivery-cycle/scripts/delivery-cycle.js 的 L5 为准
@@ -12,8 +13,10 @@
 //          cycleDurationWeeks、cooldownWeeks；cycleStartDay 与 JS getDay 同编号（1 = 周一）；
 //          另带 cycleLockToActive、cycleIssueAutoAssignStarted、cycleIssueAutoAssignCompleted 原值；缺字段 = null
 //   PARAM: listIssues 过滤 team.id eq 且 project.id eq；每页 50；标签超过一页 = capability_unavailable
-//   PARAM: specRef（推断，待根协调者确认）：有父项且有子项的 Issue = 父 Spec Issue，specRef = 自身 identifier；
-//          其余为 null。依据 docs/agents/issue-tracker.md 的 Epic → Spec → ticket 结构；不看标题
+//   PARAM: specRef 来源 = to-spec 模板结构（owner：repo://skills/to-spec/SKILL.md）：description 按行含全部
+//          `## Problem Statement`、`## Solution`、`## User Stories`、`## Implementation Decisions`、
+//          `## Testing Decisions`、`## Out of Scope`（行首匹配，标题后允许空白）= 自身 identifier；
+//          与 parentId、子项数量、标题都无关。缺描述或模板不全 = null，由核心按既有规则报 identity_unverifiable
 //   PARAM: patchIssue 只发 cycleId／addedLabelIds／removedLabelIds 中出现的字段；永不发 labelIds
 //   FAIL: HTTP 401／403，或 errors 含 AUTHENTICATION_ERROR、FORBIDDEN、Invalid scope = permission_denied（读写一致）
 //   FAIL: 读：其余 GraphQL errors 或响应形状不明 = capability_unavailable；readLabel 遇 Entity not found = null
@@ -30,11 +33,13 @@ const KEYCHAIN_SERVICE = 'refresh-linear-api-key';
 const TIMEOUT_MS = 30_000;
 const PAGE_SIZE = 50;
 const DENIAL = /AUTHENTICATION_ERROR|FORBIDDEN|Invalid scope/i;
+// to-spec 模板的六个必备二级标题（本仓与上游版本共有；Business Flow 只在本仓，不要求）
+const SPEC_HEADINGS = Object.freeze(['Problem Statement', 'Solution', 'User Stories',
+  'Implementation Decisions', 'Testing Decisions', 'Out of Scope']);
 
 const ISSUE_FIELDS = `fragment DeliveryCycleIssueFields on Issue {
-  id identifier team { id } project { id } state { type } cycle { id } parent { id }
+  id identifier description team { id } project { id } state { type } cycle { id } parent { id }
   labels(first: ${PAGE_SIZE}) { nodes { id } pageInfo { hasNextPage } }
-  children(first: 1) { nodes { id } }
 }`;
 
 const QUERIES = Object.freeze({
@@ -96,7 +101,7 @@ function dataOf(body) {
 }
 
 // 读：网络失败也是能力不可用（fail-close）；写不走这里，网络失败交核心判 uncertain
-async function read(request, query, variables) {
+export async function readLinear(request, query, variables) {
   const body = await call(request, query, variables).catch((err) => {
     throw err?.code ? err : unavailable(`网络失败 ${err?.name ?? ''}`.trim());
   });
@@ -112,21 +117,26 @@ function toConnection(conn, mapNode, what) {
   return { nodes: conn.nodes.map(mapNode), pageInfo: { hasNextPage: conn.pageInfo.hasNextPage, endCursor: conn.pageInfo.endCursor ?? null } };
 }
 
+// 描述按行含全部 to-spec 必备标题 = Spec Issue；不看层级与标题
+function isSpecDescription(description) {
+  if (typeof description !== 'string') return false;
+  const headings = new Set(description.split(/\r?\n/).map((line) => /^## (.+?)\s*$/.exec(line)?.[1]));
+  return SPEC_HEADINGS.every((h) => headings.has(h));
+}
+
 function toIssue(node) {
-  const shaped = typeof node?.id === 'string' && typeof node.state?.type === 'string'
-    && Array.isArray(node.labels?.nodes) && Array.isArray(node.children?.nodes);
+  const shaped = typeof node?.id === 'string' && typeof node.state?.type === 'string' && Array.isArray(node.labels?.nodes);
   if (!shaped) throw unavailable('Issue 节点');
   if (node.labels.pageInfo?.hasNextPage !== false) throw unavailable(`Issue ${node.id} 标签超过一页`);
-  const parentId = node.parent?.id ?? null;
   return {
     id: node.id,
     teamId: node.team?.id ?? null,
     projectId: node.project?.id ?? null,
     statusType: node.state.type,
     labels: node.labels.nodes.map((l) => l.id),
-    parentId,
+    parentId: node.parent?.id ?? null,
     cycleId: node.cycle?.id ?? null,
-    specRef: parentId !== null && node.children.nodes.length > 0 ? node.identifier : null
+    specRef: isSpecDescription(node.description) ? node.identifier : null
   };
 }
 
@@ -152,18 +162,18 @@ export function createLinearAdapter({ request }) {
   const teamFilter = (scope) => ({ team: { id: { eq: scope.teamId } } });
   return {
     async readCycleConfiguration(teamId) {
-      return toConfiguration((await read(request, QUERIES.team, { id: teamId })).team);
+      return toConfiguration((await readLinear(request, QUERIES.team, { id: teamId })).team);
     },
     async listCycles(scope, cursor) {
-      const data = await read(request, QUERIES.cycles, { after: cursor, filter: teamFilter(scope) });
+      const data = await readLinear(request, QUERIES.cycles, { after: cursor, filter: teamFilter(scope) });
       return toConnection(data.cycles, toCycle, 'cycles');
     },
     async listIssues(scope, cursor) {
       const filter = { ...teamFilter(scope), project: { id: { eq: scope.projectId } } };
-      return toConnection((await read(request, QUERIES.issues, { after: cursor, filter })).issues, toIssue, 'issues');
+      return toConnection((await readLinear(request, QUERIES.issues, { after: cursor, filter })).issues, toIssue, 'issues');
     },
     async readIssue(issueId) {
-      return toIssue((await read(request, QUERIES.issue, { id: issueId })).issue);
+      return toIssue((await readLinear(request, QUERIES.issue, { id: issueId })).issue);
     },
     async readLabel(labelId) {
       const body = await call(request, QUERIES.label, { id: labelId });

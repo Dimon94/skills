@@ -15,20 +15,27 @@ description: 手动维护一个 Linear 团队／项目的本周工作集合：�
 
 ```bash
 node skills/delivery-cycle/scripts/run.js --team <teamId> --project <projectId> --exclusion-label <labelId> \
-  [--exclude id1,id2] [--restore id1,id2] [--repo <本地仓库路径>]
+  [--exclude id1,id2] [--restore id1,id2] [--spec-acceptance <Spec identifier>=<commentId>:<verified|not_met>]
 ```
 
-stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。Linear API key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头，不进入输出。`--repo` 是 main 合入校验所用的本地仓库，默认当前目录。
+stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。Linear API key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头，不进入输出。PR 合入事实经 `gh api` 只读读回。`--spec-acceptance` 可重复或逗号分隔，格式错误按参数错误退出（`2`），零请求。
 
 脚本内调用同一入口：
 
 ```js
 import { maintainCurrentWeek } from './scripts/delivery-cycle.js';
 import { createKeychainTransport, createLinearAdapter } from './scripts/linear-graphql.js';
-import { createEvidenceAdapter, createGitAncestry } from './scripts/evidence.js';
+import { createEvidenceAdapter, createGhPullReader } from './scripts/evidence.js';
 ```
 
-Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块，GraphQL 映射与错误码写在 [scripts/linear-graphql.js](scripts/linear-graphql.js)。key 缺少读权限（`Invalid scope`）、401／403 都报 `permission_denied`，零写入；其余读取失败报 `capability_unavailable`。`readIssue` 返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。有父项且有子项的 Issue 视为父 Spec Issue（推断，待确认），不看标题。
+Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块，GraphQL 映射与错误码写在 [scripts/linear-graphql.js](scripts/linear-graphql.js)。key 缺少读权限（`Invalid scope`）、401／403 都报 `permission_denied`，零写入；其余读取失败报 `capability_unavailable`。`readIssue` 返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。
+
+Spec 身份只看 to-spec 产物：Issue 描述按行含全部 `## Problem Statement`、`## Solution`、`## User Stories`、`## Implementation Decisions`、`## Testing Decisions`、`## Out of Scope` 时，它是 MMF 父 Spec Issue（`specRef` 为自身 identifier）。与有无 Epic 父项、有无子项和标题都无关，所以零 ticket 的独立 Spec 也算。to-tickets 的 ticket 模板（`## Parent`／`## What to build`／`## Acceptance criteria`）和 Epic 都不是 Spec。缺描述或模板不全时不是 Spec，进行中又不属于已核实的 Spec 时报 `identity_unverifiable`。
+
+职责分工：
+
+- CLI 只做确定性部分：Linear 读写、按模板判断 Spec 身份、经 GitHub 读回 PR 合入事实、回读快照评论并核对它属于该 Spec。
+- 手动调用本 Skill 的 agent 在运行前，对每个候选 Spec 读原验收／closeout 评论。原文明确写出 Spec 验收通过或未通过时，才用 `--spec-acceptance` 传入该评论 ID 与结论；读不出明确结论就不传，该条件保持 Unknown。agent 不写评论、不改 Issue。
 
 ## 维护规则
 
@@ -61,14 +68,12 @@ Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 
 
 工作流状态、Integration、HTTP 200、口头声称和提交时间都不替代这两项证据。
 
-证据来自父 Spec Issue 上的严格标记评论（新增约定，待根协调者确认）。一条评论只写一行，同一条件取最新的一条：
+两项证据都复用原 owner 的事实，不新建标记或账本：
 
-```text
-delivery-cycle:spec state=verified|not_met at=<带时区的 ISO 8601，可空>
-delivery-cycle:main sha=<40 位小写 sha> at=<带时区的 ISO 8601，可空>
-```
+- `main`：closeout 记录的 PR 合入事实（owner：`git-rebase-main` 的 closeout）。读 Spec Issue 的 attachments，只取 `https://github.com/<owner>/<repo>/pull/<n>` 形式的链接并去重。恰好一个时经 `gh api repos/<owner>/<repo>/pulls/<n>` 读回：已合并且 `base.ref` 等于仓库默认分支为 `verified`，来源是 PR 链接，事件时间是 `merged_at`；未合并为 `not_met`；合入其他分支为 `unknown`。没有 PR、多于一个 PR 或读取失败时为 `unknown`。
+- `spec`：原 Spec 验收／closeout 评论的快照（见「入口」的职责分工）。脚本回读该评论，评论属于这个 Spec Issue 时，结论取快照值，来源是评论链接，事件时间是评论 `createdAt`。没有快照、评论读不到或属于其他 Issue 时为 `unknown`。
 
-`spec` 的来源是该评论 URL。`main` 只有在 `--repo` 中 `git merge-base --is-ancestor <sha> main` 为真时才是 `verified`，来源为 `git:main@<sha>`。事件时间只取标记里的 `at`，缺失为 `null`，不用提交日期补。没有标记、sha 不在 main 上或 git 无法校验时，该条件为 `unknown`。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
+评论正文里的 sha 和时间、提交日期都不作证据。读取失败（含 `permission_denied`）只让该条件为 `unknown`，原因写进 `reason`。维护入口对每个 MMF 只读一次父项证据，经同一公式判断；ticket 沿用父项结论，不单独判断。
 
 ## 跨周结转
 

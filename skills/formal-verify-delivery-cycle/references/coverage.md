@@ -1,6 +1,6 @@
 # formal-verify-delivery-cycle 覆盖记录
 
-Sync commit：`c89702069c45219c8d56df8451e81dfab0ba0c20`（delivery-cycle 代码在此提交上已核对与本验证一致）。
+Sync commit：`44158e12ec662cef8f29991c76630ea610616f62`（delivery-cycle 代码在此提交上已核对与本验证一致）。
 函数坐标按该提交的 `skills/delivery-cycle/scripts/delivery-cycle.js` 行号。
 
 ## 性质
@@ -19,23 +19,23 @@ Sync commit：`c89702069c45219c8d56df8451e81dfab0ba0c20`（delivery-cycle 代码
 
 | 函数 | 坐标 | 关联性质 |
 | --- | --- | --- |
-| `maintainCurrentWeek` | delivery-cycle.js:175 | 全部（被测入口） |
-| `recordBlocked` | :204 | R9S |
-| `applyEach` | :211 | R9、R11 |
-| `readWeekCycles` | :279 | R8 |
-| `applyPicks` | :504 | R9（exclude 场景） |
-| `record` | :526 | R9V、R11 |
-| `patchClaim`、`writePatch` | :534、:541 | R9V |
-| `readState` | :550 | R9 |
-| `patchFor` | :558 | R9、R11 |
-| `classifyReadback` | :571 | R9V、R9S |
-| `applyTarget` | :582 | R8、R9 |
-| `preRead` | :597 | R8、R9 |
-| `scheduledLater`、`skipLater` | :609、:617 | R8 |
-| `recheckWeek` | :635 | 只作 await 注入点；它守的配置漂移不在性质内（见走查记录） |
-| `readBack` | :645 | R8、R9V |
-| `ensureClock` | :656 | R8 |
-| `finish` | :667 | R9S |
+| `maintainCurrentWeek` | delivery-cycle.js:176 | 全部（被测入口） |
+| `recordBlocked` | :205 | R9S |
+| `applyEach` | :213 | R9、R11 |
+| `readWeekCycles` | :296 | R8 |
+| `applyPicks` | :521 | R9（exclude 场景） |
+| `record` | :543 | R9V、R11 |
+| `patchClaim`、`writePatch` | :551、:558 | R9V |
+| `readState` | :567 | R9 |
+| `patchFor` | :575 | R9、R11 |
+| `classifyReadback` | :588 | R9V、R9S |
+| `applyTarget` | :599 | R8、R9 |
+| `preRead` | :614 | R8、R9 |
+| `scheduledLater`、`skipLater` | :626、:634 | R8 |
+| `recheckWeek` | :652 | 只作 await 注入点；它守的配置漂移不在性质内（见走查记录） |
+| `readBack` | :662 | R8、R9V |
+| `ensureClock` | :673 | R8 |
+| `finish` | :684 | R9S |
 
 环境侧依赖 `skills/delivery-cycle/tests/fake-adapters.js` 的 `FakeLinear`（`nativeRoll`、`applyPatch` 增量语义）。
 
@@ -45,12 +45,12 @@ Sync commit：`c89702069c45219c8d56df8451e81dfab0ba0c20`（delivery-cycle 代码
 
 | 模型步骤 | 代码 await 点 | 进入前可注入 |
 | --- | --- | --- |
-| 读当周 Cycle | `readWeekCycles` → `linear.listCycles`（入口 `findCurrentCycle` 与 `recheckWeek` :636） | 原生滚动、手动移动、跨周一 |
-| 前读 | `preRead` → `readState` :599 | 同上；读超时 |
-| 写 | `applyTarget` → `writePatch` :589 | 先核对 R8／R9（发送时刻），再注入同上事件；然后选写结果 |
-| 回读 | `readBack` → `readState` :646 | 同上；读超时 |
+| 读当周 Cycle | `readWeekCycles` → `linear.listCycles`（入口 `findCurrentCycle` 与 `recheckWeek` :653） | 原生滚动、手动移动、跨周一 |
+| 前读 | `preRead` → `readState` :616 | 同上；读超时 |
+| 写 | `applyTarget` → `writePatch` :606 | 先核对 R8／R9（发送时刻），再注入同上事件；然后选写结果 |
+| 回读 | `readBack` → `readState` :663 | 同上；读超时 |
 
-`readCycleConfiguration`、`readLabel`、`listIssues` 不注入：它们在第一次 `listCycles` 之前或之后紧邻，注入点已被相邻的 `listCycles` 覆盖。`evidence.read` 恒为 `not_met`，不注入。
+`readCycleConfiguration`、`readLabel`、`listIssues` 不注入（含 44158e1 新增的配置读不全时观察 Cycle 长度分支 `observedNonWeekly`，它在任何写入之前、只追加 problem）：它们在第一次 `listCycles` 之前或之后紧邻，注入点已被相邻的 `listCycles` 覆盖。`evidence.read` 恒为 `not_met`，不注入。
 
 写结果（`world.js` 的 `PATCH_OUTCOMES`）：`ok`、写入后超时、写入前超时、写入后空响应体、`errors` 拒绝、`permission_denied`、回 `success: true` 但未写入。
 
@@ -59,7 +59,7 @@ Sync commit：`c89702069c45219c8d56df8451e81dfab0ba0c20`（delivery-cycle 代码
 - 场景 `carry`：P1（无 cycle）、P2（在 `cycle-0`）、P3（无 cycle），都是进行中 MMF 父项，证据 `not_met`；时钟从上海周日 23:59:59（`cycle-0` 周）开始。
 - 场景 `exclude`：P1 在 `cycle-0` 且被 `exclude`，P2 无 cycle 待纳入。
 - 每条轨迹在同一 Linear 状态上连跑 4 次 `maintainCurrentWeek`。run0、run1 共享预算：环境事件 ≤ 2（原生滚动一次、他人把 P1 手动移入 `cycle-1` 一次、跨周一一次，三选二），故障 ≤ 2（读超时或非 `ok` 写结果）。run2 冻结环境作为恢复轮；run3 冻结并检查 R11。
-- 规模（c897020 上实跑）：`carry` 160126 条轨迹，单条最多 39 个选择点，其中 12001 条含前读之后的未观察覆盖；`exclude` 85310 条轨迹，最多 30 个选择点。合计约 33 秒。
+- 规模（c897020 与 44158e1 上实跑，计数相同）：`carry` 160126 条轨迹，单条最多 39 个选择点，其中 12001 条含前读之后的未观察覆盖；`exclude` 85310 条轨迹，最多 30 个选择点。合计约 33 秒。
 - 环境假设：Linear 写入对单个 Issue 原子生效、增量语义同 `applyPatch`；原生滚动每周期一次；`readIssue` 返回发送时刻的最新值；时钟单调。
 
 ## 不覆盖
@@ -91,6 +91,6 @@ Sync commit：`c89702069c45219c8d56df8451e81dfab0ba0c20`（delivery-cycle 代码
 
 按 SKILL.md 第 1、2 节冷启动跑两次 scratch，结束都用 `cp` 写回原字节，sha256 回到 `d1176cdb…b222da`，`git status` 不再列出 delivery-cycle.js。
 
-1. 删掉 `applyTarget` 的 `await recheckWeek(deps, run);`（:587）：第 1 节命中，`verify.js` 仍 PASS（carry 103331、exclude 55989 条轨迹）。原因：`preRead` 在读后已调用 `ensureClock`（:601），到 `writePatch` 之间不再有 await，五条性质都不靠它守。它守的是当周 Cycle 边界变化（`configuration_mismatch`）与新增未来 Cycle，这两项在不覆盖范围内。
-2. `writePatch`（:541）在异常后不读直接重发同一 patch：`verify.js` 退出码 1，报 `VIOLATION R9 run1 P3: 发送前没有本轮可读的新前读（盲重放）`，轨迹为 run1 中 `patchIssue P3 {"cycle":"cycle-1"} → timeout_after_apply` 后紧跟第二次 `patchIssue P3`，而该轮仍报 `synchronized changed=3`。
+1. 删掉 `applyTarget` 的 `await recheckWeek(deps, run);`（:604）：第 1 节命中，`verify.js` 仍 PASS（carry 103331、exclude 55989 条轨迹）。原因：`preRead` 在读后已调用 `ensureClock`（:618），到 `writePatch` 之间不再有 await，五条性质都不靠它守。它守的是当周 Cycle 边界变化（`configuration_mismatch`）与新增未来 Cycle，这两项在不覆盖范围内。
+2. `writePatch`（:558）在异常后不读直接重发同一 patch：`verify.js` 退出码 1，报 `VIOLATION R9 run1 P3: 发送前没有本轮可读的新前读（盲重放）`，轨迹为 run1 中 `patchIssue P3 {"cycle":"cycle-1"} → timeout_after_apply` 后紧跟第二次 `patchIssue P3`，而该轮仍报 `synchronized changed=3`。
 3. 还原后重跑原实现：PASS，轨迹数与“有界与假设”一节相同。

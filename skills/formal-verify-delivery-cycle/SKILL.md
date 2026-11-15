@@ -10,7 +10,7 @@ description: "有界穷举检查 delivery-cycle 维护入口的时序与重试�
 ## 1. 判断改动是否命中
 
 ```bash
-git diff --stat c89702069c45219c8d56df8451e81dfab0ba0c20 -- skills/delivery-cycle/scripts/delivery-cycle.js skills/delivery-cycle/tests/fake-adapters.js
+git diff --stat 44158e12ec662cef8f29991c76630ea610616f62 -- skills/delivery-cycle/scripts/delivery-cycle.js skills/delivery-cycle/tests/fake-adapters.js
 ```
 
 有输出即命中。覆盖的函数与性质见 [references/coverage.md](references/coverage.md)。只改 `assessFormalDelivery`、身份分组或 Adapter（`linear-graphql.js`、`evidence.js`、`run.js`）不命中，跑普通测试即可。

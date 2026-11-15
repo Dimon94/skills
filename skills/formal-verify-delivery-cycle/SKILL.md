@@ -23,7 +23,7 @@ git diff --stat c89702069c45219c8d56df8451e81dfab0ba0c20 -- skills/delivery-cycl
 node skills/formal-verify-delivery-cycle/scripts/verify.js
 ```
 
-约 35 秒。退出码 0 且末行 `RESULT: PASS` 才算通过。可只跑一个场景：追加 `carry` 或 `exclude`。
+约 35 秒。退出码 0 且末行 `RESULT: PASS` 才算通过。可只跑一个场景：追加 `carry` 或 `exclude`。未知场景退出码 2，不执行探索，不输出 PASS。
 
 改了覆盖代码的判断分支后，再证明检查仍能失败（约 5 分钟，会就地写入并还原 `delivery-cycle.js`，要求该文件无未提交改动）：
 

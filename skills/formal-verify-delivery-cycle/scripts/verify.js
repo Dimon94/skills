@@ -100,6 +100,10 @@ async function explore(name, scenario) {
 }
 
 const only = process.argv.slice(2);
+if (only.some((name) => !Object.hasOwn(SCENARIOS, name))) {
+  console.error('未知场景；允许 carry、exclude，或不传参数运行全部场景');
+  process.exit(2);
+}
 let failed = false;
 for (const [name, scenario] of Object.entries(SCENARIOS).filter(([n]) => !only.length || only.includes(n))) {
   const stats = await explore(name, scenario);

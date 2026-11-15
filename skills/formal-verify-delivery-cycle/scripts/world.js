@@ -6,8 +6,8 @@
 //   POS: 有界调度探索的环境；不复刻 delivery-cycle 业务规则，只模拟外部系统与时钟
 //   TEST: node skills/formal-verify-delivery-cycle/scripts/verify.js（含 mutants.js 的失败证明）
 // L6
-//   ATOMIC: 一次 port 调用 = 一步；JS 单线程，两次 await 之间没有别的写者，
-//           所以环境事件只放在 listCycles／readIssue／patchIssue 进入之前（对齐 delivery-cycle.js 的 await 点）
+//   ATOMIC: 本模型假定一次 port 调用 = 一步，环境事件只放在调用进入前；
+//           真实远端请求在途交错与响应快照时点不在本界内，JS 单线程不保证远端原子性
 //   BOUND: 每条轨迹环境事件 ≤ bounds.env，故障 ≤ bounds.faults；用尽后该选择点不再分叉
 // ==========================================================================
 

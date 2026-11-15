@@ -1,17 +1,25 @@
 ---
 name: delivery-cycle
-description: 手动维护一个 Linear 团队／项目的本周工作集合：核对上海时区单周 Cycle，按真实 MMF 身份纳入进行中的父 Spec Issue 与 ticket，按正式交付决定跨周结转，用专用标签持久剔除与恢复，逐项前读、最小增量写入并回读。用于用户要求维护本周 Cycle、同步本周工作集合、剔除或恢复工作项，或判断正式交付时。
+description: 规划 Linear 下周 Cycle，完成周期命名、目标说明与 Issue 排期；维护本周工作集合、持久剔除与恢复、按正式交付结转。用于安排下周、查看周期建议、同步本周或核对 MMF 交付。
 ---
 
 # delivery-cycle
 
-本 Skill 是周期维护规则与正式交付判断的唯一 owner。M2 自动调用、M3 周报和其他入口只调用同一个脚本，不复制判断。
+本 Skill 拥有周期规划与维护流程。未来排期使用 Linear 原生能力；本周维护与正式交付判断归下述脚本。M2 自动调用、M3 周报复用脚本判断。
 
-## 何时调用
+## 入口选择
 
-用户明确要求对一个团队／项目维护本周集合时调用。没有明确的 `teamId`、`projectId` 和专用排除标签 ID 时，先问用户，不猜。
+| 用户意图 | 执行入口与完成标准 |
+| --- | --- |
+| “先看看下周怎么排”“给我方案” | 只读 [提前规划](references/plan-next-cycle.md)，交付候选目标与具体变更清单。 |
+| “规划下周 Cycle”“把下周安排好”或批准候选方案后执行 | 完整执行 [提前规划](references/plan-next-cycle.md)：周期准备、目标说明、Issue 入期、读回。沿用已有授权，一次完成；周期未开始不影响排期。 |
+| “同步本周”“剔除／恢复”“核对正式交付” | 执行下述本周脚本与维护规则。 |
 
-## 入口
+先从会话和 Linear 回源解析 Team、Project 与周期。只问无法查明且影响范围、目标取舍或授权的缺口。多 Team 请求分别处理周期，共同考虑用户的审查、验收容量。本周脚本运行前须绑定 `teamId`、`projectId` 与专用排除标签 ID；未来规划不以这些脚本参数为前置。
+
+## 本周脚本入口
+
+`run.js` 只维护真实本周。未来规划走上面的原生入口，使用真实时间；`cycle_missing` 仅表示本周缺期，不阻断下周筹备。
 
 ```bash
 node skills/delivery-cycle/scripts/run.js --team <teamId> --project <projectId> --exclusion-label <labelId> \
@@ -48,7 +56,7 @@ Spec 身份只看 to-spec 产物：Issue 描述按行含全部 `## Problem State
 职责分工：
 
 - CLI 只做确定性部分：Linear 读写、按模板判断 Spec 身份、经 GitHub 读回 PR 合入事实、回读快照评论并核对它属于该 Spec。
-- 手动调用本 Skill 的 agent 在运行前，对每个候选 Spec 读原验收／closeout 评论。原文明确写出 Spec 验收通过或未通过时，才用 `--spec-acceptance` 传入该评论 ID 与结论；读不出明确结论就不传，该条件保持 Unknown。agent 不写评论、不改 Issue。
+- 执行本周维护的 agent 在运行前，对每个候选 Spec 读原验收／closeout 评论。原文明确写出 Spec 验收通过或未通过时，才用 `--spec-acceptance` 传入该评论 ID 与结论；读不出明确结论就不传，该条件保持 Unknown。该证据判读保持只读，维护写入交给 CLI。
 
 ## 维护规则
 
@@ -118,6 +126,6 @@ Spec 身份只看 to-spec 产物：Issue 描述按行含全部 `## Problem State
 5. 清空被原生自动归属抵消时报 `native_assignment_conflict`：保留标记、不改状态、不宣称成功。下次维护会再次识别并纠正。M1 不承诺平台永不加回。
 6. 本次未能回读确认的选择项不进入纳入计划；父项未定时整个 MMF 本次不动。下次调用先回读，已生效则记 `unchanged`，不重放。
 
-## 不做
+## 本周维护边界
 
-不改团队配置，不创建 Cycle 或标签，不改工作流状态、其他标签和其他字段，不归档、关闭或重开 Issue，不 push、merge 或部署。同步结果不作为开发、派发、预算或恢复的 gate。
+本周脚本不改团队配置，不创建 Cycle 或标签，不改工作流状态、其他标签和其他字段。提前规划的原生配置与排期边界归对应入口。两个入口都不归档、关闭或重开 Issue，不 push、merge 或部署；周期结果不作为开发、派发、预算或恢复的 gate。

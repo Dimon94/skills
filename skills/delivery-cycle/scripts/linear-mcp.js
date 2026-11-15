@@ -10,6 +10,8 @@
 // L5
 //   PARAM: Issue id = Linear identifier（如 DD-541）；parentId、specRef 同为 identifier；teamId／projectId／cycleId 为 UUID
 //   PARAM: get_team 只返回基础身份，周期配置字段全为 null → 核心报 configuration_unverifiable 并点名字段；不补猜
+//   PARAM: teamConfig = {observedAt, fields}：agent 本轮在 Linear 设置界面核实的快照，只补 get_team 缺的字段；
+//          observedAt 早于 Team.updatedAt（或 updatedAt 缺失）= 快照过期 → configuration_unverifiable，不读 Cycle
 //   PARAM: list_cycles 无分页参数，视为一次返回全部（推断）；list_issues 的描述会截断，Spec 身份逐项 get_issue 读全文
 //   PARAM: 标签名经 list_issue_labels（本 Team）映射成 ID；同名多个 ID → 无法解析；Team 外标签名保留为 name:<名>
 //   PARAM: patchIssue 总带 id（save_issue 无 id 会新建 Issue），只传 cycle 与 addLabels／removeLabels 增量
@@ -117,13 +119,23 @@ async function readTeamLabels(callTool, teamId) {
 // LinearPort
 // --------------------------------------------------------------------------
 
-export function createLinearMcpAdapter({ callTool, teamId }) {
+// 快照只补 MCP 缺的字段；团队在核实之后改过（updatedAt 更晚）就不再可信
+function configurationOf(team, teamConfig) {
+  const base = toConfiguration(team);
+  if (!teamConfig) return base;
+  if (!(Date.parse(teamConfig.observedAt) >= Date.parse(team.updatedAt))) {
+    throw new Error(`团队配置快照已过期：observedAt ${teamConfig.observedAt} 早于 Team.updatedAt ${team.updatedAt}，需在设置界面重新核实`);
+  }
+  return Object.fromEntries(Object.entries(base).map(([key, value]) => [key, value ?? teamConfig.fields[key] ?? null]));
+}
+
+export function createLinearMcpAdapter({ callTool, teamId, teamConfig = null }) {
   let labels = null;
   const byName = () => (labels ??= readTeamLabels(callTool, teamId).catch((err) => { labels = null; throw err; }));
   const readIssue = async (id) => toIssue(await callTool('get_issue', { id, fields: ISSUE_FIELDS }), await byName());
   return {
     async readCycleConfiguration(team) {
-      return toConfiguration(await callTool('get_team', { query: team }));
+      return configurationOf(await callTool('get_team', { query: team }), teamConfig);
     },
     async listCycles(scope) {
       const cycles = await callTool('list_cycles', { teamId: scope.teamId });

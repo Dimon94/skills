@@ -16,7 +16,8 @@ description: 手动维护一个 Linear 团队／项目的本周工作集合：�
 ```bash
 node skills/delivery-cycle/scripts/run.js --team <teamId> --project <projectId> --exclusion-label <labelId> \
   [--exclude id1,id2] [--restore id1,id2] [--spec-acceptance <Spec identifier>=<commentId>:<verified|not_met>] \
-  [--transport mcp|graphql]
+  [--transport mcp|graphql] \
+  [--team-config observedAt=<ISO>,cyclesEnabled=true,timezone=Asia/Shanghai,cycleDurationWeeks=1,cycleStartDay=1,cooldownWeeks=0]
 ```
 
 stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。PR 合入事实经 `gh api` 只读读回。
@@ -27,7 +28,9 @@ Linear 通道：
 - 可选 `--transport graphql`：Personal API Key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头。key 缺 read scope 只影响这个通道。
 - 默认通道失败时不要转去问用户要 Key，也不要打开 secret 请求；按结果里的 code 报告。
 
-官方 MCP 的 `get_team` 只返回团队基础身份，没有时区、周期长度、开始日、cooldown。所以默认通道下结果会是 `configuration_unverifiable`，message 点名缺的字段。同时脚本仍读一次 Cycle：观察到不是 7 天的 Cycle 时另列一条 `configuration_mismatch`，写明 Cycle id 与天数。向用户报告时分三句说清：Linear 可读；团队配置缺这些字段，无法核实；观察到的 Cycle 是 14 天，不符合单周。不从 Cycle 日期反推时区或设置，也不说团队参数已核实。`--spec-acceptance` 可重复或逗号分隔，格式错误按参数错误退出（`2`），零请求。
+官方 MCP 的 `get_team` 只返回团队基础身份，没有时区、周期长度、开始日、cooldown。所以默认通道下结果会是 `configuration_unverifiable`，message 点名缺的字段。同时脚本仍读一次 Cycle：观察到不是 7 天的 Cycle 时另列一条 `configuration_mismatch`，写明 Cycle id 与天数。向用户报告时分三句说清：Linear 可读；团队配置缺这些字段，无法核实；观察到的 Cycle 是 14 天，不符合单周。不从 Cycle 日期反推时区或设置，也不说团队参数已核实。
+
+团队配置的来源是 Linear 设置界面（owner：Linear 团队设置，本 Skill 不拥有）。要在默认通道越过配置门禁，调用本 Skill 的 agent 必须在本轮亲自打开该团队的 Cycle 设置页，读出这五项，再用 `--team-config` 传入，`observedAt` 写读取时刻（带时区）。只写界面上实际看到的值；看不到的字段不写，脚本会点名它。不用别人转述、上次运行的值或期望值。脚本把快照只用于补 `get_team` 缺的字段，不存盘；`observedAt` 早于 `get_team` 返回的 `updatedAt` 时视为过期，报 `configuration_unverifiable`，需要重新核实。快照合规后仍按规则 1 核对真实 Cycle 边界：Cycle 是 14 天仍报 `configuration_mismatch`，本周没有对应 Cycle 报 `cycle_missing`。快照格式错误、含未知字段或配 `--transport graphql` 按参数错误退出（`2`），零请求。`--spec-acceptance` 可重复或逗号分隔，格式错误按参数错误退出（`2`），零请求。
 
 脚本内调用同一入口：
 

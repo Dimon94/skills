@@ -90,3 +90,69 @@ test('Issue 映射：分页、完整描述判 Spec、标签名映射 ID；patch 
   assert.deepEqual(await linear.patchIssue('DD-2', { cycle: null, removeLabels: ['lab-x'] }), { success: true });
   assert.deepEqual(calls.at(-1), { tool: 'save_issue', args: { id: 'DD-2', cycle: null, removeLabels: ['lab-x'] } });
 });
+
+// --------------------------------------------------------------------------
+// --team-config：agent 本轮在 Linear 设置界面核实的团队周期配置快照（get_team 不返回这些字段）
+// 期望值来源：m00845 任务合同（快照只补 MCP 缺的字段；早于 Team.updatedAt 即过期；不合规快照不能越过 Cycle 边界核对）
+// --------------------------------------------------------------------------
+const UPDATED = '2026-11-15T07:31:45.344Z';
+const TEAM_NOW = { ...BASIC_TEAM, updatedAt: UPDATED };
+const WEEKLY = [
+  { id: 'c-1', number: 1, startsAt: '2026-11-15T16:00:00.000Z', endsAt: '2026-11-22T16:00:00.000Z', isCurrent: true },
+  { id: 'c-2', number: 2, startsAt: '2026-11-22T16:00:00.000Z', endsAt: '2026-11-29T16:00:00.000Z', isCurrent: false }
+];
+const UI_CONFIG = 'cyclesEnabled=true,timezone=Asia/Shanghai,cycleDurationWeeks=1,cycleStartDay=1,cooldownWeeks=0';
+const withConfig = (observedAt, fields = UI_CONFIG) => [...ARGV, '--team-config', `observedAt=${observedAt},${fields}`];
+const emptyProject = (cycles) => tools({
+  get_team: () => TEAM_NOW,
+  list_cycles: () => cycles,
+  list_issue_labels: () => ({ labels: [{ id: 'lab-x', name: '排除' }], hasNextPage: false }),
+  list_issues: () => ({ issues: [], hasNextPage: false })
+});
+
+test('新鲜快照补齐 MCP 缺的配置：单周 Cycle 与本周对齐时越过配置门禁，零写入', async () => {
+  const { calls, callTool } = emptyProject(WEEKLY);
+  const { code, result } = await cli(withConfig('2026-11-17T09:00:00Z'), { callTool });
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.week.cycleId, 'c-1');
+  assert.equal(code, 0);
+  assert.ok(calls.some((c) => c.tool === 'list_issues'));
+  assert.ok(!calls.some((c) => c.tool === 'save_issue'));
+});
+
+test('快照声称单周但真实 Cycle 是 14 天：仍报 configuration_mismatch，不读 Issue', async () => {
+  const { calls, callTool } = emptyProject(BIWEEKLY);
+  const { result } = await cli(withConfig('2026-11-17T09:00:00Z'), { callTool });
+  assert.deepEqual(result.problems.map((p) => p.code), ['configuration_mismatch']);
+  assert.ok(!calls.some((c) => c.tool === 'list_issues'));
+});
+
+test('快照早于 Team.updatedAt 即过期：configuration_unverifiable 写明原因，不读 Cycle 与 Issue', async () => {
+  const { calls, callTool } = emptyProject(WEEKLY);
+  const { result } = await cli(withConfig('2026-11-15T07:00:00Z'), { callTool });
+  assert.deepEqual(result.problems.map((p) => p.code), ['configuration_unverifiable']);
+  assert.match(result.problems[0].message, /过期/);
+  assert.ok(!calls.some((c) => c.tool === 'list_issues'));
+});
+
+test('快照缺字段不补猜：点名缺的字段', async () => {
+  const { callTool } = emptyProject(WEEKLY);
+  const { result } = await cli(withConfig('2026-11-17T09:00:00Z', 'cyclesEnabled=true,timezone=Asia/Shanghai'), { callTool });
+  assert.equal(result.problems[0].code, 'configuration_unverifiable');
+  assert.match(result.problems[0].message, /cycleDurationWeeks, cycleStartDay, cooldownWeeks/);
+});
+
+test('快照格式错误、未知字段、缺 observedAt 或配 graphql 通道：参数错误，零请求', async () => {
+  const bad = [
+    [...ARGV, '--team-config', UI_CONFIG],
+    withConfig('yesterday'),
+    withConfig('2026-11-17T09:00:00Z', 'cycleLength=1'),
+    [...withConfig('2026-11-17T09:00:00Z'), '--transport', 'graphql']
+  ];
+  for (const argv of bad) {
+    const { calls, callTool } = emptyProject(WEEKLY);
+    const { code, keychain } = await cli(argv, { callTool });
+    assert.equal(code, 2, argv.join(' '));
+    assert.equal(calls.length + keychain.length, 0);
+  }
+});

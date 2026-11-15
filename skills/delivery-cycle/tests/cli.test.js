@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { main } from '../scripts/run.js';
 import { SCOPE, TUESDAY, WEEK } from './fake-adapters.js';
 
-const ARGS = ['--team', SCOPE.teamId, '--project', SCOPE.projectId, '--exclusion-label', SCOPE.exclusionLabelId];
+const ARGS = ['--team', SCOPE.teamId, '--project', SCOPE.projectId, '--exclusion-label', SCOPE.exclusionLabelId, '--transport', 'graphql'];
 
 function io() {
   const out = [];

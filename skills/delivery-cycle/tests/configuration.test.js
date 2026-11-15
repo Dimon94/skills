@@ -110,3 +110,21 @@ test('T12：前置解除后再次调用重新读取配置并写入', async () =>
   assert.equal(result.changed, 1);
   assert.equal(linear.issues.get('P1').cycleId, 'cycle-1');
 });
+
+test('R1：配置字段读不全但观察到 14 天 Cycle → unverifiable 点名字段，另列 mismatch，零写入，不补猜', async () => {
+  // Dawn 经 MCP 只读：get_team 无周期字段；list_cycles 两个 14 天 Cycle（2026-11-15/29/12-13 16:00Z）
+  const cycles = [
+    { id: 'c-a', startsAt: '2026-11-15T16:00:00.000Z', endsAt: '2026-11-29T16:00:00.000Z' },
+    { id: 'c-b', startsAt: '2026-11-29T16:00:00.000Z', endsAt: '2026-12-13T16:00:00.000Z' }
+  ];
+  const nulls = Object.fromEntries(Object.keys(COMPLIANT_CONFIG).map((k) => [k, null]));
+  const linear = blockedLinear({ config: nulls, cycles });
+  const result = await run(linear);
+
+  assert.equal(result.status, 'unsynchronized');
+  assert.deepEqual(result.problems.map((p) => p.code), ['configuration_unverifiable', 'configuration_mismatch']);
+  assert.match(result.problems[0].message, /timezone/);
+  assert.match(result.problems[0].message, /cycleDurationWeeks/);
+  assert.match(result.problems[1].message, /c-a（14 天）, c-b（14 天）/);
+  assert.equal(linear.mutations.length, 0);
+});

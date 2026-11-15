@@ -1,10 +1,11 @@
 // ==========================================================================
 // L3
 //   COORD: skills/delivery-cycle/scripts/evidence.js
-//   INPUT: Spec Issue 的 Linear attachments 与指定评论（request(query, variables)）；
+//   INPUT: Spec Issue 的 attachments 与指定评论，经来源接缝 source = {pullUrls(issueId), comment(commentId, issueId)}：
+//          默认 graphqlSource(request)；MCP 通道用 linear-mcp.js 的 createMcpEvidenceSource；
 //          GitHub PR 合入事实（github({owner, repo, number})，默认 gh api 只读）；
 //          agent 传入的原验收评论快照 acceptance = {[specRef]: {commentId, state}}
-//   OUTPUT: createEvidenceAdapter（EvidencePort 实现）、createGhPullReader
+//   OUTPUT: createEvidenceAdapter（EvidencePort 实现）、graphqlSource、createGhPullReader
 //   POS: 只把原 owner 事实转成 EvidencePort 形状；正式交付判断归 delivery-cycle.js 的 assessFormalDelivery
 //   TEST: node --test skills/delivery-cycle/tests/evidence.test.js
 //   PROTOCOL: 证据来源变化时同步 repo://skills/delivery-cycle/SKILL.md「正式交付」节
@@ -43,8 +44,8 @@ const settle = (work, what) => work.catch((err) => unknown(`${what}失败：${[e
 // main：Spec Issue 唯一 PR 的合入事实
 // --------------------------------------------------------------------------
 
-function pullRef(attachment) {
-  const m = PULL_URL.exec(String(attachment?.url ?? ''));
+function pullRef(url) {
+  const m = PULL_URL.exec(String(url ?? ''));
   return m && { owner: m[1], repo: m[2], number: Number(m[3]) };
 }
 
@@ -54,15 +55,11 @@ function nextCursor(pageInfo, after) {
   return pageInfo.endCursor;
 }
 
-async function readPullRefs(request, issueId) {
+async function readPullRefs(source, issueId) {
   const refs = new Map();
-  let after = null;
-  do {
-    const conn = (await readLinear(request, QUERIES.attachments, { id: issueId, after })).issue?.attachments;
-    if (!Array.isArray(conn?.nodes)) throw portError('capability_unavailable', 'attachments 响应无法解析');
-    for (const ref of conn.nodes.map(pullRef).filter(Boolean)) refs.set(`${ref.owner}/${ref.repo}#${ref.number}`, ref);
-    after = nextCursor(conn.pageInfo, after);
-  } while (after !== null);
+  for (const ref of (await source.pullUrls(issueId)).map(pullRef).filter(Boolean)) {
+    refs.set(`${ref.owner}/${ref.repo}#${ref.number}`, ref);
+  }
   return [...refs.values()];
 }
 
@@ -76,8 +73,8 @@ function mergeFact(pr) {
   return fact('verified', pr.html_url, pr.merged_at);
 }
 
-async function mainEvidence(request, github, issueId) {
-  const refs = await readPullRefs(request, issueId);
+async function mainEvidence(source, github, issueId) {
+  const refs = await readPullRefs(source, issueId);
   if (refs.length === 0) return unknown('Spec Issue 没有关联 PR');
   if (refs.length > 1) return unknown(`Spec Issue 关联了 ${refs.length} 个 PR，无法确定唯一合入`);
   return mergeFact(await github(refs[0]));
@@ -87,25 +84,49 @@ async function mainEvidence(request, github, issueId) {
 // spec：回读快照评论，核对归属
 // --------------------------------------------------------------------------
 
-async function specEvidence(request, snapshot, issueId) {
+async function specEvidence(source, snapshot, issueId) {
   if (!snapshot) return unknown('未提供原验收记录快照');
-  const { comment } = await readLinear(request, QUERIES.acceptance, { id: snapshot.commentId });
+  const comment = await source.comment(snapshot.commentId, issueId);
   if (!comment) return unknown(`读不到评论 ${snapshot.commentId}`);
-  if (comment.issue?.id !== issueId) return unknown(`评论 ${snapshot.commentId} 不属于该 Spec Issue`);
+  if (comment.issueId !== issueId) return unknown(`评论 ${snapshot.commentId} 不属于该 Spec Issue`);
   return fact(snapshot.state, comment.url, null);
+}
+
+// --------------------------------------------------------------------------
+// 来源接缝：GraphQL 实现（MCP 实现见 linear-mcp.js）
+// --------------------------------------------------------------------------
+
+export function graphqlSource(request) {
+  return {
+    async pullUrls(issueId) {
+      const urls = [];
+      let after = null;
+      do {
+        const conn = (await readLinear(request, QUERIES.attachments, { id: issueId, after })).issue?.attachments;
+        if (!Array.isArray(conn?.nodes)) throw portError('capability_unavailable', 'attachments 响应无法解析');
+        urls.push(...conn.nodes.map((n) => n?.url));
+        after = nextCursor(conn.pageInfo, after);
+      } while (after !== null);
+      return urls;
+    },
+    async comment(commentId) {
+      const { comment } = await readLinear(request, QUERIES.acceptance, { id: commentId });
+      return comment && { url: comment.url, issueId: comment.issue?.id };
+    }
+  };
 }
 
 // --------------------------------------------------------------------------
 // EvidencePort
 // --------------------------------------------------------------------------
 
-export function createEvidenceAdapter({ request, github = createGhPullReader(), acceptance = {} }) {
+export function createEvidenceAdapter({ request, source = graphqlSource(request), github = createGhPullReader(), acceptance = {} }) {
   return {
     async read({ issueId, specRef }) {
       const snapshot = Object.hasOwn(acceptance, specRef ?? '') ? acceptance[specRef] : null;
       const [spec, main] = await Promise.all([
-        settle(specEvidence(request, snapshot, issueId), '读取原验收评论'),
-        settle(mainEvidence(request, github, issueId), '读取 PR 合入事实')
+        settle(specEvidence(source, snapshot, issueId), '读取原验收评论'),
+        settle(mainEvidence(source, github, issueId), '读取 PR 合入事实')
       ]);
       return { spec, main };
     }

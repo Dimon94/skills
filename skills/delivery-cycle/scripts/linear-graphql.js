@@ -4,8 +4,10 @@
 //   INPUT: request(query, variables) → Promise<GraphQL 响应体 {data?, errors?}>；
 //          默认 transport 从 macOS 钥匙串读 Linear API key（service refresh-linear-api-key）
 //   OUTPUT: createLinearAdapter（LinearPort 实现）、createKeychainTransport；
-//           portError、readLinear（同一错误映射，供 evidence.js 只读查询复用）
-//   POS: LinearPort 唯一真实 Adapter；只做 GraphQL 形状与错误码转换，不做周期判断
+//           portError、readLinear（同一错误映射，供 evidence.js 只读查询复用）；
+//           isSpecDescription、toConfiguration（Spec 模板判断与配置字段映射，供 linear-mcp.js 复用）
+//   POS: LinearPort 的可选 GraphQL Adapter（CLI `--transport graphql`）；默认通道见 linear-mcp.js；
+//        只做 GraphQL 形状与错误码转换，不做周期判断
 //   TEST: node --test skills/delivery-cycle/tests/linear-graphql.test.js
 //   PROTOCOL: LinearPort 形状以 repo://skills/delivery-cycle/scripts/delivery-cycle.js 的 L5 为准
 // L5
@@ -118,7 +120,7 @@ function toConnection(conn, mapNode, what) {
 }
 
 // 描述按行含全部 to-spec 必备标题 = Spec Issue；不看层级与标题
-function isSpecDescription(description) {
+export function isSpecDescription(description) {
   if (typeof description !== 'string') return false;
   const headings = new Set(description.split(/\r?\n/).map((line) => /^## (.+?)\s*$/.exec(line)?.[1]));
   return SPEC_HEADINGS.every((h) => headings.has(h));
@@ -145,7 +147,8 @@ function toCycle(node) {
   return { id: node.id, startsAt: node.startsAt, endsAt: node.endsAt };
 }
 
-function toConfiguration(team) {
+// 缺字段 = null，由核心报 configuration_unverifiable；不补猜
+export function toConfiguration(team) {
   if (team === null || typeof team !== 'object') throw unavailable('Team');
   return Object.fromEntries(Object.entries(CONFIG_FIELDS).map(([key, field]) => [key, team[field] ?? null]));
 }

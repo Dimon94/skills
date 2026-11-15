@@ -15,10 +15,19 @@ description: 手动维护一个 Linear 团队／项目的本周工作集合：�
 
 ```bash
 node skills/delivery-cycle/scripts/run.js --team <teamId> --project <projectId> --exclusion-label <labelId> \
-  [--exclude id1,id2] [--restore id1,id2] [--spec-acceptance <Spec identifier>=<commentId>:<verified|not_met>]
+  [--exclude id1,id2] [--restore id1,id2] [--spec-acceptance <Spec identifier>=<commentId>:<verified|not_met>] \
+  [--transport mcp|graphql]
 ```
 
-stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。Linear API key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头，不进入输出。PR 合入事实经 `gh api` 只读读回。`--spec-acceptance` 可重复或逗号分隔，格式错误按参数错误退出（`2`），零请求。
+stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized`，`1` 为其余结果，`2` 为参数错误。PR 合入事实经 `gh api` 只读读回。
+
+Linear 通道：
+
+- 默认 `--transport mcp`：脚本经 `mcporter call magpie.call_tool` 调本机 magpie hub 上已授权的官方 Linear MCP（`linear__get_team`、`list_cycles`、`list_issues`、`get_issue`、`list_issue_labels`、`list_comments`、`save_issue`）。OAuth 留在 hub，不要 API Key，不读钥匙串。此通道的 Issue id 是 identifier（如 `DD-541`），`--exclude`／`--restore` 也传 identifier。
+- 可选 `--transport graphql`：Personal API Key 从 macOS 钥匙串读取（service `refresh-linear-api-key`，account 为当前系统用户），只放进 `Authorization` 头。key 缺 read scope 只影响这个通道。
+- 默认通道失败时不要转去问用户要 Key，也不要打开 secret 请求；按结果里的 code 报告。
+
+官方 MCP 的 `get_team` 只返回团队基础身份，没有时区、周期长度、开始日、cooldown。所以默认通道下结果会是 `configuration_unverifiable`，message 点名缺的字段。同时脚本仍读一次 Cycle：观察到不是 7 天的 Cycle 时另列一条 `configuration_mismatch`，写明 Cycle id 与天数。向用户报告时分三句说清：Linear 可读；团队配置缺这些字段，无法核实；观察到的 Cycle 是 14 天，不符合单周。不从 Cycle 日期反推时区或设置，也不说团队参数已核实。`--spec-acceptance` 可重复或逗号分隔，格式错误按参数错误退出（`2`），零请求。
 
 脚本内调用同一入口：
 
@@ -26,9 +35,10 @@ stdout 输出一行 `MaintenanceResult` JSON。退出码：`0` 为 `synchronized
 import { maintainCurrentWeek } from './scripts/delivery-cycle.js';
 import { createKeychainTransport, createLinearAdapter } from './scripts/linear-graphql.js';
 import { createEvidenceAdapter, createGhPullReader } from './scripts/evidence.js';
+import { createLinearMcpAdapter, createMcpEvidenceSource, createMcporterCaller } from './scripts/linear-mcp.js';
 ```
 
-Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块，GraphQL 映射与错误码写在 [scripts/linear-graphql.js](scripts/linear-graphql.js)。key 缺少读权限（`Invalid scope`）、401／403 都报 `permission_denied`，零写入；其余读取失败报 `capability_unavailable`。`readIssue` 返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。
+Adapter 合同写在 [scripts/delivery-cycle.js](scripts/delivery-cycle.js) 的 L5 块，MCP 工具映射写在 [scripts/linear-mcp.js](scripts/linear-mcp.js)，GraphQL 映射写在 [scripts/linear-graphql.js](scripts/linear-graphql.js)。只有平台明确拒权（MCP 工具错误含 permission／forbidden／unauthorized／scope，或 GraphQL `Invalid scope`、401／403）才报 `permission_denied`，零写入；其余读取失败报 `capability_unavailable`。`readIssue` 返回 `{id, teamId, projectId, statusType, labels, parentId, cycleId, specRef}`；其中 `teamId`、`projectId`、`specRef` 是对 Spec §3 形状的扩展，缺 `teamId`／`projectId` 的项按 `scope_invalid` 处理，零写入。
 
 Spec 身份只看 to-spec 产物：Issue 描述按行含全部 `## Problem Statement`、`## Solution`、`## User Stories`、`## Implementation Decisions`、`## Testing Decisions`、`## Out of Scope` 时，它是 MMF 父 Spec Issue（`specRef` 为自身 identifier）。与有无 Epic 父项、有无子项和标题都无关，所以零 ticket 的独立 Spec 也算。to-tickets 的 ticket 模板（`## Parent`／`## What to build`／`## Acceptance criteria`）和 Epic 都不是 Spec。缺描述或模板不全时不是 Spec，进行中又不属于已核实的 Spec 时报 `identity_unverifiable`。
 

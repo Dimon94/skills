@@ -121,6 +121,7 @@ function laterOf(a, b) {
 //        synchronized：无前置阻断且全部相关项 verified／unchanged；partial：有符合项也有失败；
 //        unknown：未被阻断、无符合项且至少一项 write_unknown；unsynchronized：其余
 //        被阻断：有符合项 → partial，否则 unsynchronized；当前项与未处理项都列入 items（unchanged／failed）
+//        configuration_unverifiable 时仍读一次 Cycle：观察到非 7 天 Cycle 另列 configuration_mismatch（只陈述长度，不补猜字段）
 //        剔除／恢复阶段阻断时纳入计划尚未生成：items 只含已处理与未处理的剔除／恢复目标，纳入项不列入
 //        「符合项」只算有写入目标的项；只观察的项（未来 Cycle 的 deferred、不相关 MMF 的 leftover、
 //        未清出的 stray）记 unchanged／unchanged 可见，但不计为符合，也不阻止 synchronized
@@ -204,7 +205,8 @@ async function maintain(request, deps, evidence, run) {
 function recordBlocked(run, err) {
   run.blocked = true;
   for (const t of run.pending) run.items.push({ issueId: t.issueId, action: 'unchanged', write: 'failed', delivery: t.delivery });
-  run.problems.push({ code: err.code, issueId: err.issueId ?? run.pending[0]?.issueId ?? null, message: err.message });
+  run.problems.push({ code: err.code, issueId: err.issueId ?? run.pending[0]?.issueId ?? null, message: err.message },
+    ...(err.observed ?? []));
 }
 
 // 逐项执行；run.pending[0] 是当前项，处理完才出队，阻断时由 recordBlocked 记账
@@ -271,8 +273,23 @@ function verifyConfiguration(config) {
 
 async function findCurrentCycle(scope, linear, week) {
   const config = await callPort(() => linear.readCycleConfiguration(scope.teamId), 'configuration_unverifiable');
-  verifyConfiguration(config);
+  try {
+    verifyConfiguration(config);
+  } catch (err) {
+    if (err.code === 'configuration_unverifiable') err.observed = await observedNonWeekly(scope, linear);
+    throw err;
+  }
   return readWeekCycles(scope, linear, week);
+}
+
+// 配置读不全时仍读一次 Cycle：观察到的非 7 天 Cycle 另列 configuration_mismatch；
+// 只陈述观察到的长度，不据此补猜任何配置字段；Cycle 读不到时不加项
+async function observedNonWeekly(scope, linear) {
+  const cycles = await readAllPages((c) => linear.listCycles(scope, c)).catch(() => []);
+  const days = (c) => (Date.parse(c.endsAt) - Date.parse(c.startsAt)) / DAY_MS;
+  const odd = cycles.filter((c) => days(c) !== 7).map((c) => `${c.id}（${days(c)} 天）`);
+  if (!odd.length) return [];
+  return [{ code: 'configuration_mismatch', issueId: null, message: `观察到的 Cycle 不是单周：${odd.join(', ')}` }];
 }
 
 // 完整分页读 Cycle 并定位当周；入口与每项写入前都经这里（Spec §2：写前重读目标 Cycle）

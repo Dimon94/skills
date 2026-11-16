@@ -1,12 +1,13 @@
 /**
  * check-spec 公开入口：给一份 Spec 文本，断言报出的规则集合。
- * 期望值来源：to-spec 模板的八个章节、第 5 步发布前核对项、模板“不写文件路径”。
+ * 期望值来源：to-spec 模板的九个章节与 Dependencies 两行、第 5 步发布前核对项、模板“不写文件路径”。
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { checkSpec } = require('../scripts/check-spec.js');
 
-const spec = ({ flow, decisions, testing, extra = '' }) => `## Problem Statement
+const DEPS = '- Blocked by: 无，独立 MMF\n- Blocks: 无';
+const spec = ({ flow, decisions, testing, deps = DEPS, extra = '' }) => `## Problem Statement
 用户看不到退款结果。
 ## Solution
 显示退款状态。
@@ -18,6 +19,8 @@ ${flow}
 ${decisions}
 ## Testing Decisions
 ${testing}
+## Dependencies
+${deps}
 ## Out of Scope
 无
 ## Further Notes
@@ -38,6 +41,13 @@ test('Business Flow 写 N/A 时不要求 T/R', () => {
 
 test('缺章节或 Business Flow 空白都失败', () => {
   assert.deepEqual(rules('## Problem Statement\nx\n## Solution\ny'), ['business-flow', 'sections']);
+});
+
+test('Dependencies 缺 Blocked by 或 Blocks 行都失败；写“无”也算声明', () => {
+  const missing = spec({ flow: 'N/A：无状态', decisions: '复用', testing: '筛选', deps: '退款候选之后再做' });
+  assert.deepEqual(checkSpec(missing).map(([, m]) => m), ['Dependencies 缺少 Blocked by: 行；没有边写“无”和依据', 'Dependencies 缺少 Blocks: 行；没有边写“无”和依据']);
+  const edges = spec({ flow: 'N/A：无状态', decisions: '复用', testing: '筛选', deps: '- `Blocked by:` DD-12 销售导出 · 上线 · 生成结果 Interface · DD-12 上线\n- **Blocks**：无' });
+  assert.deepEqual(checkSpec(edges), []);
 });
 
 test('T/R 无 owner、重复 owner、未进 Testing Decisions、引用未定义编号都失败', () => {

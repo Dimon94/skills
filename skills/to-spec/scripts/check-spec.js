@@ -7,11 +7,13 @@
 //   POS: to-spec 第 5 步发布前的确定性核对；只读，不改文件、不访问 tracker
 //   TEST: node --test skills/to-spec/tests/check-spec.test.js
 // L5
-//   PARAM: 章节 = 模板的八个 "## " 标题，按模板顺序
+//   PARAM: 章节 = 模板的九个 "## " 标题，按模板顺序
+//   PARAM: 阻塞边 = Dependencies 节以 Blocked by / Blocks 加冒号开头的行，值可为“无”
 //   PARAM: T/R 定义 = Business Flow 节出现的 T<n>/R<n>；该节写 N/A 时可为空
 //   PARAM: owner 行 = Implementation Decisions 里以 Owns/Owner/拥有 加冒号开头的行，
 //          取冒号后到 Participants/参与 之前的 T/R 编号；T1–T3 展开为区间
 //   FAIL: 缺章节或顺序错 → sections
+//   FAIL: Dependencies 节缺 Blocked by: 或 Blocks: 行 → dependencies
 //   FAIL: Business Flow 既无 T/R 也无 N/A → business-flow
 //   FAIL: T/R 没有 owner 行或出现在多条 owner 行 → owner
 //   FAIL: T/R 未出现在 Testing Decisions → testing
@@ -27,9 +29,11 @@ const SECTIONS = [
   "User Stories",
   "Implementation Decisions",
   "Testing Decisions",
+  "Dependencies",
   "Out of Scope",
   "Further Notes",
 ];
+const EDGE_LINE = /^[\s>*-]*`?\**(Blocked by|Blocks)\**`?\s*[:：]/;
 const ID = /\b([TR])(\d+)\b/g;
 const RANGE = /\b([TR])(\d+)\s*[–-]\s*\1?(\d+)\b/g;
 const OWNER_LINE = /^[\s>*-]*\**(Owns|Owner|拥有)\**\s*[:：]\**(.*)$/;
@@ -65,6 +69,14 @@ function checkSections(sections) {
     ...missing.map((name) => ["sections", `缺少章节 ## ${name}`]),
     ...(ordered ? [] : [["sections", `章节顺序应为：${SECTIONS.join(" → ")}`]]),
   ];
+}
+
+function checkDependencies(sections) {
+  if (!sections.has("Dependencies")) return [];
+  const found = new Set(sections.get("Dependencies").split("\n").map((line) => EDGE_LINE.exec(line)?.[1]));
+  return ["Blocked by", "Blocks"]
+    .filter((label) => !found.has(label))
+    .map((label) => ["dependencies", `Dependencies 缺少 ${label}: 行；没有边写“无”和依据`]);
 }
 
 function ownerCounts(decisions) {
@@ -108,7 +120,7 @@ function checkPaths(text) {
 
 function checkSpec(text) {
   const sections = splitSections(text);
-  return [...checkSections(sections), ...checkTraceability(sections), ...checkPaths(text)];
+  return [...checkSections(sections), ...checkDependencies(sections), ...checkTraceability(sections), ...checkPaths(text)];
 }
 
 // ---- 入口 ---------------------------------------------------------------

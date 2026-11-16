@@ -10,7 +10,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。MMF 来自 Epic 时，读 Epic 候选表里本 MMF 的 `Blocked by` 和依赖本 MMF 的候选，写进 Dependencies 节。
 
 2. 判定 MMF。Spec 描述一个 MMF：验收、合入与上线的单位，对应一个 MR。用两个问题判定需求：切成两半，存在一种切法让每半都能单独上线且单独有人用吗；整体单独上线有人用吗。结果取其一：
    - 切得开 → 多个 MMF：停下，请用户运行 `/to-epic`，列出已识别的 MMF 候选及各自的用户结果。
@@ -24,7 +24,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Check with the user that these seams match their expectations.
 
-5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。把草稿存成文件，运行本 Skill 目录下的 `node scripts/check-spec.js <草稿>`：它检查八个章节、T/R 的唯一 owner 行（`Owns:` 开头）与 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
+5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。把草稿存成文件，运行本 Skill 目录下的 `node scripts/check-spec.js <草稿>`：它检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 的唯一 owner 行（`Owns:` 开头）与 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。Then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage. Dependencies 节里对方已有 Spec Issue 的边，用 tracker 原生阻塞关系连上并读回；对方未发布的边留在正文，由对方发布时连。
 
 <spec-template>
 
@@ -110,6 +110,13 @@ A list of testing decisions that were made. Include:
 - Prior art for the tests (i.e. similar types of tests in the codebase)
 - How each T and R is checked through the Interface; each R's check must fail under a wrong implementation
 - For any R involving money, concurrency, duplicated side effects or irreversible steps: the project's `formal-verify-*` skill that checks it, or the need to generate one with `create-formal-verification-skill`
+
+## Dependencies
+
+本 MMF 与其他 MMF 或外部前提之间的阻塞边。来自 Epic 时照抄 Epic 候选表，独立 MMF 写 `无` 和一句依据。
+
+- `Blocked by:` 每条写前提（MMF 或 Spec 链接、外部能力）、类型、依赖的 Interface、能力或反馈、解除证据。类型取 **开工**（前提交付前不能开工）或 **上线**（Interface 已对齐，可并发开发，验收与上线等前提就绪）。
+- `Blocks:` 依赖本 MMF 的 MMF 及其消费的 Interface。改这些 Interface 前先协调对方。
 
 ## Out of Scope
 

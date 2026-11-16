@@ -32,7 +32,7 @@
 
 `resolving-merge-conflicts` 原文照抄上游快照。上游在 `daa01d8`（Remove resolving-merge-conflicts）删除了该 Skill；本仓继续保留，git-rebase-main、git-push-pr 与 gh-merge-pr 依赖它处理真实冲突。不再有上游可对照，退出快照锁定。
 
-`to-spec` 保留上游正文与模板，增加 Business Flow、codebase-design 约束和发布前覆盖核对；取舍见 repo://docs/adr/0007-owned-to-spec.md。
+`to-spec` 保留上游正文与模板，增加 Business Flow、Dependencies、codebase-design 约束和发布前覆盖核对；取舍见 repo://docs/adr/0007-owned-to-spec.md。
 
 `test-discipline` 的基线测试规范通用正文改写自 `project-template` 的测试质量节；扩展库公开函数的 E2E 定义，并加入阶段相称与按目录填写的 TS/JS、Python、Go 语言节。本仓拥有模板与建档流程，生成的规范归目标项目所有；上游更新仅供人工对照。
 

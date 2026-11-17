@@ -16,7 +16,7 @@
 
 | 任务类型 | 链路 |
 | --- | --- |
-| 大型需求 | `to-epic` 把 Epic 切成 MMF → `to-spec` 为每个 MMF 写一份 Spec → `vertical-slicing` 把 MMF 切成 ticket → `ticket-sizing` 给每票拆分信号与 MMF 合计，用户据此决定照此执行或重切 → 超过拆分线的票走 `ticket-split-100k` → `to-tickets` 发布 → 实现；每个 MMF 一个 MR，一个上下文装得下的 MMF 不拆票 |
+| 大型需求 | `to-epic` 把 Epic 切成 MMF → `to-spec` 为每个 MMF 写一份 Spec → `to-tickets` 把 MMF 切成合同票加可并发的行为票（每条 T/R 唯一归属），经 `ticket-sizing` 定粒度、脚本核对覆盖与依赖图、用户裁决后发布 → 实现；每个 MMF 一个 MR，单票 MMF 也走 `to-tickets`，切片表只有一行 |
 | 常规需求 | 模型写最小计划 → `grill-with-docs` 拷问计划 → `implement` |
 | 小改动 | 直接 `implement`，由 `tdd` 按需决定是否先红后绿 |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
@@ -86,8 +86,8 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-model-the-domain` | `to-spec`（Implementation Decisions） |
 | `principle-redesign-from-first-principles` | `to-spec`（Implementation Decisions） |
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
-| `principle-separate-before-serializing-shared-state` | `vertical-slicing`（第 5 步连依赖边） |
-| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing`（第 4 步补结构片；例外模式见 `references/release-per-ticket.md` 检查 6） |
+| `principle-separate-before-serializing-shared-state` | `to-tickets`（第 4 步连依赖边） |
+| `principle-migrate-callers-then-delete-legacy-apis` | `to-tickets`（第 3 步补结构票；例外模式见 `references/release-per-ticket.md` 检查 6） |
 | `principle-laziness-protocol` | `implement`（第 2 步先做减法） |
 | `principle-subtract-before-you-add` | `implement`（第 2 步先做减法） |
 | `principle-minimize-reader-load` | `implement`（第 4 步对账前消融） |

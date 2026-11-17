@@ -25,6 +25,7 @@
 - [ticket-sizing 所有权迁入本仓](0017-owned-ticket-sizing.md)
 - [automate-me 成为通用的个人工作方式 Skill 生成器](0018-owned-automate-me.md)
 - [本仓任务统一由 Linear 管理](0019-linear-issue-tracker.md)
+- [to-tickets 迁入本仓，合同先行切票](0020-owned-to-tickets-contract-first.md)
 
 ## 命名
 

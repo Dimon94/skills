@@ -107,10 +107,8 @@ disable-model-invocation: true
 | 用决策地图澄清 Epic 或 MMF 的阻塞问题 | `wayfinder`（用户调用） |
 | 大需求切成多个 MMF | `to-epic`（用户调用） |
 | 给一个 MMF 写 Spec | `to-spec`（用户调用） |
-| 把一个 MMF 切成 ticket | `vertical-slicing`（用户调用） |
 | 逐票预测 | `ticket-sizing` |
-| 预测超过拆分线的票再拆 | `ticket-split-100k`（用户调用） |
-| 把 ticket 发到 tracker | `to-tickets`（用户调用） |
+| 把 Spec 切成 ticket 并发到 tracker | `to-tickets`（用户调用） |
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
 | 按 Spec 或票实现 | `implement`（用户调用）；测试先行用 `tdd` |
 | 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
@@ -136,7 +134,7 @@ disable-model-invocation: true
 
 不预先消除整个 Epic 的全部未知，也不给每个 MMF 默认建决策地图。
 
-大需求按单位逐层切：一个 Epic 由多个 MMF 组成；一个 MMF 对应一份 Spec、一个 MR，ticket 留在它的 MR 分支内。顺序：`to-epic` 切 MMF → 每个 MMF 由 `to-spec` 写一份 Spec → `vertical-slicing` 切 ticket → `ticket-sizing` 给每票拆分信号与 MMF 的票数、合计 → 用户看合计决定照此执行、回 `to-epic` 重切或转例外模式 → 超过拆分线的票走 `ticket-split-100k` → `to-tickets` 发布 → `implement`。MMF 一个上下文装得下时不拆票，Spec 直接交 `implement`。
+大需求按单位逐层切：一个 Epic 由多个 MMF 组成；一个 MMF 对应一份 Spec、一个 MR，ticket 留在它的 MR 分支内。顺序：`to-epic` 切 MMF → 每个 MMF 由 `to-spec` 写一份 Spec → `to-tickets` 切票：合同票先冻结 Interface，行为票按 T/R 唯一归属并发，`ticket-sizing` 给每票拆分信号与合计、超线票按其拆分线拆开，核对脚本过后用户决定照此执行、回 `to-epic` 重切或转例外模式，再发布 → `implement`。单票也走 `to-tickets`，切片表只有一行。
 
 验证按链路时间点接入：
 

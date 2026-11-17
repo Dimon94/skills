@@ -14,7 +14,7 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
   const projects = {
     "mattpocock-skills": ["mattpocock/skills", [
       ...["wayfinder", "research", "grill-with-docs", "improve-codebase-architecture",
-        "to-tickets", "diagnosing-bugs", "domain-modeling", "prototype"].map((name) => `skills/engineering/${name}`),
+        "diagnosing-bugs", "domain-modeling", "prototype"].map((name) => `skills/engineering/${name}`),
       "skills/productivity/grilling",
     ]],
     "brainstorming-only": ["Dimon94/brainstorming-only", ["brainstorming-only", "office-hours-only"]],

@@ -5,6 +5,7 @@
 //   INPUT: 一份 Spec 草稿（Markdown 文件路径；缺省读 stdin）
 //   OUTPUT: 每个问题一行 "error\t<规则>\t<说明>"，有问题退出 1；无问题打印 ok 退出 0
 //   POS: to-spec 第 5 步发布前的确定性核对；只读，不改文件、不访问 tracker
+//   EXPORT: checkSpec、splitSections、ids；to-tickets/scripts/check-tickets.js 复用后两者解析 Spec
 //   TEST: node --test skills/to-spec/tests/check-spec.test.js
 // L5
 //   PARAM: 章节 = 模板的九个 "## " 标题，按模板顺序

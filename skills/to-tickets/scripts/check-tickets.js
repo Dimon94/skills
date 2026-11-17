@@ -5,6 +5,8 @@
 //   INPUT: argv[2] = Spec（Markdown），argv[3] = 票草稿（Markdown，每票一个 "## <id>: <标题>" 块）
 //   OUTPUT: 每行 "<error|warn|info>\t<规则>\t<说明>"；有 error 退出 1，否则退出 0
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
+//   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids
+//   EXPORT: checkTickets(specText, ticketText) -> [level, rule, message][]
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
 //   PARAM: 票字段 = 块内以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
@@ -14,6 +16,7 @@
 //   FAIL: Spec 的 T/R 不恰好出现在一张票的 Owns → owner
 //   FAIL: Owns/Respects 引用 Spec 未定义的 T/R → undefined
 //   FAIL: Spec 的 User Story 没有任何票的 Stories 指向 → stories
+//   FAIL: Kind 不在取值范围 → kind；同一字段行出现多次 → field
 //   FAIL: behavior 票 Owns 为空 → empty
 //   FAIL: 合同票多于一张、Owns 含 T、或有阻塞边 → contract
 //   FAIL: 缺 Blocked by 行、引用不存在的票、或依赖成环 → edges
@@ -27,13 +30,17 @@ const { splitSections, ids } = require("../../to-spec/scripts/check-spec.js");
 const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\s*(.*)$/;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
 const NONE = /^(none|无)\b/i;
+const KINDS = new Set(["contract", "behavior", "structure", "spike"]);
 
 // ---- 解析 ---------------------------------------------------------------
 function parseTicket(id, title, body) {
-  const ticket = { id, title, body, kind: "behavior", owns: new Set(), respects: new Set(), stories: [], modules: [], blockedBy: null };
+  const ticket = { id, title, body, kind: "behavior", owns: new Set(), respects: new Set(), stories: [], modules: [], blockedBy: null, seen: new Set(), repeated: [] };
   for (const line of body.split("\n")) {
     const match = FIELD.exec(line);
-    if (match) applyField(ticket, match[1], match[2].trim());
+    if (!match) continue;
+    if (ticket.seen.has(match[1])) ticket.repeated.push(match[1]);
+    ticket.seen.add(match[1]);
+    applyField(ticket, match[1], match[2].trim());
   }
   return ticket;
 }
@@ -75,6 +82,15 @@ function checkCoverage(spec, tickets) {
       if (!spec.flow.has(id)) errors.push(["error", "undefined", `${t.id} 引用了 Spec 未定义的 ${id}`]);
   const told = new Set(tickets.flatMap((t) => t.stories));
   for (const n of spec.stories) if (!told.has(n)) errors.push(["error", "stories", `User Story ${n} 没有票指向`]);
+  return errors;
+}
+
+function checkFields(tickets) {
+  const errors = [];
+  for (const t of tickets) {
+    if (!KINDS.has(t.kind)) errors.push(["error", "kind", `${t.id} 的 Kind「${t.kind}」不在 contract|behavior|structure|spike 内`]);
+    for (const name of new Set(t.repeated)) errors.push(["error", "field", `${t.id} 的 ${name} 行出现多次；票面每个字段只写一行`]);
+  }
   return errors;
 }
 
@@ -165,7 +181,7 @@ function checkTickets(specText, ticketText) {
   const spec = specItems(specText);
   const tickets = parseTickets(ticketText);
   if (tickets.length === 0) return [["error", "edges", "票草稿里没有 \"## <id>: <标题>\" 块"]];
-  const errors = [...checkCoverage(spec, tickets), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
+  const errors = [...checkCoverage(spec, tickets), ...checkFields(tickets), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
   return [...errors, ...report(tickets)];
 }
 

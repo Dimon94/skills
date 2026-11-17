@@ -99,3 +99,13 @@ test("DD-455 合同先行：无 error，关键路径 6 波，同波 Module 重�
   assert.equal(info(fixture("dd455-new.md"), "critical-path", spec), "C → 472 → 473 → 474 → 476 → 480（6 波）");
   assert.equal(lines.filter(([, rule]) => rule === "overlap").length, 1);
 });
+
+test("Kind 不在取值范围报 kind：集成票不能改名混过", () => {
+  assert.deepEqual(rules(draft({ "09": { Kind: "integration", Owns: "无", Stories: "", "Blocked by": "01, 02" } })), ["kind"]);
+});
+
+test("同一字段写两行报 field：派发方读的 Blocked by 必须唯一", () => {
+  const text = draft() + "- Blocked by: None\n";
+  assert.deepEqual(rules(text), ["field"]);
+});
+

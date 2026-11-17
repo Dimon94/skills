@@ -109,3 +109,32 @@ test("同一字段写两行报 field：派发方读的 Blocked by 必须唯一",
   assert.deepEqual(rules(text), ["field"]);
 });
 
+
+test("DD-609 字段区：首个三级标题后的同名散文不改变票头字段", () => {
+  const text = draft() + "### What to build\nOwns: 本票负责下单\nRespects: R9\n> Kind: 说明\n- Blocked by: 99\n";
+  assert.deepEqual(rules(text), []);
+  assert.equal(info(text, "waves"), "1:C  2:01,02");
+  const { Respects: _, ...fields } = GOOD["02"];
+  assert.deepEqual(rules(draft({ "02": fields }) + "### Acceptance criteria\nRespects: R9\n"), []);
+});
+
+test("DD-609 Unknown：未创建的阻塞票只警告，本票及下游不进入波次", () => {
+  const text = draft({ "01": { ...GOOD["01"], "Blocked by": "Unknown（依赖票尚未创建）" },
+    "02": { ...GOOD["02"], "Blocked by": "01" } });
+  const lines = checkTickets(SPEC, text);
+  assert.deepEqual(lines.filter(([level]) => level === "error"), []);
+  assert.ok(lines.some(([level, , message]) => level === "warn" && /01.*不可派发/.test(message)));
+  assert.equal(info(text, "waves"), "1:C");
+  assert.equal(info(text, "critical-path"), "C（1 波）");
+  const allBlocked = ticket("01", { Owns: "T1,T2,R1", Stories: "1,2", "Blocked by": "Unknown（等待建票）" });
+  assert.equal(info(allBlocked, "waves"), "");
+  assert.equal(info(allBlocked, "critical-path"), "（0 波）");
+});
+
+test("DD-609 加粗：字段名或字段名连冒号加粗都按普通字段解析", () => {
+  for (const text of [draft().replace(/- (Kind|Owns|Respects|Stories|Modules|Blocked by):/g, "- **$1:**"),
+    draft().replace(/- (Kind|Owns|Respects|Stories|Modules|Blocked by):/g, "- **$1**:")]) {
+    assert.deepEqual(rules(text), []);
+    assert.equal(info(text, "waves"), "1:C  2:01,02");
+  }
+});

@@ -13,9 +13,9 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。MMF 来自 Epic 时，读 Epic 候选表里本 MMF 的 `Blocked by` 和依赖本 MMF 的候选，写进 Dependencies 节。
 
 2. 判定 MMF。Spec 描述一个 MMF：验收、合入与上线的单位，对应一个 MR。用两个问题判定需求：切成两半，存在一种切法让每半都能单独上线且单独有人用吗；整体单独上线有人用吗。结果取其一：
-   - 切得开 → 多个 MMF：停下，请用户运行 `/to-epic`，列出已识别的 MMF 候选及各自的用户结果。
+   - 切得开 → 多个 MMF：停下，以 `NEXT: to-epic <理由>` 交回调用方（独立调用时请用户运行 `/to-epic`），列出已识别的 MMF 候选及各自的用户结果。
    - 切不开，且整体单独上线有人用 → 正好一个 MMF：继续。
-   - 整体单独上线没人用 → 不足一个 MMF：停下，说明它是某个 MMF 里的 ticket，点名所属 MMF；不知道写 Unknown。
+   - 整体单独上线没人用 → 不足一个 MMF：停下，以 `NEXT: blocked-human <理由>` 交回调用方，说明它是某个 MMF 里的 ticket，点名所属 MMF；不知道写 Unknown。
    完成条件：结果是三者之一，两个问题各有答案和依据。
 
 3. 判定 Business Flow。行为的状态跨越步骤或时间留存，或者包含失败重试、审批、取消、不可逆副作用时，按模板画状态图；其余情况在该节写 `N/A` 和一句理由。完成条件：该节是一张图加规则，或一条 `N/A` 理由。
@@ -61,7 +61,7 @@ stateDiagram-v2
 - 状态和箭头用读者能看到或在意的业务词，代码名和变量名留给 Implementation Decisions。
 - 箭头写成 `T<n> 事件 [条件]`，失败、取消和重试也各占一条箭头。规则写成 `R<n>`，表达必须一直成立的事。
 - 状态和转移只在本节定义，User Stories 负责说明为什么需要这些行为。
-- 箭头控制在约 20 条。超出时先合并读者不区分的状态；仍读不清，说明它不止一个 MMF：停下，请用户运行 `/to-epic` 重切 MMF。
+- 箭头控制在约 20 条。超出时先合并读者不区分的状态；仍读不清，说明它不止一个 MMF：停下，以 `NEXT: to-epic <理由>` 交回调用方重切 MMF（独立调用时请用户运行 `/to-epic`）。
 
 ## User Stories
 
@@ -115,7 +115,7 @@ A list of testing decisions that were made. Include:
 
 本 MMF 与其他 MMF 或外部前提之间的阻塞边。来自 Epic 时照抄 Epic 候选表，独立 MMF 写 `无` 和一句依据。
 
-- `Repo:` 本 MMF 代码落在哪个 Git 仓库，写仓库目录名（如 `tiktok-ad-automation`）。派发方据此判断要不要跨仓路由。一个 MMF 的代码跨两个仓库时，停下请用户运行 `/to-epic` 按仓库拆开。
+- `Repo:` 本 MMF 代码落在哪个 Git 仓库，写仓库目录名（如 `tiktok-ad-automation`）。派发方据此判断要不要跨仓路由。一个 MMF 的代码跨两个仓库时，停下，以 `NEXT: to-epic <理由>` 交回调用方按仓库拆开（独立调用时请用户运行 `/to-epic`）。
 - `Blocked by:` 每条写前提（MMF 或 Spec 链接、外部能力）、类型、依赖的 Interface、能力或反馈、解除证据。类型取 **开工**（前提交付前不能开工）或 **上线**（Interface 已对齐，可并发开发，验收与上线等前提就绪）。
 - `Blocks:` 依赖本 MMF 的 MMF 及其消费的 Interface。改这些 Interface 前先协调对方。
 

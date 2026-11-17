@@ -26,7 +26,7 @@ readlink -f ~/.agents/skills/tdd ~/.agents/skills/code-review ~/.agents/skills/t
 
 先按需求大小选入口。任务分流表在 [README.zh-CN.md](../README.zh-CN.md)「任务分流」。大需求按阻塞位置选入口，规则见 [skills/dimon-mode/SKILL.md](../skills/dimon-mode/SKILL.md)「任务路由」。
 
-大需求的主线：`/to-epic` 把需求切成 MMF → 每个 MMF 用 `/to-spec` 写一份 Spec → `/vertical-slicing` 把它切成 ticket，并调用 `ticket-sizing` 报告票数和拆分信号合计 → 用户从照此执行、重切、转例外模式三项中选一项 → `/to-tickets` 把票发布到 tracker。单位的定义见 [GLOSSARY.md](../GLOSSARY.md) 的 Epic、MMF、Spec、ticket 词条。
+大需求的主线：`/to-epic` 把需求切成 MMF → 每个 MMF 用 `/to-spec` 写一份 Spec → `/to-tickets` 把它切成合同票与可并发的行为票，调用 `ticket-sizing` 报告票数和拆分信号合计，用核对脚本检查覆盖与依赖图 → 用户从照此执行、重切、转例外模式三项中选一项 → 发布到 tracker。单位的定义见 [GLOSSARY.md](../GLOSSARY.md) 的 Epic、MMF、Spec、ticket 词条。
 
 这条链上多数入口只能由用户调用：SKILL.md frontmatter 写了 `disable-model-invocation: true` 的 Skill，模型调用不了。agent 规划时要先说明哪几步需要用户输入 `/名字`，轮到这一步时，交出现有产物，点名要用户运行的命令，然后停下。查看哪些 Skill 只能由用户调用：
 
@@ -64,7 +64,7 @@ rg -n -e tdd -e implement -e code-review "$(dirname "$(readlink -f ~/.agents/ski
 - 每张票建自己的树，起点是这条集成分支：`worktree.sh new <type>/<scope> <集成分支>`。
 - 只读的子代理（调研、审查）不用建树。需要写文件的子代理，必须有自己的树。
 
-依赖未满足的票，等前置票合入集成分支之后再开工。两张票只是改同一个 Module 的实现，属于合并冲突风险，不算依赖，判断规则见 [skills/vertical-slicing/SKILL.md](../skills/vertical-slicing/SKILL.md) 第 5 步。
+依赖未满足的票，等前置票合入集成分支之后再开工。两张票只是改同一个 Module 的实现，属于合并冲突风险，不算依赖；共享写入目标前移到合同票，判断规则见 [skills/to-tickets/SKILL.md](../skills/to-tickets/SKILL.md) 第 4 步。
 
 完成条件：`worktree.sh ls` 中每张在做的票恰好对应一棵树和一个分支；主目录仍在 main 上，没有未提交的改动。
 

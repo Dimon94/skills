@@ -2,7 +2,7 @@
 
 # --- L3 文件合同 ---
 # INPUT: workflow-source/original.*.svg（cb72fdc 的原始布局）；GLOSSARY.md；
-# to-epic、to-spec、vertical-slicing、implement、tdd 与 Git Skill 的 SKILL.md；
+# to-epic、to-spec、to-tickets、implement、tdd 与 Git Skill 的 SKILL.md；
 # delivery-pipeline 的 gate-state-machine、test-decision-and-rebase。
 # OUTPUT: development-workflow.{en,zh-CN}.svg；PNG 由 fireworks-tech-graph 导出。
 # TEST: fireworks-tech-graph 五项结构检查、Chromium 渲染与 PNG 目视检查。
@@ -24,11 +24,11 @@ LARGE = [
     ('mmf', 'DELIVERY UNIT', 'MMF', '一个 MMF · 一份 Spec · 一个 MR', 'One MMF · one Spec · one MR'),
     ('large-wayfinder', 'DISCOVERY', 'wayfinder', '按需建 Map；决策 frontier → 证据 → 闭合', 'Optional Map; decision frontier → evidence → closure'),
     ('to-spec', 'SPEC', 'to-spec', 'Business Flow · Module / Interface / Seam · 确认并发布', 'Business Flow · Module / Interface / Seam · approve / publish'),
-    ('vertical-slicing', 'SLICES', 'vertical-slicing', '骨架 / 加厚 / 结构片 · 依赖与波次 · 单上下文见旁路', 'Skeleton / thickening / structure · dependencies / waves'),
-    ('ticket-sizing', 'SIZING', 'ticket-sizing', '先逐票预测、票数与 MMF 合计；再请用户裁决', 'Per-ticket signals + MMF total before user decision'),
+    ('to-tickets', 'SLICES', 'to-tickets · cut', '合同票冻结 Interface → 行为票并发 · T/R 唯一 Owns', 'Contract ticket freezes Interfaces → concurrent behavior tickets'),
+    ('ticket-sizing', 'SIZING', 'ticket-sizing', '逐票拆分信号与 MMF 合计；超 100k 拆分线沿验收边界拆', 'Per-ticket signals + MMF total; split past the 100k line'),
+    ('check-tickets', 'CHECK', 'check-tickets.js', '覆盖 · 依赖图无环 · 波次与关键路径 · 票面无 token 数字', 'Coverage · acyclic graph · waves / critical path · no token numbers'),
     ('ticket-decision', 'USER DECISION', 'Proceed / Re-cut / Release Mode', '照此执行；回 to-epic；或确认逐票发布例外', 'Proceed; return to to-epic; or approve per-ticket release'),
-    ('ticket-split', 'CONDITIONAL', 'ticket-split-100k', '仅超线票重切；未超线直接交 to-tickets', 'Split oversized tickets only; otherwise go to to-tickets'),
-    ('to-tickets', 'PUBLISH', 'to-tickets', '用户批准 → 发布票 / Parent / 阻塞边 → 读回', 'Approval → publish tickets / Parent / blockers → readback'),
+    ('to-tickets-publish', 'PUBLISH', 'to-tickets · publish', '发布票 / Parent / 阻塞边 → 读回再核对', 'Publish tickets / Parent / blockers → readback and recheck'),
 ]
 SMALL = [
     ('small-grill', 'PLAN', 'Minimal Plan → grill-with-docs', '常规需求拷问计划；小改动直接进入 implement', 'Regular: stress-test plan; small changes: implement directly'),
@@ -157,7 +157,7 @@ def add_pipeline(root, original, language):
     root.append(edge('quality-test-choice', 'quality', 'test-choice', 'M1540 1910 V1980 H730 V2020'))
     root.append(edge('test-rebase', 'test-choice', 'sync-main', 'M860 2064 H920'))
     root.append(edge('rebase-remote', 'sync-main', 'remote', 'M1180 2064 H1240'))
-    root.append(edge('large-pipeline', 'to-tickets', 'dp-input', 'M350 1670 V1730 H165 V1840'))
+    root.append(edge('large-pipeline', 'to-tickets-publish', 'dp-input', 'M350 1670 V1730 H165 V1840'))
     note(root, 800, 1962, '更多 ready 票：重算 frontier' if language == 'zh-CN' else 'More ready work: recompute frontier', 400)
     note(root, 60, 2148, 'worker：复用 02B 实现与验证；CLI 逐票 Review 由宿主预算决定，整体 Review 不省略。' if language == 'zh-CN' else 'Workers use 02B implementation / verification; CLI review placement follows host policy.', 1900)
 
@@ -212,12 +212,10 @@ def render(language):
     lane(root, LARGE, 100, language, 'control')
     lane(root, SMALL, 790, language, 'control')
     lane(root, BUG, 1480, language, 'bug')
-    root.append(edge('re-cut-mmf', 'ticket-decision', 'to-epic', 'M100 1370 H80 V602 H100', 'feedback'))
-    root.append(edge('skip-ticket-split', 'ticket-decision', 'to-tickets', 'M600 1370 H625 V1626 H600', 'choice'))
-    root.append(edge('one-context-direct', 'vertical-slicing', 'implement', 'M600 1114 H695 V602 H790', 'choice'))
+    root.append(edge('re-cut-mmf', 'ticket-decision', 'to-epic', 'M100 1498 H80 V602 H100', 'feedback'))
     note(root, 790, 1590, '缺行为验收：create-verification-skill；漂移：maintain-verification-skill' if language == 'zh-CN' else 'No behavior checks: create-verification-skill; drift: maintain-verification-skill')
     note(root, 790, 1620, '形式验证缺口：提议 create-formal-verification-skill' if language == 'zh-CN' else 'Formal-check gap: propose create-formal-verification-skill')
-    note(root, 100, 1698, '单上下文：手动 Spec → 02B；编排发布单票 → 03。逐票发布例外见原 Skill。' if language == 'zh-CN' else 'One context: manual Spec → 02B; automation publishes one ticket → 03. Per-ticket release: see owner.', 1900)
+    note(root, 100, 1698, '单票 MMF 也走 to-tickets，切片表只有一行。逐票发布例外见 to-tickets 例外模式。' if language == 'zh-CN' else 'A one-ticket MMF still goes through to-tickets as a one-row table. Per-ticket release: see its exception mode.', 1900)
     add_pipeline(root, original, language)
     add_review(root, original, language)
     finish(root, language)

@@ -16,7 +16,7 @@ Run `python3 docs/assets/render-development-workflow.py` to rebuild the SVGs fro
 
 | Task type | Workflow |
 | --- | --- |
-| Large requirement | `to-epic` cuts the Epic into MMFs → `to-spec` writes one Spec per MMF → `vertical-slicing` cuts the MMF into tickets → `ticket-sizing` gives each ticket a split signal plus the MMF's ticket count and total, and the user decides whether to proceed or re-cut → tickets past the split line go to `ticket-split-100k` → `to-tickets` publishes → implement; each MMF ships as one MR, and an MMF that fits one context skips the tickets |
+| Large requirement | `to-epic` cuts the Epic into MMFs → `to-spec` writes one Spec per MMF → `to-tickets` cuts the MMF into a contract ticket plus concurrent behavior tickets that each own unique T/R items, sizes them with `ticket-sizing`, checks coverage and the dependency graph by script, and publishes after the user decides → implement; each MMF ships as one MR, and a one-ticket MMF is a one-row slice table |
 | Regular requirement | the model drafts a minimal plan → `grill-with-docs` stress-tests it → `implement` |
 | Small change | `implement` directly; `tdd` decides per change whether a failing check comes first |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
@@ -88,8 +88,8 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-model-the-domain` | `to-spec` (Implementation Decisions) |
 | `principle-redesign-from-first-principles` | `to-spec` (Implementation Decisions) |
 | `principle-fix-root-causes` | `docs/agents/debugging.md` §4 |
-| `principle-separate-before-serializing-shared-state` | `vertical-slicing` (step 5, dependency edges) |
-| `principle-migrate-callers-then-delete-legacy-apis` | `vertical-slicing` (step 4, structure slices; exception mode: check 6 in `references/release-per-ticket.md`) |
+| `principle-separate-before-serializing-shared-state` | `to-tickets` (step 4, dependency edges) |
+| `principle-migrate-callers-then-delete-legacy-apis` | `to-tickets` (step 3, structure tickets; exception mode: check 6 in `references/release-per-ticket.md`) |
 | `principle-laziness-protocol` | `implement` (step 2, subtract first) |
 | `principle-subtract-before-you-add` | `implement` (step 2, subtract first) |
 | `principle-minimize-reader-load` | `implement` (step 4, ablation before reconciliation) |

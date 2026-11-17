@@ -132,4 +132,4 @@ if (require.main === module) {
   process.exitCode = errors.length ? 1 : 0;
 }
 
-module.exports = { checkSpec };
+module.exports = { checkSpec, splitSections, ids };

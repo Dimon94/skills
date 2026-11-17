@@ -115,6 +115,7 @@ A list of testing decisions that were made. Include:
 
 本 MMF 与其他 MMF 或外部前提之间的阻塞边。来自 Epic 时照抄 Epic 候选表，独立 MMF 写 `无` 和一句依据。
 
+- `Repo:` 本 MMF 代码落在哪个 Git 仓库，写仓库目录名（如 `tiktok-ad-automation`）。派发方据此判断要不要跨仓路由。一个 MMF 的代码跨两个仓库时，停下请用户运行 `/to-epic` 按仓库拆开。
 - `Blocked by:` 每条写前提（MMF 或 Spec 链接、外部能力）、类型、依赖的 Interface、能力或反馈、解除证据。类型取 **开工**（前提交付前不能开工）或 **上线**（Interface 已对齐，可并发开发，验收与上线等前提就绪）。
 - `Blocks:` 依赖本 MMF 的 MMF 及其消费的 Interface。改这些 Interface 前先协调对方。
 

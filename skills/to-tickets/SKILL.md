@@ -59,6 +59,7 @@ disable-model-invocation: true
 ```markdown
 ## 03: 用户停止正在运行的回合并保留部分结果
 - Parent: <Spec Issue>
+- Repo: tiktok-ad-automation
 - Kind: behavior
 - Owns: T9
 - Respects: R11
@@ -75,6 +76,8 @@ disable-model-invocation: true
 ### Prereq check
 依赖上游能力时写可执行检查与期望证据；没有就删掉本节。
 ```
+
+`Repo` 照抄 Spec Dependencies 节的 `Repo:`，派发方据此选择仓库。
 
 规则：不复制 Spec 正文，不写固定样板段落，不写文件路径，不写 token 数字。原型产出的状态机、schema 或类型形状比文字更准时，可内联最关键的部分并注明来源。
 

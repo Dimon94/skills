@@ -9,9 +9,10 @@
 //   EXPORT: checkTickets(specText, ticketText) -> [level, rule, message][]
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
-//   PARAM: 票字段 = 块内以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
+//   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
+//   PARAM: 字段名或字段名连冒号可用 Markdown 加粗；正文同名行不作字段，仍检查 token 数字
 //   PARAM: Kind ∈ contract | behavior | structure | spike，缺省 behavior
-//   PARAM: Blocked by 取值 = 票 id 列表，或 None/无
+//   PARAM: Blocked by 取值 = 票 id 列表、None/无，或 Unknown（非空原因）
 //   PARAM: Spec 侧 T/R 取自 Business Flow，User Story 编号取自 User Stories 的有序列表
 //   FAIL: Spec 的 T/R 不恰好出现在一张票的 Owns → owner
 //   FAIL: Owns/Respects 引用 Spec 未定义的 T/R → undefined
@@ -19,23 +20,26 @@
 //   FAIL: Kind 不在取值范围 → kind；同一字段行出现多次 → field
 //   FAIL: behavior 票 Owns 为空 → empty
 //   FAIL: 合同票多于一张、Owns 含 T、或有阻塞边 → contract
-//   FAIL: 缺 Blocked by 行、引用不存在的票、或依赖成环 → edges
+//   FAIL: 缺 Blocked by 行、引用不存在的票 id、或依赖成环 → edges
 //   FAIL: 标题或正文出现 token 估算数字（如 95k、120k tokens）→ token
+//   WARN: Blocked by 为 Unknown（原因）→ edges；本票及下游不可派发，不参与波次与关键路径
 //   WARN: 同一波次两张非合同票声明同一 Module → overlap
 //   INFO: waves（每波的票）、critical-path（最长依赖链）
 // ==========================================================================
 const fs = require("node:fs");
 const { splitSections, ids } = require("../../to-spec/scripts/check-spec.js");
 
-const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\s*(.*)$/;
+const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\**\s*(.*)$/;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
 const NONE = /^(none|无)\b/i;
+const UNKNOWN = /^Unknown（[^）]+）$/i;
 const KINDS = new Set(["contract", "behavior", "structure", "spike"]);
 
 // ---- 解析 ---------------------------------------------------------------
 function parseTicket(id, title, body) {
   const ticket = { id, title, body, kind: "behavior", owns: new Set(), respects: new Set(), stories: [], modules: [], blockedBy: null, seen: new Set(), repeated: [] };
   for (const line of body.split("\n")) {
+    if (/^###(?:\s|$)/.test(line)) break;
     const match = FIELD.exec(line);
     if (!match) continue;
     if (ticket.seen.has(match[1])) ticket.repeated.push(match[1]);
@@ -52,7 +56,7 @@ function applyField(ticket, name, value) {
   if (name === "Respects") ticket.respects = ids(value);
   if (name === "Stories") ticket.stories = list().map(Number).filter(Number.isInteger);
   if (name === "Modules") ticket.modules = list();
-  if (name === "Blocked by") ticket.blockedBy = NONE.test(value) ? [] : list();
+  if (name === "Blocked by") ticket.blockedBy = NONE.test(value) ? [] : UNKNOWN.test(value) ? [value] : list();
 }
 
 function parseTickets(text) {
@@ -120,14 +124,15 @@ function checkEdges(tickets) {
   for (const t of tickets) {
     if (t.blockedBy === null) errors.push(["error", "edges", `${t.id} 缺 Blocked by: 行；没有阻塞写 None`]);
     for (const dep of t.blockedBy || [])
-      if (!known.has(dep)) errors.push(["error", "edges", `${t.id} 的阻塞票 ${dep} 不存在`]);
+      if (UNKNOWN.test(dep)) errors.push(["warn", "edges", `${t.id} 的阻塞票为 ${dep}；本票及下游不可派发，不计入波次；创建依赖票后填入票 id`]);
+      else if (!known.has(dep)) errors.push(["error", "edges", `${t.id} 的阻塞票 ${dep} 不存在`]);
   }
   return errors;
 }
 
-// 返回 { level: Map<id, 波次>, cyclic: id[] }；波次 = 最长前驱链长度 + 1
-function layer(tickets) {
-  const deps = new Map(tickets.map((t) => [t.id, (t.blockedBy || []).filter((d) => tickets.some((x) => x.id === d))]));
+// 波次 = 最长前驱链长度 + 1；保留 Unknown 前驱时，无层级的票也可能是待建票阻塞。
+function layer(tickets, includeUnknown = false) {
+  const deps = new Map(tickets.map((t) => [t.id, (t.blockedBy || []).filter((d) => (includeUnknown && UNKNOWN.test(d)) || tickets.some((x) => x.id === d))]));
   const level = new Map();
   let changed = true;
   while (changed) {
@@ -152,8 +157,10 @@ function criticalPath({ level, deps }) {
 }
 
 function report(tickets) {
-  const graph = layer(tickets);
+  let graph = layer(tickets);
   if (graph.cyclic.length) return [["error", "edges", `依赖成环或挂在环上：${graph.cyclic.join(", ")}`]];
+  // 先检查真实依赖环，再保留 Unknown 前驱阻止本票及下游进入波次。
+  graph = layer(tickets, true);
   const waves = [];
   for (const [id, n] of graph.level) (waves[n - 1] ||= []).push(id);
   return [

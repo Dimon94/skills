@@ -16,7 +16,7 @@
 
 | 任务类型 | 链路 |
 | --- | --- |
-| 大型需求 | `to-epic` 把 Epic 切成 MMF → `to-spec` 为每个 MMF 写一份 Spec → `to-tickets` 把 MMF 切成合同票加可并发的行为票（每条 T/R 唯一归属），经 `ticket-sizing` 定粒度、脚本核对覆盖与依赖图、用户裁决后发布 → 实现；每个 MMF 一个 MR，单票 MMF 也走 `to-tickets`，切片表只有一行 |
+| 大型需求 | `to-epic` 按需澄清决策、切出 MMF，并按授权发布 Epic Issue → `to-spec` 为每个 MMF 写一份 Spec → `to-tickets` 把 MMF 切成合同票加可并发的行为票（每条 T/R 唯一归属），经 `ticket-sizing` 定粒度、脚本核对覆盖与依赖图、用户裁决后发布 → 实现；每个 MMF 一个 MR，单票 MMF 也走 `to-tickets`，切片表只有一行 |
 | 常规需求 | 模型写最小计划 → `grill-with-docs` 拷问计划 → `implement` |
 | 小改动 | 直接 `implement`，由 `tdd` 按需决定是否先红后绿 |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |

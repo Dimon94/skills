@@ -128,7 +128,7 @@ disable-model-invocation: true
 
 大需求不等于必有迷雾，按阻塞位置选入口：
 
-- 目标、范围和首个 MMF 已可核对：直接 `/to-epic`。局部未知由其中的 `investigate`、`research` 或 `prototype` 解决。
+- 大需求或已有 Epic：运行 `/to-epic`，由它决定怎样澄清会影响拆分的问题，并交付 Epic 计划。
 - 整体拆分被需要跨 session 的决策链阻塞：先 `/wayfinder`，destination 写「可交给 `to-epic` 的 Epic 目标、范围和首个 MMF 候选」；路线清晰后运行 `/to-epic`。
 - 单个 MMF 已分出，但写 Spec 的关键决定仍需跨 session 寻路：只对该 MMF 运行 `/wayfinder`，destination 写「让这个 MMF 可写成可验收 Spec」；决策齐后由 `/to-spec` 写或改 Spec。
 

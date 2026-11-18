@@ -10,7 +10,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。MMF 来自 Epic 时，按 Epic Issue 链接与 MMF 标识读回已确认范围、决定、`Blocked by` 和下游候选，写进 Spec。先查同一标识的已发布 Spec；已有坐标就复用。
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching. 按运行时目录定位并完整读取 `codebase-design/SKILL.md`，Module、Interface、Seam 等词按它的定义使用。依赖缺失时点名路径和受影响决定，把 Spec 标为未就绪。MMF 来自 Epic 时，按 Epic Issue 链接与 MMF 标识读回已确认范围、决定、`Blocked by` 和下游候选，写进 Spec。先查同一标识的已发布 Spec；已有坐标就复用。新建 Epic 下的 Spec 由持有 Epic claim 的交付 coordinator 派发唯一工作项。用户直接给 Epic 和 MMF 时，从该 Epic 的交付入口接续，复用同一认领与依赖 gate。
 
 2. 判定 MMF。Spec 描述一个 MMF：验收、合入与上线的单位，对应一个 MR。用两个问题判定需求：切成两半，存在一种切法让每半都能单独上线且单独有人用吗；整体单独上线有人用吗。结果取其一：
    - 切得开 → 多个 MMF：停下，请用户运行 `/to-epic`，列出已识别的 MMF 候选及各自的用户结果。
@@ -22,9 +22,9 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 4. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-用 Issue 中适用的用户确认核对测试 Seam。仍有影响验收的未决取舍时，请用户确认。
+优先复用 Issue 中对该测试 Seam 仍适用的用户确认。缺少适用确认时先取得用户确认，再发布 Spec。
 
-5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 的唯一 owner 行（`Owns:` 开头）与 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。独立运行时回链 Epic，连上已有 Spec 的 tracker 原生阻塞关系并读回。由管线派发时，把已发布 Spec 链接及待连关系交回 coordinator，由它汇总写回 Epic 和关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
+5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 的唯一 owner 行（`Owns:` 开头）与 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
 
 <spec-template>
 

@@ -54,7 +54,8 @@
 
 - Dependencies 节的 `Blocked by:` 照抄这条上线边，写明可并发开发、验收等销售导出上线；`Blocks:` 点名定时导出及其消费的 Interface。
 - 与销售导出 Spec Issue 之间连了 tracker 原生阻塞关系并读回；定时导出的边只留正文。
-- `check-spec.js` 输出 `ok`。
+- `check-spec.js` 通过 stdin 核对正文并输出 `ok`，持久计划只见于 Spec Issue。
+- 已有同 Epic／MMF 的 Spec 时复用原链接。Epic 下的 Spec 用已获认领的 lane 发布，并交回坐标及待连关系供 coordinator 汇总。直接给 Epic 和 MMF 时进入同一交付入口。缺测试 Seam 确认时等待用户。
 
 ## 留存证据
 

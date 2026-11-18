@@ -16,7 +16,7 @@ Run `python3 docs/assets/render-development-workflow.py` to rebuild the SVGs fro
 
 | Task type | Workflow |
 | --- | --- |
-| Large requirement | `to-epic` cuts the Epic into MMFs → `to-spec` writes one Spec per MMF → `to-tickets` cuts the MMF into a contract ticket plus concurrent behavior tickets that each own unique T/R items, sizes them with `ticket-sizing`, checks coverage and the dependency graph by script, and publishes after the user decides → implement; each MMF ships as one MR, and a one-ticket MMF is a one-row slice table |
+| Large requirement | `to-epic` resolves planning questions, cuts the Epic into MMFs, and publishes the Epic Issue when authorized → `to-spec` writes one Spec per MMF → `to-tickets` cuts the MMF into a contract ticket plus concurrent behavior tickets that each own unique T/R items, sizes them with `ticket-sizing`, checks coverage and the dependency graph by script, and publishes after the user decides → implement; each MMF ships as one MR, and a one-ticket MMF is a one-row slice table |
 | Regular requirement | the model drafts a minimal plan → `grill-with-docs` stress-tests it → `implement` |
 | Small change | `implement` directly; `tdd` decides per change whether a failing check comes first |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |

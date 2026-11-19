@@ -27,7 +27,7 @@
 | TS + Vitest/Jest/MSW，用 Oxlint | `@interfere/landmines` 的 `landmines-testing` 插件；只启用这一组，style/types/structure 组是作者偏好 | 五类全覆盖 | 内建按文件精确计数，违规变少即报错要求下调 | 未实测 |
 | Playwright，用 ESLint | `eslint-plugin-playwright`：`no-wait-for-timeout`、`no-slowed-test`、`no-skipped-test`、`no-focused-test`、`no-networkidle` | 固定等待、调高超时 | ESLint 批量抑制按文件计数，`--prune-suppressions` 下调 | 规则名已核对 2.12.2 包 |
 | Playwright 或 TS，用 Biome 2 | GritQL 插件：`` `$page.waitForTimeout($ms)` ``、`` `test.setTimeout($n)` ``、`` `test.slow()` `` | 固定等待、调高超时 | `overrides[].includes` 只对测试文件挂插件，`!<文件>` 列存量豁免 | 2.5.6 实测，命中数与 grep 一致 |
-| Python + pytest，用 Ruff | `TID251` banned-api：`time.sleep`、`asyncio.sleep`、`unittest.mock`；配置放测试目录的 `ruff.toml`，`extend` 主配置 | 固定等待、mock 模块 | 测试目录配置里的 `per-file-ignores` | 0.13.3 实测 |
+| Python + pytest，用 Ruff | `TID251` banned-api：`time.sleep`、`asyncio.sleep`、`unittest.mock`；配置放测试目录的 `ruff.toml`，`extend` 主配置并写 `src = [".."]`，否则 isort 把一方包认成第三方 | 固定等待、mock 模块 | 测试目录配置里的 `per-file-ignores` | 0.13.3、0.16.4 实测 |
 | Python 私有替换 | ast-grep 规则：`monkeypatch.setattr($T, $NAME, $$$)`，`NAME` 匹配 `_` 开头或含 `._` | 替换私有实现 | 规则 `ignores` 列存量文件 | 0.51.3 实测 |
 | Go，用 golangci-lint | `forbidigo` 禁 `time.Sleep`，`exclusions.rules` 限定非 `_test.go` 豁免 | 固定等待 | `new-from-merge-base` 只查新代码 | 未实测 |
 | 任何配置文件 | 全局重试或超时写在 runner 配置里（如 `playwright.config` 的 `retries`），linter 常把配置文件排除在外 | 掩盖不稳定 | 无 | — |

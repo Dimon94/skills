@@ -30,12 +30,12 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 先按下列步骤确定写入清单，再写文件；第 5 步是全部写入的前置检查。
 
 1. 按「项目测试规范定位」查找。找到合法规范且已有测试规范索引时，报告“已有测试规范”并结束。
-2. 没有索引但找到常见落点时，只在根 AGENTS.md 末尾追加一行 `测试规范：repo://<路径一>、repo://<路径二>`，按查找顺序列全找到的规范，不生成第二份规范。
-3. 什么都没找到时，按下方规则识别语言，读取 [通用正文模板](references/baseline-testing-standards.md) 和命中的语言节模板，填写并生成 `docs/agents/testing-standards.md`；在根 AGENTS.md 末尾追加 `测试规范：repo://docs/agents/testing-standards.md`。生成结果归目标项目所有，由该项目维护。
+2. 没有索引但找到常见落点时，逐个读正文：写有本项目测试的选择、断言或执行规则的才算规范，通用贡献流程、PR 礼仪或上游模板自带指南不算。有算数的规范时，只在根 AGENTS.md 末尾追加一行 `测试规范：repo://<路径一>、repo://<路径二>`，按查找顺序列全算数的规范，不生成第二份规范；一个都不算时按第 3 步处理，完成报告列出被排除的落点及理由。
+3. 什么都没找到，或找到的落点都不算规范时，按下方规则识别语言，读取 [通用正文模板](references/baseline-testing-standards.md) 和命中的语言节模板，填写并生成 `docs/agents/testing-standards.md`；在根 AGENTS.md 末尾追加 `测试规范：repo://docs/agents/testing-standards.md`。生成结果归目标项目所有，由该项目维护。
 4. 根目录没有 AGENTS.md 时，新建一个，只含本次索引行。仅在此分支且 CLAUDE.md 不存在时新建 CLAUDE.md，内容为 `@AGENTS.md`；已有 CLAUDE.md 保持不变，并在完成报告中提示用户。
 5. 新建目标文件已存在时不覆盖，报告冲突后停止，保留原文件。已有 AGENTS.md 只允许步骤 2、3 的末尾追加；已有首条索引却无合法项时，报告失效原因并停止，不追加一条 hook 读不到的第二索引。
 
-查找优先使用根 AGENTS.md 首条索引；合法项必须带 `repo://` 前缀、不是绝对路径、解析后仍在仓内且指向普通文件，symlink 也不能越界。无合法项时的常见落点按顺序为：`docs/agents/quality-standards.md`、`docs/agents/ui-e2e.md`、`TESTING.md`、`CONTRIBUTING.md`、`CODING_STANDARDS.md`。只检查存在性，不解析内容；规范已有合法索引时不追加常见落点。
+查找优先使用根 AGENTS.md 首条索引；合法项必须带 `repo://` 前缀、不是绝对路径、解析后仍在仓内且指向普通文件，symlink 也不能越界。无合法项时的常见落点按顺序为：`docs/agents/quality-standards.md`、`docs/agents/ui-e2e.md`、`TESTING.md`、`CONTRIBUTING.md`、`CODING_STANDARDS.md`。hook 只检查存在性，不解析内容；建档按第 2 步读正文判定。规范已有合法索引时不追加常见落点。
 
 ### 语言识别与填写
 

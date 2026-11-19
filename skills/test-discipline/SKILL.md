@@ -13,7 +13,7 @@ description: 用户要求建立或补齐项目测试规范，或明确点名 tes
 
 验证够用即停。复用已读的项目规范和仍有效的检查结果；只有相关代码、输入或环境变化，出现新失败，或尚有具体疑点时才追加验证。当前验收通过就继续交付，不重复核对完整性，也不扩展检查范围。
 
-测试只补当前需求的关键缺口。先复用现有测试；确需新增时，只判断哪个具体错误实现会让哪条断言失败，无需逐条书面作答。断言通过公开入口观察业务结果，替身放在外部边界。具体测试质量有争议时，再读下方深层说明。
+测试只补当前需求的关键缺口。先复用现有测试；确需新增时，只判断哪个具体错误实现会让哪条断言失败，无需逐条书面作答。断言通过公开入口观察业务结果，替身放在外部边界。测试被 linter 门禁拦下时按诊断改法修，不加抑制注释、不扩豁免清单。具体测试质量有争议时，再读下方深层说明。
 
 ## 项目测试规范定位
 
@@ -47,7 +47,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 | `pyproject.toml`、`requirements*.txt` | [Python](references/python.md) | CI 测试步骤与 `[tool.pytest]` 配置；命名 `test_*.py` |
 | `go.mod` | [Go](references/go.md) | CI 测试步骤；没有时针对被改包运行 `go test <包路径>`，不写全量 `./...`；命名 `*_test.go` |
 
-命令必须来自 manifest 或 CI 的真实条目，注明执行目录和来源坐标；找不到时写 Unknown，不把 pytest 配置当作可执行命令。Go 无 CI 时使用模板规定的针对被改包命令。隔离手段仅填写项目已有运行时或已安装框架支持的能力，建档不安装测试依赖。其他语言只写一行“<语言>：语言节 Unknown”；未识别出语言时写“项目语言：Unknown”。
+命令必须来自 manifest 或 CI 的真实条目，注明执行目录和来源坐标；找不到时写 Unknown，不把 pytest 配置当作可执行命令。Go 无 CI 时使用模板规定的针对被改包命令。隔离手段仅填写项目已有运行时或已安装框架支持的能力，建档不安装测试依赖。机械门禁按 [测试地雷目录](references/test-landmines.md) 为每个语言节选工具，优先项目已有 linter，需新装的标“待安装”。其他语言只写一行“<语言>：语言节 Unknown”；未识别出语言时写“项目语言：Unknown”。
 
 ### 完成报告
 
@@ -59,6 +59,7 @@ hook 优先读取仓根 AGENTS.md 首条行首为 `测试规范：` 的索引行
 - `hooks/entry.cjs`：拥有 Claude/Codex 事件校验、stdin/stdout 与失败映射；`hooks/codex.cjs` 只读 transcript，按绝对路径去重 Codex 提醒。
 - `tests/hook.test.cjs`：穿过真实 CLI，使用临时 git 仓验证缝 1。运行 `node --test skills/test-discipline/tests/hook.test.cjs`。
 - `references/baseline-testing-standards.md`：基线测试规范通用正文；其余三个模板提供 TS/JS、Python、Go 语言节。建档时读取并填写，验证采用临时 git 仓手动演练：已有规范只补索引、无规范生成基线；演练不 stage、不 commit。
+- `references/test-landmines.md`：测试机械门禁的唯一规则目录，列五类地雷、各语言落地工具与豁免机制；建档与 test-review 引用它。
 - 深层原则归 repo://skills/test-review/references/test-heuristics.md；hook 按自身真实位置推导绝对路径，目标不存在时省略该行。
 
 本 Skill 拥有建档流程与模板，以及 `scripts/install-hooks.cjs` 的 hook 注册与检查；不拥有项目阶段、生成后项目规范的后续维护或用户全局配置的其余内容。各 hook 入口只读，不写任何配置。

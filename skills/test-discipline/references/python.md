@@ -5,6 +5,7 @@
 - 读取 CI 测试步骤及 `pyproject.toml` 的 `[tool.pytest]` 配置，保留真实命令的执行目录、路径与参数。配置节只能证明配置，不能凭它编造 `pytest` 或 `python -m pytest` 命令；找不到真实命令时写 Unknown。
 - 命名采用 `test_*.py`。
 - 只有项目已安装 pytest 时才填写 `tmp_path`、`monkeypatch`。未安装时沿用项目已有隔离手段，没有证据写 Unknown，不新增依赖。
+- 机械门禁按 [测试地雷目录](test-landmines.md) 的语言表，项目已用 Ruff 时写 `TID251` 测试目录配置，私有替换规则需 ast-grep 时标“待安装”；写出豁免机制与 CI 步骤坐标，没有 linter 时写 Unknown。
 
 ---
 
@@ -16,3 +17,4 @@
 - pytest 配置来源：<repo://pyproject.toml + 实际配置节；无则 Unknown>
 - 命名约定：`test_*.py`
 - 隔离手段：<已安装 pytest 的 tmp_path、monkeypatch，或项目已有手段；无证据为 Unknown>
+- 机械门禁：<Ruff TID251 等地雷规则、豁免机制、CI 步骤坐标；待安装项标“待安装”；无 linter 为 Unknown>

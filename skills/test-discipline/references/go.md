@@ -5,6 +5,7 @@
 - 优先沿用 CI 的真实测试步骤，标明执行目录与来源。没有 CI 命令时写“针对被改包运行 `go test <包路径>`”，执行时将包路径替换为实际被改包；不自行扩展为全量 `./...`。
 - 命名采用 `*_test.go`。
 - 使用项目 Go 版本支持的标准库能力：`t.TempDir`、`t.Setenv`、`httptest`。只填已有工具链可用的能力，不安装第三方测试依赖；版本或能力无证据时写 Unknown。
+- 机械门禁按 [测试地雷目录](test-landmines.md) 的语言表，项目已用 golangci-lint 时写 `forbidigo` 规则与 `new-from-merge-base`；写出 CI 步骤坐标，没有时写 Unknown。
 
 ---
 
@@ -15,3 +16,4 @@
 - 命令来源：<repo://CI 文件 + 步骤行号；没有时注明“无 CI 测试命令，按被改包运行”，并列 repo://go.mod>
 - 命名约定：`*_test.go`
 - 隔离手段：<项目 Go 版本支持的 t.TempDir、t.Setenv、httptest；无证据项为 Unknown>
+- 机械门禁：<golangci-lint forbidigo 规则、新代码范围、CI 步骤坐标；无证据为 Unknown>

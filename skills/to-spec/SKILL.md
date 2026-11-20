@@ -24,7 +24,9 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 优先复用 Issue 中对该测试 Seam 仍适用的用户确认。缺少适用确认时先取得用户确认，再发布 Spec。编排调用时以 `NEXT: blocked-human <待确认的测试 Seam>` 交回调用方。
 
-5. Write the spec using the template below. 发布前逐项核对：每个 T 和 R 都有唯一 owner Module，也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 的唯一 owner 行（`Owns:` 开头）与 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
+5. 定形状：要新建或修改 Module 时，运行 `architect`，把选定形状的签名和状态归属写进 Implementation Decisions。完成条件：Business Flow 的每个状态都能用一行答出 owner Module。
+
+6. Write the spec using the template below. 发布前逐项核对：每个 T、R 和 Business Flow 状态都有唯一 owner Module，T 和 R 也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 与状态的唯一 owner 行（`Owns:` 开头）、T/R 的 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
 
 <spec-template>
 
@@ -89,7 +91,7 @@ A list of implementation decisions that were made. This can include:
 
 Use `codebase-design` terms. For each Module built or modified, state:
 
-- Which T and R it owns (omit when Business Flow is `N/A`). 一条 R 要靠多个 Module 共同守住时，在 owner 下写 `Participants:`，列出其余 Module；每个参与方在相关签名的 `Ensures:` 里回引 R 编号
+- Which T, R and Business Flow states it owns, on one `Owns:` line (omit when Business Flow is `N/A`). 状态用图里的 id。 一条 R 要靠多个 Module 共同守住时，在 owner 下写 `Participants:`，列出其余 Module；每个参与方在相关签名的 `Ensures:` 里回引 R 编号
 - Its Interface, written as code：用目标项目的语言写类型和函数签名，函数体留空。选错会破坏 T、R 或调用方的签名，在下面加 `Ensures:`，列返回承诺、错误模式和顺序约束；其余签名只留一行说明
 - Its Seam: reuse an existing one first; justify a new one by the Adapter rule in `codebase-design`
 - For a new Module, the result of the deletion test
@@ -110,6 +112,7 @@ A list of testing decisions that were made. Include:
 - Prior art for the tests (i.e. similar types of tests in the codebase)
 - How each T and R is checked through the Interface; each R's check must fail under a wrong implementation
 - For any R involving money, concurrency, duplicated side effects or irreversible steps: the project's `formal-verify-*` skill that checks it, or the need to generate one with `create-formal-verification-skill`
+- 项目有 `verify-*` 时，每个 T 写由哪条 journey 端到端检查
 
 ## Dependencies
 

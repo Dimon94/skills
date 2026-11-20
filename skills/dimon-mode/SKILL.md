@@ -15,7 +15,7 @@ disable-model-invocation: true
 - 任务的第一条消息：用自己的话说出用户的目标和要解决的问题；任务要交付改动时，再说出能满足目标的最小改动。不等确认。证据排除了用户要的改动时，摆出证据并停下。最终回复同样以目标开头，先判目标：按用户原话写“达成”“未达成”或“Unknown”，依据用户报告问题的那个界面；方案偏离了开场说的最小改动时，写明偏离和缺口。单行且已完全说明的改动除外。
 - 要问用户“选哪种方案、该怎么做”之前：先分类。答案能靠运行观察到（行为、输出、性能、布局），就自己跑，让结果决定。只把实验定不了的产品或偏好决定留给用户，问时给推荐和理由。
 - 写任何代码：先点名数据形状，按 `principle-model-the-domain` 选组织结构。
-- 非琐碎改动、架构决定、“确定吗”：用 `how`。只读调研要带引用的答案：用 `investigate`。问动机和历史：用 `why`。
+- 非琐碎改动、架构决定、“确定吗”：用 `how`。改动跨过函数边界：写代码前用 `architect` 定形状。只读调研要带引用的答案：用 `investigate`。问动机和历史：用 `why`。
 - 动手前：按 `principle-subtract-before-you-add` 先做减法；交付前按 `principle-minimize-reader-load` 做消融。要新增可复用的代码、规则或流程前：用 `do-not-repeat-yourself`。
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
@@ -112,6 +112,8 @@ disable-model-invocation: true
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
 | 按 Spec 或票实现 | `implement`（用户调用）；测试先行用 `tdd` |
 | 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
+| 写代码前定类型、签名和 Module 边界 | `architect` |
+| 检查状态流转规则、画状态图、把 bug 显示成状态路径 | `statechart`（用户调用） |
 | 对标或复刻参考产品 | 按 `playbooks/replicate-reference.md` |
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
@@ -139,6 +141,7 @@ disable-model-invocation: true
 验证按链路时间点接入：
 
 - `to-spec` 收尾：Spec 含并发、重试、状态机、幂等等承诺，且项目没有覆盖它的 `formal-verify-*`：建议在第一张票前运行 `/create-formal-verification-skill`，先对设计建模。
+- `to-spec` 收尾：Business Flow 有失败、重试或取消箭头：建议运行 `/statechart`，把图和 R 写成模型检查；报告里每条违规路径补成 Testing Decisions 的一条检查。
 - 第一个垂直切片端到端跑通，且项目没有 `verify-*`：建议运行 `/create-verification-skill`。应用跑不起来时不建议。
 - 每张票宣告完成前：改动命中项目 `verify-*` 或 `formal-verify-*` 的覆盖面，就按它验证并留证据。
 - 合并或重构改了已覆盖的代码却没重跑检查：建议运行对应的 `/maintain-verification-skill` 或 `/maintain-formal-verification-skill`。

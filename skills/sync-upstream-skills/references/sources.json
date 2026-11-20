@@ -253,6 +253,20 @@
           "treeSha256": "6d3f22c0677acf3a5dd6b0dd7b9d61a0fbf5e52e21e75e1970f7990fd86c9afa"
         }
       ]
+    },
+    {
+      "id": "cursor-pstack-statechart",
+      "repository": "https://github.com/cursor/plugins.git",
+      "ref": "main",
+      "commit": "fbb86c09bbb4a25e490aaed136899ced1e9140e4",
+      "license": "MIT (pstack, Lauren Tan)",
+      "skills": [
+        {
+          "name": "statechart",
+          "sourcePath": "pstack/skills/statechart",
+          "treeSha256": "449a47a353b821e62fa3c1196c9b427a3536cf2621b647a54bedc3d050b6399f"
+        }
+      ]
     }
   ]
 }

@@ -6,10 +6,11 @@
 | --- | --- | --- | --- | --- |
 | how | cursor/plugins | `pstack/skills/how` | `7314f723` | <https://github.com/cursor/plugins/blob/main/pstack/skills/how/SKILL.md> |
 | why | cursor/plugins | `pstack/skills/why` | `7314f723` | <https://github.com/cursor/plugins/blob/main/pstack/skills/why/SKILL.md> |
-| create-verification-skill | cursor/plugins | `pstack/skills/create-verification-skill` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md> |
-| maintain-verification-skill | cursor/plugins | `pstack/skills/maintain-verification-skill` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-verification-skill/SKILL.md> |
-| create-formal-verification-skill | cursor/plugins | `pstack/skills/create-formal-verification-skill` | `7b353f78` | <https://github.com/cursor/plugins/blob/main/pstack/skills/create-formal-verification-skill/SKILL.md> |
-| maintain-formal-verification-skill | cursor/plugins | `pstack/skills/maintain-formal-verification-skill` | `7b353f78` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-formal-verification-skill/SKILL.md> |
+| create-verification-skill | cursor/plugins | `pstack/skills/create-verification-skill` | `fbb86c09` | <https://github.com/cursor/plugins/blob/main/pstack/skills/create-verification-skill/SKILL.md> |
+| maintain-verification-skill | cursor/plugins | `pstack/skills/maintain-verification-skill` | `fbb86c09` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-verification-skill/SKILL.md> |
+| create-formal-verification-skill | cursor/plugins | `pstack/skills/create-formal-verification-skill` | `fbb86c09` | <https://github.com/cursor/plugins/blob/main/pstack/skills/create-formal-verification-skill/SKILL.md> |
+| maintain-formal-verification-skill | cursor/plugins | `pstack/skills/maintain-formal-verification-skill` | `fbb86c09` | <https://github.com/cursor/plugins/blob/main/pstack/skills/maintain-formal-verification-skill/SKILL.md> |
+| architect | cursor/plugins | `pstack/skills/architect` | `fbb86c09bbb4a25e490aaed136899ced1e9140e4` | <https://github.com/cursor/plugins/blob/fbb86c09bbb4a25e490aaed136899ced1e9140e4/pstack/skills/architect/SKILL.md> |
 | blast-radius | cursor/plugins | `pstack/skills/blast-radius` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/blast-radius/SKILL.md> |
 | investigate | cursor/plugins | `pstack/skills/poteto-mode/playbooks/investigation.md` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/investigation.md> |
 | no-comments | cursor/plugins | `pstack/skills/no-comments`、`pstack/agents/comment-sicko.md` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/no-comments/SKILL.md> |
@@ -50,8 +51,10 @@
 
 `to-epic` 借鉴目标负责制、深 Module 词汇、context pointer 写法，以及同 commit 的 `skills/engineering/to-spec`、`skills/engineering/to-tickets` 的产物与发布设计；本仓拥有 Epic → MMF 的切分、依赖和滚动细化合同。表中 commit 保留来源基线，当前行为按本仓维护，不参与快照更新。codebase-design、research、prototype、to-spec 与 to-tickets 按需从运行时定位，不复制内容；执行方独立选择。交付层级决定见 repo://docs/adr/0004-epic-spec-delivery-boundary.md。
 
-改写内容：how/why 仅把 Cursor 专属点位通用化（模型路由段、Task 子 agent 参数字段、`mcps/` 目录发现方式、cursor location 措辞），正文与 references 原文照抄。create-verification-skill 与 maintain-verification-skill 仅把生成/定位路径从 `.cursor/skills/` 改为 `.agents/skills/`（pi 原生发现项目级 `.agents/skills/`），其余原文照抄。create-formal-verification-skill 将生成位置定为 `.agents/skills/formal-verify-<area>/`，并补充 TLA+ 检查器选型与迁移规则。maintain-formal-verification-skill 原文照抄。blast-radius 把第 6 步的 `arena` 多模型并发改为建议用 `wayfinder` 画寻路图，并把收尾的 `unslop` 引用改为内联的去 AI 腔要求（本仓不引入该 skill）；去掉上游的 `disable-model-invocation: true`，description 改写为触发指针，因为 implement、gh-merge-pr 与 dimon-mode 要按需调用它；其余原文照抄。investigate 去掉 Cursor 专属点位（throughput checkpoint、unslop、architect、babysit），路由目标换成本仓已有的 how / why，其余语义照抄。
+改写内容：how/why 仅把 Cursor 专属点位通用化（模型路由段、Task 子 agent 参数字段、`mcps/` 目录发现方式、cursor location 措辞），正文与 references 原文照抄。create-verification-skill 与 maintain-verification-skill 仅把生成/定位路径从 `.cursor/skills/` 改为 `.agents/skills/`（pi 原生发现项目级 `.agents/skills/`），其余原文照抄。create-formal-verification-skill 将生成位置定为 `.agents/skills/formal-verify-<area>/`，并补充 TLA+ 检查器选型与迁移规则；指向 `/statechart` 时去掉 “pstack” 前缀，因为本仓以上游快照提供它。maintain-formal-verification-skill 原文照抄。blast-radius 把第 6 步的 `arena` 多模型并发改为建议用 `wayfinder` 画寻路图，并把收尾的 `unslop` 引用改为内联的去 AI 腔要求（本仓不引入该 skill）；去掉上游的 `disable-model-invocation: true`，description 改写为触发指针，因为 implement、gh-merge-pr 与 dimon-mode 要按需调用它；其余原文照抄。investigate 去掉 Cursor 专属点位（throughput checkpoint、unslop、architect、babysit），路由目标换成本仓已有的 how / why，其余语义照抄。
 
 `retro` 合并两个上游：mattpocock `retro` 的改进类别、检查优先、无防护即发现与“实现 / 审查”文件放置规则（`references/environment.md`）；pstack `reflect` 的会话定位、三视角清单、只路由到用过的 Skill、筛选标准与三段输出、批准后按路由应用（`references/lenses.md`、`synthesis.md`）。本仓改动：agent 可调用，供 implement、code-review 的 R3 出口使用；三视角默认由当前 agent 依次执行，用户要求时才派子代理，模型按调用方配置，不写默认模型；Backlog 经用户授权才登记；`writing-for-agents` 改为可用时才用，`create-skill` 不引入；不改插件缓存一条推广为不改运行时投影与上游快照；先用 postmortem recall，记录归 postmortem。
 
-`dimon-mode` 的 `playbooks/bug-fix.md` 保留上游的六步顺序与回复格式；去掉默认修复模型、子代理委派、`architect` 与 PR 步骤，改为指向本仓已有的 how、why、tdd、code-review 与 principle-fix-root-causes。
+`dimon-mode` 的 `playbooks/bug-fix.md` 保留上游的六步顺序与回复格式；去掉默认修复模型、子代理委派与 PR 步骤，改为指向本仓已有的 how、why、tdd、code-review 与 principle-fix-root-causes。
+
+`architect` 保留上游的追踪系统、两种形状与三条选择标准、绕行补丁重复即重画。本仓改动：模型可调用，供 to-spec、dimon-mode 与 bug-fix 调用；按三条标准选定后要写状态归属表，每个状态一行答出 owner，答不出即未选定；大型或有争议的设计改走 `principle-exhaust-the-design-space`，不引入 `arena`。取舍见 repo://docs/adr/0021-architect-statechart-design-chain.md。

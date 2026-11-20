@@ -1,6 +1,6 @@
 /**
  * check-spec 公开入口：给一份 Spec 文本，断言报出的规则集合。
- * 期望值来源：to-spec 模板的九个章节与 Dependencies 两行、第 5 步发布前核对项、模板“不写文件路径”。
+ * 期望值来源：to-spec 模板的九个章节与 Dependencies 两行、第 6 步发布前核对项（含每个状态唯一 owner）、模板“不写文件路径”。
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -30,8 +30,8 @@ ${extra}
 const FLOW = 'unpaid --> paid: T1 支付成功\npaid --> refunded: T2 退款完成\n- R1：只能退款一次';
 const rules = (text) => [...new Set(checkSpec(text).map(([rule]) => rule))].sort();
 
-test('合格 Spec：每个 T/R 恰有一条 Owns 行并进入 Testing Decisions', () => {
-  const text = spec({ flow: FLOW, decisions: '- Owns：T1–T2。\n- Owns: R1。Participants：T1 支付入口', testing: '- T1、T2、R1 经退款 Interface 检查' });
+test('合格 Spec：每个 T/R 与状态恰有一条 Owns 行，T/R 进入 Testing Decisions', () => {
+  const text = spec({ flow: FLOW, decisions: '- Owns：T1–T2，unpaid、paid、refunded。\n- Owns: R1。Participants：T1 支付入口', testing: '- T1、T2、R1 经退款 Interface 检查' });
   assert.deepEqual(checkSpec(text), []);
 });
 
@@ -57,6 +57,12 @@ test('T/R 无 owner、重复 owner、未进 Testing Decisions、引用未定义�
   assert.ok(errors.includes('owner R1'));
   assert.ok(errors.includes('testing T2'));
   assert.ok(errors.includes('undefined R9'));
+});
+
+test('Business Flow 的状态无 owner 或重复 owner 都失败；state 别名与 [*] 按状态 id 计', () => {
+  const flow = 'state "待支付" as unpaid\n[*] --> unpaid\nunpaid --> paid: T1 支付成功\npaid --> refunded: T2 退款完成\n- R1：只能退款一次';
+  const text = spec({ flow, decisions: '- Owns: T1–T2, R1, unpaid, paid\n- Owns: paid', testing: '- T1、T2、R1 检查' });
+  assert.deepEqual(checkSpec(text).map(([rule, m]) => `${rule} ${m.split(' ')[0]}`), ['state paid', 'state refunded']);
 });
 
 test('正文出现仓库文件路径失败，URL 不算', () => {

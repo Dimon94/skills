@@ -15,6 +15,7 @@
 - 每个新建或修改的 Module 的 Interface 用代码写：类型和函数签名，函数体留空，没有文件路径。
 - 守住“只能退款一次”的签名带 `Ensures:`；这条 R 跨 Module 时，owner 下有 `Participants:`，参与方的 `Ensures:` 回引 R 编号。
 - 没有给每个签名都写 `Ensures:`。
+- Implementation Decisions 有 `architect` 选定的形状；图中每个状态（待支付、已支付、退款中、已退款等）恰好出现在一条 `Owns:` 行。
 
 ## 关键失败路径：无状态的需求
 

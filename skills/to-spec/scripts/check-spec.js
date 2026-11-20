@@ -4,7 +4,7 @@
 //   COORD: skills/to-spec/scripts/check-spec.js
 //   INPUT: 一份 Spec 草稿（Markdown 文件路径；缺省读 stdin）
 //   OUTPUT: 每个问题一行 "error\t<规则>\t<说明>"，有问题退出 1；无问题打印 ok 退出 0
-//   POS: to-spec 第 5 步发布前的确定性核对；只读，不改文件、不访问 tracker
+//   POS: to-spec 第 6 步发布前的确定性核对；只读，不改文件、不访问 tracker
 //   EXPORT: checkSpec、splitSections、ids；to-tickets/scripts/check-tickets.js 复用后两者解析 Spec
 //   TEST: node --test skills/to-spec/tests/check-spec.test.js
 // L5
@@ -12,11 +12,13 @@
 //   PARAM: 阻塞边 = Dependencies 节以 Blocked by / Blocks 加冒号开头的行，值可为“无”
 //   PARAM: T/R 定义 = Business Flow 节出现的 T<n>/R<n>；该节写 N/A 时可为空
 //   PARAM: owner 行 = Implementation Decisions 里以 Owns/Owner/拥有 加冒号开头的行，
-//          取冒号后到 Participants/参与 之前的 T/R 编号；T1–T3 展开为区间
+//          取冒号后到 Participants/参与 之前的 T/R 编号与状态 id；T1–T3 展开为区间
+//   PARAM: 状态 id = Business Flow 里 `state "…" as <id>` 的 id 与 `a --> b` 两端，不含 [*]
 //   FAIL: 缺章节或顺序错 → sections
 //   FAIL: Dependencies 节缺 Blocked by: 或 Blocks: 行 → dependencies
 //   FAIL: Business Flow 既无 T/R 也无 N/A → business-flow
 //   FAIL: T/R 没有 owner 行或出现在多条 owner 行 → owner
+//   FAIL: 状态 id 没有 owner 行或出现在多条 owner 行 → state
 //   FAIL: T/R 未出现在 Testing Decisions → testing
 //   FAIL: 其他节引用了 Business Flow 未定义的 T/R → undefined
 //   FAIL: 正文含仓库文件路径（src/… 或带源码扩展名的相对路径）→ path
@@ -38,6 +40,9 @@ const EDGE_LINE = /^[\s>*-]*`?\**(Blocked by|Blocks)\**`?\s*[:：]/;
 const ID = /\b([TR])(\d+)\b/g;
 const RANGE = /\b([TR])(\d+)\s*[–-]\s*\1?(\d+)\b/g;
 const OWNER_LINE = /^[\s>*-]*\**(Owns|Owner|拥有)\**\s*[:：]\**(.*)$/;
+const STATE_ALIAS = /^\s*state\s+"[^"]*"\s+as\s+([^\s{]+)/;
+const ARROW = /^\s*([^\s:]+)\s*-->\s*([^\s:]+)/;
+const TOKEN = /[\s,，、;；:：。`*]+/;
 const PATH = /(?:^|[\s(`'"])((?:src|app|lib|scripts|packages|apps)\/[\w./-]+|(?:[\w.-]+\/)+[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|sql|swift|kt|vue|css))\b/gm;
 
 // ---- 切分 ---------------------------------------------------------------
@@ -80,13 +85,25 @@ function checkDependencies(sections) {
     .map((label) => ["dependencies", `Dependencies 缺少 ${label}: 行；没有边写“无”和依据`]);
 }
 
+function states(flow) {
+  const found = new Set();
+  for (const line of flow.split("\n")) {
+    const names = [STATE_ALIAS.exec(line)?.[1], ...(ARROW.exec(line)?.slice(1) || [])];
+    for (const name of names) if (name && name !== "[*]") found.add(name);
+  }
+  return found;
+}
+
+// 每个 T/R 编号和每个状态 token（键加 state: 前缀）出现在几条 owner 行
 function ownerCounts(decisions) {
   const counts = new Map();
+  const bump = (key) => counts.set(key, (counts.get(key) || 0) + 1);
   for (const line of decisions.split("\n")) {
     const match = OWNER_LINE.exec(line);
     if (!match) continue;
     const owned = match[2].split(/Participants|参与/)[0];
-    for (const id of ids(owned)) counts.set(id, (counts.get(id) || 0) + 1);
+    for (const id of ids(owned)) bump(id);
+    for (const token of new Set(owned.split(TOKEN).filter(Boolean))) bump(`state:${token}`);
   }
   return counts;
 }
@@ -105,6 +122,10 @@ function checkTraceability(sections) {
     const count = owners.get(id) || 0;
     if (count !== 1) errors.push(["owner", `${id} 应恰好出现在一条 Owns: 行，实际 ${count} 条`]);
     if (!testing.has(id)) errors.push(["testing", `${id} 未出现在 Testing Decisions`]);
+  }
+  for (const state of states(flow)) {
+    const count = owners.get(`state:${state}`) || 0;
+    if (count !== 1) errors.push(["state", `${state} 应恰好出现在一条 Owns: 行，实际 ${count} 条`]);
   }
   for (const id of used)
     if (!defined.has(id)) errors.push(["undefined", `${id} 未在 Business Flow 定义`]);

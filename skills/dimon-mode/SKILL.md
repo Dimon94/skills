@@ -110,6 +110,7 @@ disable-model-invocation: true
 | 逐票预测 | `ticket-sizing` |
 | 把 Spec 切成 ticket 并发到 tracker | `to-tickets`（用户调用） |
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
+| 排下周 Cycle、同步本周工作集合 | `delivery-cycle` |
 | 按 Spec 或票实现 | `implement` 按 `bdd` 实施；按票委派用 `delegate-ticket` |
 | 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
 | 写代码前定类型、签名和 Module 边界 | `architect` |
@@ -118,11 +119,13 @@ disable-model-invocation: true
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
 | 建树、看在做清单、回收工作树 | `git-worktree` |
+| 解决进行中的 merge 或 rebase 冲突 | `resolving-merge-conflicts` |
 | 写或改 Skill | 按 `playbooks/authoring-a-skill.md` |
 | 创建或迭代个人工作方式 Skill | `automate-me`（用户调用） |
 | 定义或改领域术语、写或改 ADR | `mattpocock-skills:domain-modeling`；执行前先读项目 `GLOSSARY.md` 的使用规则与词汇索引，再按任务读相关词条 |
-| 调研 | `investigate`、`how`、`why` |
-| 审查 | `code-review`；测试专项用 `test-review` |
+| 调研 | `investigate`、`how`、`why`；选型要业界做法用 `best-practice-scout`；要图示讲清用 `show-me`（用户调用） |
+| 审查 | `code-review`；测试专项用 `test-review`；严苛可维护性审查用 `thermo-nuclear-code-quality-review`（用户调用） |
+| 为项目建立测试规范或装测试门禁 | `test-discipline` |
 | 项目没有驱动真实应用、留证据的脚本化验证 | `create-verification-skill`（用户调用） |
 | 应用改过，项目 `verify-*` 的 feature map 可能过期 | `maintain-verification-skill`（用户调用） |
 | 并发、重试、状态机、解析器等承诺，测试够不着出错的情况 | `create-formal-verification-skill`（用户调用） |

@@ -20,15 +20,15 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 3. 判定 Business Flow。行为的状态跨越步骤或时间留存，或者包含失败重试、审批、取消、不可逆副作用时，按模板画状态图；其余情况在该节写 `N/A` 和一句理由。完成条件：该节是一张图加规则，或一条 `N/A` 理由。
 
-4. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
+4. 按 [bdd](../bdd/SKILL.md) 把业务决定写成有独立来源的 Given / When / Then 场景。覆盖每条 T/R，也覆盖已决定的失败、重试和跨步骤不变量。同一场景可同时覆盖转移与规则。在能观察全部结果的公开 Seam 上选检查，写出复用、补强或待裁决的理由。
 
 优先复用 Issue 中对该测试 Seam 仍适用的用户确认。缺少适用确认时先取得用户确认，再发布 Spec。编排调用时以 `NEXT: blocked-human <待确认的测试 Seam>` 交回调用方。
 
 5. 定形状：要新建或修改 Module 时，运行 `architect`，把选定形状的签名和状态归属写进 Implementation Decisions。完成条件：Business Flow 的每个状态都能用一行答出 owner Module。
 
-6. Write the spec using the template below. 发布前逐项核对：每个 T、R 和 Business Flow 状态都有唯一 owner Module，T 和 R 也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 与状态的唯一 owner 行（`Owns:` 开头）、T/R 的 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
+6. Write the spec using the template below. 发布前逐项核对：每个 T、R 和 Business Flow 状态都有唯一 owner Module，T 和 R 也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js --require-scenarios`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 与状态的唯一 owner 行（`Owns:` 开头）、场景表列、唯一 id、covers 对每条 T/R 的覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
 
-场景需传给 ticket 时，按[交接合同](../to-tickets/references/delivery-contract.md)定位 Testing Decisions 的场景表与独立预期来源。
+审阅历史 Spec 时，沿用 `node scripts/check-spec.js` 读取；准备新票前，把缺少的场景或独立预期交回需求作者。
 
 <spec-template>
 
@@ -69,7 +69,7 @@ stateDiagram-v2
 
 ## User Stories
 
-A LONG, numbered list of user stories. Each user story should be in the format of:
+只列能解释本 MMF 用户动机的故事。每条编号，供 ticket 引用。
 
 1. As an <actor>, I want a <feature>, so that <benefit>
 
@@ -77,7 +77,7 @@ A LONG, numbered list of user stories. Each user story should be in the format o
 1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
 </user-story-example>
 
-This list of user stories should be extremely extensive and cover all aspects of the feature.
+转移、重试和不变量留在 Business Flow，具体例子放入 Testing Decisions。
 
 ## Implementation Decisions
 
@@ -107,12 +107,9 @@ If a prototype produced a snippet that encodes a decision more precisely than a 
 
 ## Testing Decisions
 
-A list of testing decisions that were made. Include:
+按[场景表与停止回合实例](../to-tickets/references/delivery-contract.md)写出每个场景。沿用列 `id | covers | given | when | then | source | seam`。用 S1、S2 等稳定标识；`covers` 写 Business Flow 的 T/R，Business Flow 为 `N/A` 时可写 `N/A`。`then` 写清全部可观察结果及相关 Interface 的 Ensures。`source` 定位独立预期，`seam` 点名公开操作与读回入口。
 
-- A description of what makes a good test (only test external behavior, not implementation details)
-- Which modules will be tested
-- Prior art for the tests (i.e. similar types of tests in the codebase)
-- How each T and R is checked through the Interface; each R's check must fail under a wrong implementation
+在表后写场景对应的检查和选择理由。逐项核对它能看见每个结果、拒绝违反不变量的实现。
 - For any R involving money, concurrency, duplicated side effects or irreversible steps: the project's `formal-verify-*` skill that checks it, or the need to generate one with `create-formal-verification-skill`
 - 项目有 `verify-*` 时，每个 T 写由哪条 journey 端到端检查
 

@@ -2,6 +2,19 @@
 
 给独立会话 SKILL.md 路径与下列输入，不给预期答案；按检查项判定实际输出。没有 tracker 与发布授权，输出应是未发布的切片表。确定性部分另有 `node --test skills/to-tickets/tests/check-tickets.test.js`，其中 DD-455 回放夹具记录了旧切法（7 波）与合同先行（6 波、同波重叠 8→1）的对照。
 
+## 同一票号的两份停止回合票
+
+读 [S1](stop-turn/spec.md)，分别对[完整票](stop-turn/ticket.md)和[错票](stop-turn/ticket-missing-result.md)运行 `check-tickets.js --require-scenarios`。两份正文的编号、归属、接口位置与波次相同。逐项对账，记录票号、原结果、票面可验收的结果、结论。
+
+| 读回正文 | S1 要求回合已停止 | S1 要求仍能读到原「第一段」 | 发布裁决 |
+| --- | --- | --- | --- |
+| TURN-1 完整票 | “回合显示已停止”可验 | “详情仍可读到「第一段」”可验 | 通过 |
+| TURN-1 错票 | “回合显示已停止”可验 | 「第一段」只出现在前提；清空结果仍满足验收句 | 退回 TURN-1，补上结果读回 |
+
+把完整票中的 `Scenarios: S1` 改成 `S9`，脚本须定位 TURN-1 的未知场景。再复制一份完整票、改为 TURN-2，须因双重 Owns 失败。把 TURN-1 的 R1 只放入 Respects，须因无人 Owns 失败。结构票或合同票可声明 `Scenarios: N/A（冻结签名）`，原归属和依赖规则照常生效。
+
+读[历史 Spec](../tests/fixtures/dd455-spec.md)和[旧票](../tests/fixtures/dd455-old.md)时使用默认读回入口。应保留原票号与 7 波依赖图，继续报告已有的归属和故事覆盖问题。已认领票按原合同续接；新委派遇到缺项，通过原票号交回决定者。
+
 ## 共用输入：领券抵扣 MMF 的 Spec
 
 电商项目新增优惠券，`to-epic` 已把它切成多个 MMF。本 Spec 是第一个 MMF「领券抵扣」。Business Flow：T1 运营创建满减券（面额、门槛、有效期、总量）；T2 用户在商品详情页领券；T3 下单时自动选中最优券并扣减。R1 每人限领一张；R2 领完总量即止。User Stories 1–3 对应 T1–T3。Implementation Decisions：`CouponStore` Owns T1、T2、R1、R2；`OrderPricing` Owns T3，Interface 为 `price(cart, coupons) -> Quote`（由 `price(cart) -> Quote` 改动）。

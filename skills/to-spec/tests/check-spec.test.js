@@ -6,6 +6,27 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { checkSpec } = require('../scripts/check-spec.js');
 
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
+const STOP = readFileSync(join(__dirname, '../../to-tickets/references/stop-turn/spec.md'), 'utf8');
+const scene = STOP.split('\n').find(line => line.startsWith('| S1 |'));
+
+test('停止回合的场景定义有独立来源、唯一标识，covers 对应每条业务 T/R', () => {
+  assert.deepEqual(checkSpec(STOP), []);
+  const cases = [
+    [scene.replace(/\| MMF A [^|]+\|/, '|  |'), /source/],
+    [`${scene}\n${scene}`, /S1/],
+    [scene.replace('T1, R1', 'T1, R9'), /R9/],
+    [scene.replace('T1, R1', 'T1') + '\n\n备注仍提到 R1。', /R1/],
+    [scene.replace('T1, R1', 'T1, R1, apple'), /covers/],
+    ['', /场景/],
+  ];
+  for (const [replacement, message] of cases) {
+    const result = checkSpec(STOP.replace(scene, replacement));
+    assert.ok(result.some(([rule, detail]) => rule === 'scenario' && message.test(detail)), JSON.stringify(result));
+  }
+});
+
 const DEPS = '- Blocked by: 无，独立 MMF\n- Blocks: 无';
 const spec = ({ flow, decisions, testing, deps = DEPS, extra = '' }) => `## Problem Statement
 用户看不到退款结果。
@@ -33,6 +54,12 @@ const rules = (text) => [...new Set(checkSpec(text).map(([rule]) => rule))].sort
 test('合格 Spec：每个 T/R 与状态恰有一条 Owns 行，T/R 进入 Testing Decisions', () => {
   const text = spec({ flow: FLOW, decisions: '- Owns：T1–T2，unpaid、paid、refunded。\n- Owns: R1。Participants：T1 支付入口', testing: '- T1、T2、R1 经退款 Interface 检查' });
   assert.deepEqual(checkSpec(text), []);
+});
+
+test('历史输入可读回；同一正文作为新草稿时须补齐场景', () => {
+  const legacy = spec({flow: 'N/A：纯查询', decisions: '复用查询', testing: '结果可见'});
+  assert.deepEqual(checkSpec(legacy), []);
+  assert.ok(checkSpec(legacy, true).some(([rule]) => rule === 'scenario'));
 });
 
 test('Business Flow 写 N/A 时不要求 T/R', () => {

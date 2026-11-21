@@ -82,6 +82,37 @@ test("同一波两张行为票声明同一 Module 报 overlap 警告，不报错
   assert.deepEqual(overlap.map(([level]) => level), ["warn"]);
 });
 
+// ---- 从同一份 Spec 读回已发布格式的票 -----------------------------------
+const stopTurn = name => fs.readFileSync(path.join(__dirname, '../references/stop-turn', name), 'utf8');
+
+test('停止回合票保留场景引用、验收入口和唯一归属；共同形状与结构可以没有行为场景', () => {
+  const spec = stopTurn('spec.md');
+  const complete = stopTurn('ticket.md');
+  assert.deepEqual(rules(complete, spec), []);
+  const cases = [
+    [complete.replace('Scenarios: S1', 'Scenarios: S9'), /S9/],
+    [complete.replace('Scenarios: S1', 'Scenarios: N/A（无场景）'), /Scenarios|场景/],
+    [complete.replace('S1（T1, R1）', 'S1（T1）'), /R1/],
+    [complete + '\n- [ ] S9（T1）：检查不存在的场景。', /S9/],
+    [complete.replace('- Interface:', '- 备注:'), /Interface/],
+    [complete.replace('- Ensures:', '- 备注:'), /Ensures/],
+  ];
+  for (const [draft, reason] of cases) {
+    const lines = checkTickets(spec, draft);
+    assert.ok(lines.some(([level, , message]) => level === 'error' && message.includes('TURN-1') && reason.test(message)), JSON.stringify(lines));
+  }
+  for (const kind of ['contract', 'structure']) {
+    const extra = ticket('C', {Kind: kind, Owns: '无', 'Blocked by': 'None'}) + '### What to build\n- Scenarios: N/A（仅冻结回合签名）\n';
+    assert.deepEqual(rules(complete + '\n' + extra, spec), []);
+  }
+  const legacy = complete.replace('- Scenarios: S1\n', '');
+  assert.deepEqual(rules(legacy, spec), []);
+  assert.equal(info(legacy, 'waves', spec), '1:TURN-1');
+  assert.ok(checkTickets(spec, legacy, true).some(([level, , detail]) => level === 'error' && detail.includes('Scenarios')));
+  const duplicate = complete.replace('TURN-1:', 'TURN-2:');
+  assert.ok(rules(complete + '\n' + duplicate, spec).includes('owner'));
+});
+
 // ---- DD-455 回放：旧切法 vs 合同先行 --------------------------------------
 const fixture = (name) => fs.readFileSync(path.join(__dirname, "fixtures", name), "utf8");
 

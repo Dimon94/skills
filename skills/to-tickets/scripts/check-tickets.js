@@ -5,7 +5,7 @@
 //   INPUT: argv[2] = Spec（Markdown），argv[3] = 票草稿（Markdown，每票一个 "## <id>: <标题>" 块）
 //   OUTPUT: 每行 "<error|warn|info>\t<规则>\t<说明>"；有 error 退出 1，否则退出 0
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
-//   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids
+//   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids、readScenarios
 //   EXPORT: checkTickets(specText, ticketText) -> [level, rule, message][]
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
@@ -16,6 +16,8 @@
 //   PARAM: Spec 侧 T/R 取自 Business Flow，User Story 编号取自 User Stories 的有序列表
 //   FAIL: Spec 的 T/R 不恰好出现在一张票的 Owns → owner
 //   FAIL: Owns/Respects 引用 Spec 未定义的 T/R → undefined
+//   FAIL: 场景表、What to build 的场景或接口字段、验收小节的场景与 T/R 覆盖有缺口 → scenario
+//   PARAM: 没有场景表与场景字段的历史输入沿原规则读回；新草稿用 --require-scenarios
 //   FAIL: Spec 的 User Story 没有任何票的 Stories 指向 → stories
 //   FAIL: Kind 不在取值范围 → kind；同一字段行出现多次 → field
 //   FAIL: behavior 票 Owns 为空 → empty
@@ -27,7 +29,7 @@
 //   INFO: waves（每波的票）、critical-path（最长依赖链）
 // ==========================================================================
 const fs = require("node:fs");
-const { splitSections, ids } = require("../../to-spec/scripts/check-spec.js");
+const { splitSections, ids, readScenarios } = require("../../to-spec/scripts/check-spec.js");
 
 const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\**\s*(.*)$/;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
@@ -68,10 +70,10 @@ function parseTickets(text) {
   return tickets;
 }
 
-function specItems(text) {
+function specItems(text, required) {
   const sections = splitSections(text);
   const stories = [...(sections.get("User Stories") || "").matchAll(/^\s*(\d+)\./gm)].map((m) => Number(m[1]));
-  return { flow: ids(sections.get("Business Flow") || ""), stories };
+  return { flow: ids(sections.get("Business Flow") || ""), stories, ...readScenarios(sections, required) };
 }
 
 // ---- 覆盖 ---------------------------------------------------------------
@@ -86,6 +88,68 @@ function checkCoverage(spec, tickets) {
       if (!spec.flow.has(id)) errors.push(["error", "undefined", `${t.id} 引用了 Spec 未定义的 ${id}`]);
   const told = new Set(tickets.flatMap((t) => t.stories));
   for (const n of spec.stories) if (!told.has(n)) errors.push(["error", "stories", `User Story ${n} 没有票指向`]);
+  return errors;
+}
+
+// ---- 实施合同 -----------------------------------------------------------
+function scenarioFields(build, issue) {
+  const fields = new Map();
+  for (const line of build.split('\n')) {
+    const field = /^[\s>*-]*\**(Scenarios|Interface|Ensures)\**\s*[:：]\**\s*(.*)$/.exec(line);
+    if (!field) continue;
+    if (fields.has(field[1])) issue(`${field[1]} 重复`);
+    fields.set(field[1], field[2].trim());
+  }
+  return fields;
+}
+
+function checkScenarioTicket(ticket, spec, required, referenced) {
+  const errors = [];
+  const issue = message => errors.push(['error', 'scenario', `${ticket.id}：${message}`]);
+  const sections = splitSections(ticket.body, '### ');
+  const fields = scenarioFields(sections.get('What to build') || '', issue);
+  if (!required && !fields.has('Scenarios')) return errors;
+  const declaration = fields.get('Scenarios') || '';
+  if (ticket.kind !== 'behavior' && /^N\/A\s*(?:（[^）]+）|\([^)]+\))$/.test(declaration)) return errors;
+  if (!declaration) issue('What to build 缺 Scenarios');
+  const references = new Set(declaration.split(/[,，、\s]+/).filter(Boolean));
+  for (const id of references) {
+    if (!spec.scenarios.has(id)) issue(`Scenarios 引用了未定义的场景 ${id}`);
+    referenced.add(id);
+  }
+  if (ticket.kind !== 'behavior') return errors;
+  for (const name of ['Interface', 'Ensures']) if (!fields.get(name)) issue(`What to build 缺 ${name}`);
+  checkAcceptance(ticket, sections.get('Acceptance criteria') || '', spec.scenarios, references, issue);
+  return errors;
+}
+
+function checkAcceptance(ticket, acceptance, scenarios, references, issue) {
+  const criteria = acceptance.split(/^\s*[-*]\s+\[[ xX]\]\s*/m).slice(1);
+  for (const item of criteria) {
+    const cited = item.match(/^([^\s（(：:]+)\s*[（(]/)?.[1];
+    if (cited && !references.has(cited)) issue(`验收项引用了 Scenarios 中没有的 ${cited}`);
+  }
+  for (const [id, covers] of scenarios) {
+    const owns = [...covers].filter(ref => ticket.owns.has(ref));
+    if (!references.has(id)) {
+      if (owns.length) issue(`本票负责 ${owns.join(', ')}，缺少场景 ${id}`);
+      continue;
+    }
+    const matches = criteria.filter(item => item.split(/[\s（()），,、：:。;；`]+/).includes(id));
+    if (!matches.length) issue(`验收项缺少场景 ${id}`);
+    const tested = ids(matches.join('\n'));
+    for (const ref of owns) if (!tested.has(ref)) issue(`场景 ${id} 的验收项缺少 ${ref}`);
+  }
+}
+
+// L4：对照 Spec 场景、票级 Owns 与验收项检查引用。自然语言结果由发布前对账裁决。
+function checkScenarioContracts(spec, tickets, required) {
+  const referenced = new Set();
+  const errors = spec.errors.map(([rule, message]) => ['error', rule, message]);
+  for (const t of tickets) errors.push(...checkScenarioTicket(t, spec, required, referenced));
+  for (const id of spec.scenarios.keys()) {
+    if (required && !referenced.has(id)) errors.push(['error', 'scenario', `场景 ${id} 没有票引用`]);
+  }
   return errors;
 }
 
@@ -184,21 +248,23 @@ function overlaps(tickets, waves) {
 }
 
 // ---- 入口 ---------------------------------------------------------------
-function checkTickets(specText, ticketText) {
-  const spec = specItems(specText);
+function checkTickets(specText, ticketText, requireScenarios = false) {
+  const spec = specItems(specText, requireScenarios);
   const tickets = parseTickets(ticketText);
   if (tickets.length === 0) return [["error", "edges", "票草稿里没有 \"## <id>: <标题>\" 块"]];
-  const errors = [...checkCoverage(spec, tickets), ...checkFields(tickets), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
+  const errors = [...checkCoverage(spec, tickets), ...checkScenarioContracts(spec, tickets, requireScenarios), ...checkFields(tickets), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
   return [...errors, ...report(tickets)];
 }
 
 if (require.main === module) {
-  const [specPath, ticketPath] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const required = args[0] === '--require-scenarios';
+  const [specPath, ticketPath] = required ? args.slice(1) : args;
   if (!specPath || !ticketPath) {
-    console.error("usage: check-tickets.js <spec.md> <tickets.md>");
+    console.error("usage: check-tickets.js [--require-scenarios] <spec.md> <tickets.md>");
     process.exit(2);
   }
-  const lines = checkTickets(fs.readFileSync(specPath, "utf8"), fs.readFileSync(ticketPath, "utf8"));
+  const lines = checkTickets(fs.readFileSync(specPath, "utf8"), fs.readFileSync(ticketPath, "utf8"), required);
   for (const line of lines) console.log(line.join("\t"));
   process.exitCode = lines.some(([level]) => level === "error") ? 1 : 0;
 }

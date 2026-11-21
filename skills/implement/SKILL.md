@@ -10,6 +10,8 @@ disable-model-invocation: true
 
 上下文按任务需要用：读够、想够再动手。上下文吃紧时，选一条路接着推进：大块读取和长输出交给子代理，主线只收摘要（按运行时目录完整读取 `principle-guard-the-context-window/SKILL.md`）；或在任务分支上提交一个 `wip:`，恢复说明写进提交正文，由下一段会话接手（按 `git-worktree` 第 3、4 节，本 Skill 授权这次提交）。
 
+需要读取派发合同、局部证据或 MMF 验收回执时，查[交接合同](../to-tickets/references/delivery-contract.md)的 `Brief`、`SliceEvidence` 与 `MmfVerdict`。
+
 ## 1. 读入验收
 
 开始时记下当前提交的 SHA，作为第 5 步审查的 fixed point。

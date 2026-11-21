@@ -28,6 +28,8 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 6. Write the spec using the template below. 发布前逐项核对：每个 T、R 和 Business Flow 状态都有唯一 owner Module，T 和 R 也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 与状态的唯一 owner 行（`Owns:` 开头）、T/R 的 Testing Decisions 覆盖、未定义编号和正文文件路径；输出 `ok` 才发布，报错逐条改完再跑。正文直接发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`。读回正文、身份字段与已知 Map 链接。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 与关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
 
+场景需传给 ticket 时，按[交接合同](../to-tickets/references/delivery-contract.md)定位 Testing Decisions 的场景表与独立预期来源。
+
 <spec-template>
 
 ## Problem Statement

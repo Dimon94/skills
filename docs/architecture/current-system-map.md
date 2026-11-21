@@ -16,6 +16,19 @@ Status: current
 - 外部系统：GitHub（Dimon94/skills 的代码与 PR，以及 repo://skills/sync-upstream-skills/references/sources.json 声明的上游来源）；Linear（本仓 Issue、Epic、Spec 与 ticket 的唯一 tracker，坐标见 repo://docs/agents/issue-tracker.md；另提供 Issue 归档与回读）。
 - CI：GitHub Actions 当前未配置，状态为 absent。
 
+## 场景与 ticket 的交接
+
+[共同合同与停止回合样例](../../skills/to-tickets/references/delivery-contract.md)冻结 A02 与 A03 的读写边界。`to-spec` 拥有场景的独立预期，`to-tickets` 拥有票级 T/R 分配。`prepare` 和 `implement` 的 Node 合同桩可以调用，尚未接通行为。原有规划检查器保留各自的 Markdown 输入与诊断格式。
+
+| 合同层 | 归属与后续接线 | 验证入口 |
+| --- | --- | --- |
+| L2 规划（A02） | `bdd` 提供场景与证据选择，`to-spec` 和 `to-tickets` 写出 Spec 与实施合同。 | 两个规划检查器、各自的 `references/verification.md` 和共同合同的错票。 |
+| L2 执行（A03） | `delegate-ticket` 准备派发合同，`implement` 回交片级证据或 MMF 验收结果，`code-review` 审集成提交。`implement`、`dimon-mode` 与其 `playbooks/bug-fix.md` 从 `tdd` 迁至 `bdd`。 | `stop-turn/briefs.cjs` 中的两片漏项和 `example/check.cjs` 的整票读回。 |
+| L3–L5 | `skills/delegate-ticket/scripts/prepare.js` 与 `skills/implement/scripts/implement.js` 冻结调用点。字段及错误见共同合同。 | 以同一 `TURN-1`、`S1` 调用各桩，未实现时显式失败。 |
+| L6（A03） | 补基线和先例 → 按票收齐各片 → 集成提交对账。缺项交回原 owner。 | 准备单片、多片；在集成提交重跑原场景。 |
+
+A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.claude/skills/{bdd,delegate-ticket}`，经 `scripts/link-skills.sh` 与完整开发工作流安装入口生成。入口、调用者和安装验证一并迁移后退役 `tdd`。改编来源与 ADR 0006 保留历史出处。
+
 当前模块清单：
 
 | Module | Owns | Does not own | Public interface | Depends on | Verification |

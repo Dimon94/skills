@@ -70,6 +70,6 @@ rg -n -e tdd -e implement -e code-review "$(dirname "$(readlink -f ~/.agents/ski
 
 ## 5. 审查、合回 main、回收
 
-所有票都合入集成分支后，对集成分支跑 `code-review`。修完问题后，按 [skills/git-rebase-main/SKILL.md](../skills/git-rebase-main/SKILL.md) 把它合回 main。之后在主目录运行 `worktree.sh gc --apply`，回收工作树。push 和 PR 需要另外取得授权，流程见 `git-push-pr`。
+所有票都合入集成分支后，对集成分支跑一轮 `code-review`。P0/P1 的反例变绿、完整测试通过后即关闭，不复审。按 [skills/git-rebase-main/SKILL.md](../skills/git-rebase-main/SKILL.md) 把它合回 main。之后在主目录运行 `worktree.sh gc --apply`，回收工作树。push 和 PR 需要另外取得授权，流程见 `git-push-pr`。
 
 完成条件：main 上只多出已经验证过的提交；`worktree.sh gc` 报告没有可回收的树。

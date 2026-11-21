@@ -27,9 +27,9 @@ Fetch base 与 PR head，在隔离 checkout 中记录固定的三点 diff 命令
 
 ## Review 轮次
 
-本 PR 的 Review 最多 3 轮，定义归 `code-review`；一轮包含主审和命中的专项。调用方已有相同 base 与 head 的 Review 结果时直接引用，不重跑。
+本 PR 只审一轮，定义归 `code-review`；一轮包含主审和命中的专项。调用方已有覆盖本 PR 的 MMF Review 结果时直接引用，不重跑。
 
-head 变化时，修复提交按 `code-review` 的复审范围占下一轮。干净的 merge 不占轮：Packet 重建后沿用结论。改变语义的冲突解决占一轮；预算用尽时靠测试验证，并在报告里注明。R3 后仍有 blocker 时返回 `REVIEW_EXHAUSTED` 和未解决项，不进入落地。
+修复提交不开复审：每条 P0/P1 的反例变绿、必需检查重新通过后，该 finding 关闭，报告里列出反例命令与结果。干净的 merge 与冲突解决同样靠测试验证。反例修不绿时返回 `BLOCKED` 和未解决项，不进入落地。
 
 ## 2. 固定主 Review
 
@@ -45,7 +45,7 @@ Standards 来源必须覆盖仓库的 Coding 与 Architecture 规则。Spec 缺�
 
 ## 3. 按证据启动专项 Review
 
-只在第 1 轮运行专项。只根据用户请求、Spec、changed paths 和主 Review finding 选择专项。
+只根据用户请求、Spec、changed paths 和主 Review finding 选择专项。
 每个命中的 Skill 绑定同一 Review Packet；除标“用户调用”的以外，各用一个独立只读 SubAgent：
 
 | Skill | 触发证据 |
@@ -79,11 +79,11 @@ PR 若来自 `productionize-app-with-services`，把它的计划、Quality Bar�
 Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解决讨论必须分别读取。
 以下条件全部成立才得到 `REVIEWED`：
 
-- 主 Review 完成且无未解决 blocker；
+- 主 Review 完成，每条 blocker 的反例已变绿；
 - 每个所选专项完成且无未解决 blocker；
 - 必需检查终态成功，讨论已解决，PR 可合并；
-- PR head 仍等于 Review Packet 的 head SHA。
-- P2 已在 tracker 查重登记，或已列为待登记项报告给用户；P2、P3 不触发下一轮。
+- PR head 仍等于 Review Packet 的 head SHA，或之后的提交只含反例已变绿的修复与干净 merge。
+- P2 已在 tracker 查重登记，或已列为待登记项报告给用户；P2、P3 不阻断。
 
 任一状态 pending、unknown、failed 或不一致都返回 `BLOCKED` 和恢复动作。Review 阶段不
 修改产品文件，不 stage、commit、push、approve、merge 或变更 issue。

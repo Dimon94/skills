@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
+description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs the reviews in parallel sub-agents, one review per MMF, and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -8,7 +8,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 - **Standards**: does the code conform to this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue / spec?
 
-Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings. Start every sub-agent with a fresh context window.
+Each axis that runs gets its own **parallel sub-agent** so they don't pollute each other's context, then this skill aggregates their findings. Start every sub-agent with a fresh context window. Standards runs only when step 4 says so.
 
 The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
 
@@ -39,9 +39,13 @@ Search the repo for every file that documents how code should be written. When `
 
 A finding needs a concrete trigger and an observable impact. Taste, naming, YAGNI and speculative refactors are out of scope.
 
-### 4. Spawn both sub-agents in parallel
+审查前先跑项目的 canonical CI 或检查命令（调用方已跑且 HEAD 未变时引用其结果）。失败项直接交调用方修，不派审查者。
 
-Issue both sub-agent calls together, in the foreground, and aggregate the reports they return.
+### 4. Spawn the sub-agents in parallel
+
+Spec 轴每次都跑。Standards 轴只在 diff 触及权限、数据外泄、持久 schema 或外部合同，且这些改动没有检查或形式验证覆盖时才跑；不跑时在报告里写 `Standards: skipped` 和理由。
+
+Issue the sub-agent calls together, in the foreground, and aggregate the reports they return.
 
 **Standards sub-agent prompt** should include:
 
@@ -57,7 +61,7 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
-两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景、可观察影响与能走通的具体反例；证据不足写 Unknown，不算 finding。P0/P1 先在 fixed point 上核对同一问题是否已存在，按「严重度」节的基线规则定级。
+两份 brief 都追加一句：每条 finding 按「严重度」节标 P0–P3，并写出触发场景与可观察影响。P0/P1 必须附可跑反例，三选一：在当前代码上失败的测试或命令；spec 原文引用加具体输入与实际输出；密钥或数据外泄的 file:line。给不出反例的降为 P2 或写 Unknown。P0/P1 先在 fixed point 上核对同一问题是否已存在，按「严重度」节的基线规则定级。
 
 Spec brief 再追加一句：spec 某行的措辞容许两种可观察行为不同的实现时，不判实现对错；引该行、写出两种读法，列为 Spec 缺口。
 
@@ -67,7 +71,7 @@ Present the two reports under `## Standards` and `## Spec` headings, verbatim or
 
 End with a one-line summary: per axis, the verdict, the finding count by severity, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
 
-每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口和 Spec 缺口写进报告，不改变 verdict；Spec 缺口交调用方收紧 spec 措辞。审查中断、超时或缺少 verdict 时为未完成，不计轮次，不以实现者自评或测试通过代替。
+每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口和 Spec 缺口写进报告，不改变 verdict；Spec 缺口交调用方收紧 spec 措辞。审查中断、超时或缺少 verdict 时为未完成，重跑同一轮，不以实现者自评或测试通过代替。
 
 ## 严重度
 
@@ -84,14 +88,11 @@ fixed point 上已存在的问题不由本次承担：记为 P2，标「基线�
 
 ## 轮次
 
-同一审查 scope 最多 3 轮。调用方给出轮次，并在 prompt 写明“第 N 轮，共 3 轮”。某轮没有 P0/P1，
-scope 即终结：之后的改动靠测试验证，需要重审时由调用方另开 scope。
+审查单位是 MMF：整个 MMF 合入前审一次，单张票或 MMF 的一部分不审。每个 scope 只有一轮，看完整 diff，一次找全 P0/P1。
 
-- **R1**：完整 diff，一次找全 P0/P1。
-- **R2、R3**：上一轮有 P0/P1 且已修复时才开。只看修复 diff 及其影响到的行为，确认问题已关闭、修复没有引入新的 P0/P1。其余部分沿用上轮结论，不再找新的 P2。只重跑报过 P0/P1 的轴；修复改动公开 Interface 或依赖时两轴都跑。
-- **R3 后仍有 P0/P1**：报告 `REVIEW_EXHAUSTED`，不开第 4 轮，不给放行结论。交调用方对实现链路运行 `postmortem` 与 `retro`。
+修复不开复审。每条 P0/P1 的反例变绿，且完整测试与项目 CI 命令通过，该 finding 即关闭，由调用方记录关闭证据。反例改不绿时，调用方停止交付，运行 `postmortem` 与 `retro`。
 
-scope 由调用方定义；delivery-pipeline 链路按其 Review 预算计。
+scope 由调用方定义；delivery-pipeline 链路按其 Review 预算计。取舍见 repo://docs/adr/0022-one-review-per-mmf.md。
 
 ## Why two axes
 

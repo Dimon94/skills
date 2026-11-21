@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { parseTicket, readScenarioContract, isUnknownDependency } = require('../../to-tickets/scripts/check-tickets.js');
+const { parseTicket, ticketFindings, readScenarioContract, isUnknownDependency } = require('../../to-tickets/scripts/check-tickets.js');
 
 const text = value => typeof value === 'string' && value.trim() !== '';
 const strings = value => Array.isArray(value) && value.every(text);
@@ -24,8 +24,9 @@ function prepare(ticket, scenarios, base, site = {}) {
   const lack = (field, reason, owner = '技术负责人') => missing.push({ field, reason, owner });
   const body = ticket?.body || '';
   const parsed = parseTicket(ticket?.id, '', body);
-  const { kind, owns, blockedBy, repeated } = parsed;
-  if (blockedBy === null || repeated.includes('Blocked by')) lack('Blocked by', '请在原票确认唯一的依赖字段；无依赖写 None', '拆票者');
+  const { kind, owns, blockedBy } = parsed;
+  for (const { field, reason } of ticketFindings(parsed)) lack(field, reason, '拆票者');
+  if (blockedBy === null) lack('Blocked by', '请在原票确认唯一的依赖字段；无依赖写 None', '拆票者');
   for (const dep of blockedBy || []) {
     if (isUnknownDependency(dep)) lack('Blocked by', `请先在原票确定 ${dep} 的票号`, '拆票者');
     else if (dep === ticket.id || !revision(base) || !site.dependencies?.some(item => item?.ticket === dep
@@ -40,7 +41,6 @@ function prepare(ticket, scenarios, base, site = {}) {
   const noFlow = ['contract', 'structure', 'spike'].includes(kind) && !owns.size && !parsed.respects.size
     && [...coverage.values()].every(refs => !refs.length);
   if (!text(ticket?.id) || !text(body)) lack('ticket', '补原票号和读回的票面');
-  if (kind === 'behavior' && !owns.size) lack('owns', '行为票缺少 Owns', '拆票者');
   for (const id of references) {
     const scenario = known.get(id);
     if (!scenario) continue; // 未定义的引用已由票面检查指出。

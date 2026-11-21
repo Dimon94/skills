@@ -51,7 +51,7 @@ function checkDispatch(base, draft) {
   assert.deepEqual(checkSpec(unchanged, true), []);
   assert.deepEqual(errors(unchanged, structure), []);
   const dispatch = (body, scene, slice, status, label) => cli('../../../delegate-ticket/scripts/prepare.js', {
-    ticket: { id: ticket.id, body }, scenarios: [scene], base, site: { slices: [slice] },
+    ticket: { id: body.match(/^## ([^:]+):/)[1], body }, scenarios: [scene], base, site: { slices: [slice] },
   }, status, label);
   const scene = { ...scenarios[0], covers: [] };
   const slice = { ...draft, owns: [] };
@@ -66,10 +66,33 @@ function checkDispatch(base, draft) {
   }
   dispatch(structure.replace('Kind: structure', 'Kind: behavior'), scene, slice, 1);
   dispatch(ticket.body, scene, draft, 1);
-  const contract = structure.replace('Kind: structure', 'Kind: contract').replace('Owns: 无', 'Owns: R1')
-    .replace('Scenarios: S1', 'Scenarios: N/A（仅冻结共享签名）');
-  const [frozen] = dispatch(contract, scenarios[0], { ...draft, scenarios: [], owns: ['R1'] }, 0);
-  assert.deepEqual(frozen.scenarios, []);
+  const contract = `## C: 冻结回合详情签名
+- Kind: contract
+- Owns: 无
+- Respects: R1
+- Blocked by: None
+### What to build
+- Scenarios: N/A（仅冻结共享签名）
+- Interface: stop(turn: Turn): Turn
+### Acceptance criteria
+- [ ] 最小夹具能用已有回合调用 stop 并取得 Turn。
+`;
+  const frozen = { ...draft, scenarios: [], owns: [] };
+  assert.deepEqual(errors(spec, contract + '\n' + ticket.body), []);
+  assert.deepEqual(dispatch(contract, scenarios[0], frozen, 0)[0].owns, []);
+  const onlyRespects = ticket.body.replace('Owns: T1, R1', 'Owns: T1').replace('Respects: 无', 'Respects: R1');
+  for (const kind of ['contract', 'structure', 'spike']) {
+    const wrong = contract.replace('Kind: contract', 'Kind: ' + kind).replace('Owns: 无', 'Owns: R1');
+    const findings = errors(spec, wrong + '\n' + onlyRespects);
+    assert.ok(findings.some(([, rule, reason]) => rule === 'owner' && reason.includes('R1') && reason.includes('实际 0')));
+    const result = dispatch(wrong, scenarios[0], { ...frozen, owns: ['R1'] }, 1);
+    assert.equal(result.ticket, 'C');
+    assert.ok(result.missing.some(item => item.field === 'owns' && item.reason.includes('R1')));
+  }
+  dispatch(contract.replace('Owns: 无', 'Owns: T1'), scenarios[0], { ...frozen, owns: ['T1'] }, 1, '合同票代领 T1');
+  for (const header of ['Kind: behaviour', 'kind: behaviour', 'Kind: contract\n- Kind: behavior']) {
+    dispatch(ticket.body.replace('Kind: behavior', header), scenarios[0], draft, 1, header);
+  }
   for (const field of ['Interface', 'Ensures']) {
     const body = ticket.body.replace(`- ${field}:`, '- 备注:');
     assert.ok(errors(spec, body).some(([, , reason]) => reason.includes(field)));
@@ -91,7 +114,8 @@ try {
   checkDispatch(base, groups.single[0]);
   const dispatch = (slices, decisions = []) => prepare(ticket, scenarios, base, { slices, decisions });
   const single = dispatch(groups.single);
-  assert.deepEqual(cli('../../../delegate-ticket/scripts/prepare.js', { ticket, scenarios, base, site: { slices: groups.single } }), single);
+  const prepareInput = { ticket, scenarios, base, site: { slices: groups.single } };
+  assert.deepEqual(cli('../../../delegate-ticket/scripts/prepare.js', prepareInput), single);
   assert.equal(single[0].ticket, ticket.id);
   assert.equal(single[0].base, base);
   const blocked = (dependency, dependencies = []) => prepare({ ...ticket, body: ticket.body.replace('Blocked by: None', `Blocked by: ${dependency}`) }, scenarios, base, { slices: groups.single, dependencies });
@@ -115,6 +139,13 @@ try {
   const wholeCheck = ['node', 'check.cjs', 'all'];
   const scenarioChecks = [{ id, seam, expected: then, covers: ['T1', 'R1'], check: wholeCheck }];
 
+  // 两个片分别引用 S1、S2。R1 由结果片实现，同时在两个场景里验收。
+  const retained = { ...scenarios[0], id: 'S2', covers: ['R1'], then: '停止后仍能读回第一段' };
+  const allScenes = [...scenarios, retained];
+  const expandedTicket = { ...ticket, body: ticket.body.replace('Scenarios: S1', 'Scenarios: S1, S2')
+    + '\n- [ ] S2（R1）：停止后从详情读回「第一段」。' };
+  const mixedBriefs = prepare(expandedTicket, allScenes, base, { slices: [groups.split[0], { ...groups.split[1], scenarios: ['S2'] }] });
+  assert.deepEqual(mixedBriefs.map(b => b.scenarios), [['S1'], ['S2']]);
   const [status, results] = briefs;
   assert.equal(run(status.check).ok, false);
   commit('status.js', "module.exports = () => 'stopped';\n");
@@ -126,6 +157,7 @@ try {
   assert.equal(run(results.check).ok, false);
   commit('results.js', 'module.exports = turn => turn.results;\n');
   const second = implement(results, { run: run(results.check) });
+  const retainedEvidence = implement(mixedBriefs[1], { run: run(results.check) });
   assert.deepEqual(second.gaps, []);
   assert.match(second.observed, /第一段/);
   git('checkout', '-qb', 'side', base);
@@ -159,6 +191,12 @@ try {
   assert.equal(observation.ok, true);
   const record = { observations: [observation], gates: gates() };
   const [binding] = scenarioChecks;
+  const mixed = { ...plan, briefs: mixedBriefs, evidence: [first, retainedEvidence], scenarios: allScenes, scenarioChecks: [binding,
+    { id: retained.id, seam: retained.seam, covers: retained.covers, expected: retained.then, check: results.check }] };
+  const bothScenes = { ...record, observations: [observation, { ...run(results.check), id: retained.id }] };
+  if (implement(mixed, bothScenes).verdict !== 'pass') unexpected.push('S1 与 S2 责任片及原观察均已交齐');
+  rejects('R1 责任片缺交', implement({ ...mixed, evidence: [first] }, bothScenes), results.slice_id);
+  rejects('S2 缺原观察', implement(mixed, record), retained.id);
   for (const [label, checks] of [['缺绑定', undefined], ['缺 R1', [{ ...binding, covers: ['T1'] }]],
     ['错入口', [{ ...binding, seam: '状态徽标' }]], ['错预期', [{ ...binding, expected: '显示已停止' }]]]) {
     rejects(label, implement({ ...plan, scenarioChecks: checks }, record), id);
@@ -214,7 +252,7 @@ try {
   const incomplete = { ...plan, base: head(), briefs: [twoCommits], evidence: [both] };
   rejects('缺首个改动', cli('../../../implement/scripts/implement.js', { input: incomplete, record: integrated() }, 1), broad.slice_id);
   assert.deepEqual(unexpected, [], '票面与派发合同不一致');
-  if (process.argv.includes('--json')) console.log(JSON.stringify({ ticket, scenarios, briefs, evidence: plan.evidence, bad, verdict }, null, 2));
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ prepareInput, ticket, scenarios, briefs, evidence: plan.evidence, bad, verdict }, null, 2));
   else console.log('TURN-1 / S1 ok: 票面与派发、片级与整体范围、旁支退回、合并与 cherry-pick 路径、同入口复验');
 } finally {
   process.chdir(origin);

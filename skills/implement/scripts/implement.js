@@ -1,6 +1,6 @@
 // L3/L4  核收目标仓库的局部运行记录或集成记录。不启动开发者，不执行输入中的命令。
 // L5     input 是 Brief 或 MmfPlan。record 由执行 Skill 传入，格式见 delivery-contract.md。
-// L6     按派发合同重查原片范围，再证明片提交落入集成 HEAD，核收同一提交上的场景与门禁。
+// L6     核收完整派发清单的范围和落地提交；独立核验集成 HEAD 上每个原场景的批准检查与门禁。
 // TEST   node skills/to-tickets/references/stop-turn/verify-contract.cjs
 const fs = require('node:fs');
 const { isUtf8 } = require('node:buffer');
@@ -111,11 +111,6 @@ function mmfVerdict(plan, record, head) {
     const matches = (record.observations || []).filter(o => o.id === s.id && o.base === base);
     const [run] = matches;
     const linked = accepted.filter(e => e.scenarios.includes(s.id));
-    if (briefs.length) {
-      for (const id of s.covers) if (!briefs.some(b => b.scenarios.includes(s.id) && b.owns.includes(id))) {
-        gaps.push(`${s.id} 缺 ${id} 的执行片`);
-      }
-    }
     const check = approvedCheck(plan.scenarioChecks, s);
     if (!check) gaps.push(`${s.id} 缺少在 ${s.seam} 覆盖原场景全部预期的批准检查`);
     else if (matches.length !== 1 || !equal(run?.check, check) || !text(run?.observed) || run.ok !== true) {

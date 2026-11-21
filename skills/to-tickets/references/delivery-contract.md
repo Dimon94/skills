@@ -8,11 +8,11 @@
 | --- | --- |
 | Spec / Business Flow | 定义 T 和 R。Implementation Decisions 拥有 Interface、Ensures 与 Module 归属。 |
 | Spec / Testing Decisions | 场景表的列为 `id, covers, given, when, then, source, seam`。`id` 在本 Spec 内唯一；`covers` 列出相关 T/R；`source` 指向决定该预期的独立来源。 |
-| ticket 标题和字段区 | `## <id>: <标题>`。发布后沿用 tracker id。Parent、Repo、Kind、Owns、Respects、Stories、Modules、Blocked by 仍在首个 `###` 之前。每条 T/R 在票级恰有一个 Owns，Respects 只记录须遵守的规则。 |
+| ticket 标题和字段区 | `## <id>: <标题>`。发布后沿用 tracker id。Parent、Repo、Kind、Owns、Respects、Stories、Modules、Blocked by 仍在首个 `###` 之前。每条 T/R 由实施该行为的一张 behavior 票 Owns，Respects 只记录须遵守的规则。 |
 | ticket / What to build | `Scenarios:` 引用父 Spec 的场景 id；`Interface:` 和 `Ensures:` 定位原决定，可摘录影响本票的短签名和承诺。写明允许的业务增量和范围边界。 |
 | ticket / Acceptance criteria | 每项点名场景和 T/R，写清谁从哪个入口执行什么、全部可观察结果及验证入口。`Prereq check` 沿用原位置。 |
 
-结构票或合同票实际没有行为场景时写 `Scenarios: N/A（理由）`，验收写明保持行为的入口或要调用的冻结签名。行为票需要能回到原场景。缺少场景字段的历史票按原 id、Kind、归属与依赖读回，已认领票按原合同继续。新委派遇到缺项时沿原票号返回 `MissingDecision`。技术负责人补现场，改变业务期望须回到 Spec 的需求作者。
+结构票或合同票实际没有行为场景时写 `Scenarios: N/A（理由）`，验收写明保持行为的入口或要调用的冻结签名。行为票需要能回到原场景。缺少场景字段的历史票按原 id、Kind、归属与依赖读回，已认领票按原合同继续。历史读回仍输出原依赖图，并指出现行规则下的归属问题。新派发前由拆票者将误放在合同票、结构票或 spike 上的 T/R 移给行为票，保留需遵守的 `Respects`。直接 `prepare` 遇到无效 Kind、重复字段或归属冲突时沿原票号返回 `MissingDecision`。技术负责人补现场，改变业务期望须回到 Spec 的需求作者。
 
 ```ts
 type Scenario = { id: string; covers: string[]; given: string; when: string; then: string; source: string; seam: string };
@@ -72,7 +72,7 @@ declare function implement(input: MmfPlan, record?: MmfRecord): MmfVerdict;
 
 技术负责人在取得观察前逐个核准 `scenarioChecks`。每项从原场景绑定 `id`、`seam`、`then`（存为 `expected`）及完整 `covers`，选择在该入口断言全部结果的命令。S1 用 `['node', 'check.cjs', 'all']` 检查停止状态和第一段读回。独立实施整个 MMF 时，`briefs` 和 `evidence` 均为空数组，同样需要完整场景检查。
 
-开发者执行获准命令，填写 `run`。其中 `base` 是运行时的 HEAD。片级回执中的 `base` 是派发基线，`commit` 是交付提交。技术负责人先核对每片已落入 `MmfPlan.base`。快进与合并核对祖先关系；改写提交须在集成历史中逐个找到等价补丁，核对文件路径、模式和前后内容。证据不足则退回该片。随后在干净的集成提交上运行获准的场景命令，记录真实输出和退出结果。每项门禁提交实际回执 `pass`，仅 E2E、消融允许用 `n/a` 并在 `detail` 说明依据。缺片、缺证或集成后丢失原结果均给出 `return` 和具体缺口。
+开发者执行获准命令，填写 `run`。其中 `base` 是运行时的 HEAD。片级回执中的 `base` 是派发基线，`commit` 是交付提交。`briefs` 取派发时保存的完整清单。技术负责人按 `ticket + slice_id` 逐份核对唯一回执及其是否落入 `MmfPlan.base`。快进与合并核对祖先关系；改写提交须在集成历史中逐个找到等价补丁，核对文件路径、模式和前后内容。证据不足则退回该片。每个原场景独立核收。一个场景可以观察多个片实现的规则，一片也可以支持多个场景。随后在干净的集成提交上运行获准的场景命令，记录真实输出和退出结果。每项门禁提交实际回执 `pass`，仅 E2E、消融允许用 `n/a` 并在 `detail` 说明依据。缺片、缺证或集成后丢失原结果均给出 `return` 和具体缺口。
 
 [prepare](../../delegate-ticket/scripts/prepare.js) 与 [implement](../../implement/scripts/implement.js) 既导出同名 CommonJS 函数，也支持在目标仓库根运行 Node CLI。Skill 负责取得现场、运行检查、读回实际结果；两个脚本只核收传入的合同与回执、只读核对 Git。CLI 从标准输入读取一个 JSON 对象，向标准输出写结果 JSON。通过退出 0，缺项退出 1。
 
@@ -84,6 +84,6 @@ declare function implement(input: MmfPlan, record?: MmfRecord): MmfVerdict;
 
 ## 运行共同样例
 
-1. 从本仓根运行 `node skills/to-spec/scripts/check-spec.js skills/to-tickets/references/stop-turn/spec.md`。再运行 `node skills/to-tickets/scripts/check-tickets.js skills/to-tickets/references/stop-turn/spec.md skills/to-tickets/references/stop-turn/ticket.md`。预期 `ok`、第 1 波 `TURN-1`。旧输入回归入口为 `node --test skills/to-spec/tests/check-spec.test.js skills/to-tickets/tests/check-tickets.test.js`。
-2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')()` 从本仓读出三组 `site.slices` 草案。用例子项目的实际提交调用 `prepare(ticket, scenarios, base, {slices})`。`single` 产出一份合同，`split` 产出两份，票号与场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期输出包含 `TURN-1 / S1 ok`。它以真实 Git 和子进程验证片级交付与同 Seam 的场景观察。弱票案例传入人工对账指出的遗漏，验证缺项回传。门禁与双轴审查使用模拟回执。
+1. 从本仓根运行 `node skills/to-spec/scripts/check-spec.js --require-scenarios skills/to-tickets/references/stop-turn/spec.md`。再运行 `node skills/to-tickets/scripts/check-tickets.js --require-scenarios skills/to-tickets/references/stop-turn/spec.md skills/to-tickets/references/stop-turn/ticket.md`。预期 `ok`、第 1 波 `TURN-1`。旧输入回归入口为 `node --test skills/to-spec/tests/check-spec.test.js skills/to-tickets/tests/check-tickets.test.js`。
+2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')()` 从本仓读出三组 `site.slices` 草案。用例子项目的实际提交调用 `prepare(ticket, scenarios, base, {slices})`。`single` 产出一份合同，`split` 产出两份，票号与场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期输出包含 `TURN-1 / S1 ok`。加 `--json` 可从输出的 `prepareInput` 取得完整 CLI 输入样例。`base` 属于本次临时例子仓库，复用时替换为目标仓库的提交，并按现场调整文件路径和命令。样例以真实 Git 和子进程验证片级交付与同 Seam 的场景观察。弱票案例传入人工对账指出的遗漏，验证缺项回传。门禁与双轴审查使用模拟回执。
 3. 在例子项目根分别运行 `node check.cjs status`、`node check.cjs results`。未实施时分别在 `running` 和空结果处报红。两个开发者可各自只改 `status.js` 或 `results.js` 并重跑本片命令。整票执行 `node check.cjs all`，同时观察停止与「第一段」。这些是样例项目的检查；真实实施回执填写实际基线、提交和命令结果。

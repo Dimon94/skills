@@ -7,22 +7,22 @@
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
 //   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids、readScenarios
 //   EXPORT: checkTickets(specText, ticketText, requireScenarios?) -> [level, rule, message][]
-//   EXPORT: parseTicket、readScenarioContract、isUnknownDependency 供派发入口读回同一份票面合同
+//   EXPORT: parseTicket、ticketFindings、readScenarioContract、isUnknownDependency 供派发入口读回同一份票面合同
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
-//   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
+//   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行，字段名忽略大小写
 //   PARAM: 字段名或字段名连冒号可用 Markdown 加粗；正文同名行不作字段，仍检查 token 数字
 //   PARAM: Kind ∈ contract | behavior | structure | spike，缺省 behavior
 //   PARAM: Blocked by 取值 = 票 id 列表、None/无，或 Unknown（非空原因）
 //   PARAM: Spec 侧 T/R 取自 Business Flow，User Story 编号取自 User Stories 的有序列表
-//   FAIL: Spec 的 T/R 不恰好出现在一张票的 Owns → owner
+//   FAIL: Spec 的 T/R 不恰好出现在一张行为票的 Owns → owner
 //   FAIL: Owns/Respects 引用 Spec 未定义的 T/R → undefined
 //   FAIL: 场景表、What to build 的场景或接口字段、验收小节的场景与 T/R 覆盖有缺口 → scenario
 //   PARAM: 没有场景表与场景字段的历史输入沿原规则读回；新草稿用 --require-scenarios
 //   FAIL: Spec 的 User Story 没有任何票的 Stories 指向 → stories
 //   FAIL: Kind 不在取值范围 → kind；同一字段行出现多次 → field
 //   FAIL: behavior 票 Owns 为空 → empty
-//   FAIL: 合同票多于一张、Owns 含 T、或有阻塞边 → contract
+//   FAIL: 合同票多于一张、Owns 含 T/R 或有阻塞边 → contract；structure/spike 认领 T/R → owner
 //   FAIL: 缺 Blocked by 行、引用不存在的票 id、或依赖成环 → edges
 //   FAIL: 标题或正文出现 token 估算数字（如 95k、120k tokens）→ token
 //   WARN: Blocked by 为 Unknown（原因）→ edges；本票及下游不可派发，不参与波次与关键路径
@@ -32,7 +32,8 @@
 const fs = require("node:fs");
 const { splitSections, ids, readScenarios } = require("../../to-spec/scripts/check-spec.js");
 
-const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\**\s*(.*)$/;
+const fieldNames = ['Kind', 'Owns', 'Respects', 'Stories', 'Modules', 'Blocked by'];
+const FIELD = /^[\s>*-]*\**([a-z ]+?)\**\s*[:：]\**\s*(.*)$/i;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
 const NONE = /^(none|无)$/i;
 const isUnknownDependency = value => /^Unknown（[^）]+）$/i.test(value);
@@ -45,9 +46,11 @@ function parseTicket(id, title, body) {
     if (/^###(?:\s|$)/.test(line)) break;
     const match = FIELD.exec(line);
     if (!match) continue;
-    if (ticket.seen.has(match[1])) ticket.repeated.push(match[1]);
-    ticket.seen.add(match[1]);
-    applyField(ticket, match[1], match[2].trim());
+    const name = fieldNames.find(field => field.toLowerCase() === match[1].toLowerCase());
+    if (!name) continue;
+    if (ticket.seen.has(name)) ticket.repeated.push(name);
+    ticket.seen.add(name);
+    applyField(ticket, name, match[2].trim());
   }
   return ticket;
 }
@@ -81,8 +84,8 @@ function specItems(text, required) {
 function checkCoverage(spec, tickets) {
   const errors = [];
   for (const id of spec.flow) {
-    const owners = tickets.filter((t) => t.owns.has(id)).map((t) => t.id);
-    if (owners.length !== 1) errors.push(["error", "owner", `${id} 应恰有一张票 Owns，实际 ${owners.length}：${owners.join(", ") || "无"}`]);
+    const owners = tickets.filter((t) => t.kind === "behavior" && t.owns.has(id)).map((t) => t.id);
+    if (owners.length !== 1) errors.push(["error", "owner", `${id} 应恰有一张行为票 Owns，实际 ${owners.length}：${owners.join(", ") || "无"}`]);
   }
   for (const t of tickets)
     for (const id of [...t.owns, ...t.respects])
@@ -160,25 +163,25 @@ function checkScenarioContracts(spec, tickets, required) {
   return errors;
 }
 
-function checkFields(tickets) {
-  const errors = [];
-  for (const t of tickets) {
-    if (!KINDS.has(t.kind)) errors.push(["error", "kind", `${t.id} 的 Kind「${t.kind}」不在 contract|behavior|structure|spike 内`]);
-    for (const name of new Set(t.repeated)) errors.push(["error", "field", `${t.id} 的 ${name} 行出现多次；票面每个字段只写一行`]);
+// L4：规划与派发共用单票判定。跨票的归属数量和依赖图留在规划侧。
+function ticketFindings(ticket) {
+  const { kind, owns, repeated, blockedBy } = ticket;
+  const findings = [];
+  const issue = (rule, field, reason) => findings.push({ rule, field, reason });
+  for (const field of new Set(repeated)) issue('field', field, `${field} 行出现多次；票面每个字段只写一行`);
+  if (!KINDS.has(kind)) issue('kind', 'Kind', `Kind「${kind}」不在 contract|behavior|structure|spike 内`);
+  else if (kind === 'behavior' && !owns.size) issue('empty', 'owns', '行为票缺少 Owns；请分配本票实现的 T/R');
+  else if (kind !== 'behavior' && owns.size) {
+    issue(kind === 'contract' ? 'contract' : 'owner', 'owns', `请把 ${kind} 票的 ${[...owns].join(', ')} 分给实现它的行为票，遵守的规则写 Respects`);
   }
-  return errors;
+  if (kind === 'contract' && blockedBy?.length) issue('contract', 'Blocked by', '合同票不能有阻塞边');
+  return findings;
 }
 
 function checkKinds(tickets) {
-  const errors = tickets
-    .filter((t) => t.kind === "behavior" && t.owns.size === 0)
-    .map((t) => ["error", "empty", `${t.id} 是行为票却不负责任何 T/R；并入相邻票或改为 structure/spike`]);
+  const errors = tickets.flatMap(t => ticketFindings(t).map(({ rule, reason }) => ['error', rule, `${t.id}：${reason}`]));
   const contracts = tickets.filter((t) => t.kind === "contract");
   if (contracts.length > 1) errors.push(["error", "contract", `合同票只能有一张，实际 ${contracts.map((t) => t.id).join(", ")}`]);
-  for (const c of contracts) {
-    if ([...c.owns].some((id) => id.startsWith("T"))) errors.push(["error", "contract", `${c.id} 合同票不能负责行为 T`]);
-    if (c.blockedBy?.length) errors.push(["error", "contract", `${c.id} 合同票不能有阻塞边`]);
-  }
   return errors;
 }
 
@@ -259,7 +262,7 @@ function checkTickets(specText, ticketText, requireScenarios = false) {
   const spec = specItems(specText, requireScenarios);
   const tickets = parseTickets(ticketText);
   if (tickets.length === 0) return [["error", "edges", "票草稿里没有 \"## <id>: <标题>\" 块"]];
-  const errors = [...checkCoverage(spec, tickets), ...checkScenarioContracts(spec, tickets, requireScenarios), ...checkFields(tickets), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
+  const errors = [...checkCoverage(spec, tickets), ...checkScenarioContracts(spec, tickets, requireScenarios), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
   return [...errors, ...report(tickets)];
 }
 
@@ -276,4 +279,4 @@ if (require.main === module) {
   process.exitCode = lines.some(([level]) => level === "error") ? 1 : 0;
 }
 
-module.exports = { checkTickets, parseTicket, readScenarioContract, isUnknownDependency };
+module.exports = { checkTickets, parseTicket, ticketFindings, readScenarioContract, isUnknownDependency };

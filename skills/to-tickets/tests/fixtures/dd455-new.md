@@ -1,7 +1,8 @@
 <!-- DD-455 合同先行重切：R 与 Story 归属为推断，用于验证格式与图指标 -->
 ## C: 冻结宿主合同、视觉基线与运行时探针
 - Kind: contract
-- Owns: R1, R11, R13
+- Owns: 无
+- Respects: R1, R11, R13
 - Stories: 26
 - Modules: NativeHostBridge, NativeMacHost, NodeSidecarSupervisor
 - Blocked by: None
@@ -16,8 +17,8 @@
 
 ## 472: 选 Project
 - Kind: behavior
-- Owns: T1–T3, R3
-- Respects: R11, R13
+- Owns: T1–T3, R3, R13
+- Respects: R11
 - Stories: 1, 2, 3, 4
 - Modules: NativeMacHost
 - Blocked by: C
@@ -88,8 +89,7 @@
 
 ## 482: 退出结算
 - Kind: behavior
-- Owns: T19, R7
-- Respects: R11
+- Owns: T19, R7, R1, R11
 - Stories: 23, 29
 - Modules: NodeSidecarSupervisor
 - Blocked by: 476, 479, 481

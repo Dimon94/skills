@@ -16,26 +16,13 @@ AGENTS_SKILLS_DIR="${AGENTS_SKILLS_DIR:-$HOME/.agents/skills}"
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 DESTS=("$CLAUDE_SKILLS_DIR" "$AGENTS_SKILLS_DIR")
 
-retire_named_skill() {
-  local name="$1" source="$2" destination target
-  for destination in "${DESTS[@]}"; do
-    target="$destination/$name"
-    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
-      rm "$target"
-      echo "retired $name ($destination)"
-    fi
-  done
-}
-
 names=()
 srcs=()
 while IFS= read -r -d '' skill_md; do
   src="$(dirname "$skill_md")"
   name="$(basename "$src")"
-  if [ "$name" != "tdd" ]; then
-    names+=("$name")
-    srcs+=("$src")
-  fi
+  names+=("$name")
+  srcs+=("$src")
 done < <(find "$REPO/skills" -name SKILL.md -not -path '*/node_modules/*' -print0)
 
 for DEST in "${DESTS[@]}"; do
@@ -67,5 +54,3 @@ for DEST in "${DESTS[@]}"; do
     echo "linked $name -> $src ($DEST)"
   done
 done
-
-retire_named_skill tdd "$REPO/skills/tdd"

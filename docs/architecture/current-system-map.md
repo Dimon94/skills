@@ -27,7 +27,7 @@ Status: current
 | L3–L5 | `skills/delegate-ticket/scripts/prepare.js` 与 `skills/implement/scripts/implement.js` 冻结调用点。字段及错误见共同合同。 | 以同一 `TURN-1`、`S1` 调用并核对 Brief、SliceEvidence、缺项退回和集成复验。 |
 | L6（A03） | 补基线和先例 → 按票收齐各片 → 集成提交对账。缺项交回原 owner。 | 准备单片、多片；在集成提交重跑原场景。 |
 
-A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.claude/skills/{bdd,delegate-ticket}`，经 `scripts/link-skills.sh` 与完整开发工作流安装入口生成。入口、调用者和安装验证一并迁移后退役 `tdd`。改编来源与 ADR 0006 保留历史出处。
+A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.claude/skills/{bdd,delegate-ticket}`，经 `scripts/link-skills.sh` 与完整开发工作流安装入口生成。`tdd` 已退役，`skills/tdd/` 与安装脚本的退役清理逻辑已删除。改编来源与 ADR 0006 保留历史出处。
 
 当前模块清单：
 

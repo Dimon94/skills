@@ -30,9 +30,17 @@ type Brief = {
   title: string; goal: string; owns: string[]; writable: string[]; read_first: string[];
   check: string[]; expected: string; exclusions: string[];
 };
-type MissingDecision = { ticket: string; missing: { field: string; reason: string; owner: string }[] };
-declare function prepare(ticket: Ticket, scenarios: Scenario[], base: Revision, site?: { slices?: Brief[]; decisions?: MissingDecision['missing'][] }): Brief[] | MissingDecision;
+type Decision = { field: string; reason: string; owner: string };
+type MissingDecision = { ticket: string; missing: Decision[] };
+type Site = {
+  slices: Omit<Brief, 'ticket' | 'base'>[];
+  decisions?: Decision[];
+  dependencies?: { ticket: string; commit: Revision }[];
+};
+declare function prepare(ticket: Ticket, scenarios: Scenario[], base: Revision, site?: Site): Brief[] | MissingDecision;
 ```
+
+`delegate-ticket` 负责语义对账、查先例和填写 `site`。`prepare` 从原票解析 `Blocked by`。`None` 或 `无` 可直接准备。已命名的前置票由负责人读回其完成证据，把票号和已落地的交付提交放入 `site.dependencies`；脚本逐票核实提交在 `base` 的历史里。`Unknown（原因）`、缺依赖证据或缺现场草案均返回原票号的 `MissingDecision`。
 
 `ticket + slice_id` 标识一次票内分片。`scenarios` 引用原场景，`owns` 表达父票分给本片的 T/R。各片的目标与期望合起来覆盖整票。`writable`、`read_first` 为目标仓库根的相对文件路径。`check` 是一条命令的参数数组，首项为程序，`expected` 写该命令要观察到的结果。技术负责人协调共享写入，派发同波独立文件。收到缺项后从原 owner 取得决定，再用原票号和场景准备合同。
 
@@ -41,24 +49,41 @@ type SliceEvidence = {
   ticket: string; slice_id: string; scenarios: string[]; base: Revision;
   commit: Revision | null; check: string[]; observed: string; gaps: string[];
 };
+type Run = { base: Revision; check: string[]; ok: boolean; observed: string };
+type SliceRecord = { run?: Run; gaps?: string[] };
+type ScenarioCheck = { id: string; seam: string; expected: string; covers: string[]; check: string[] };
 type MmfPlan = {
-  mmf: string; base: Revision; scenarios: Scenario[]; briefs: Brief[]; evidence: SliceEvidence[];
-  // 集成提交上的 observations 与 gates 由 implement 的 record 参数提供。
+  mmf: string; base: Revision; scenarios: Scenario[]; scenarioChecks: ScenarioCheck[];
+  briefs: Brief[]; evidence: SliceEvidence[];
 };
+type Gate = {
+  name: 'E2E' | 'ablation' | 'full' | 'Standards' | 'Spec';
+  base: Revision; status: string; detail: string;
+};
+type MmfRecord = { observations?: (Run & { id: string })[]; gates?: Gate[]; gaps?: string[] };
 type MmfVerdict = {
   mmf: string; base: Revision; verdict: 'pass' | 'return';
   scenarios: { id: string; expected: string; observed: string; evidence: string[] }[];
   checks: string[]; gaps: string[];
 };
-declare function implement(input: Brief | MmfPlan): SliceEvidence | MmfVerdict;
+declare function implement(input: Brief, record?: SliceRecord): SliceEvidence;
+declare function implement(input: MmfPlan, record?: MmfRecord): MmfVerdict;
 ```
 
-开发者记录实际命令、观察结果和提交；没有提交时写 `null` 并说明缺口。技术负责人按原票核收每个必需片，在 `MmfPlan.base` 指定的集成提交上逐场景对账。`MmfVerdict.checks` 记录适用的 E2E、消融、全量检查与 Standards/Spec 审查的结果坐标。缺片、缺证或整合后丢失原结果时给出 `return` 和具体缺口。
+技术负责人在取得观察前逐个核准 `scenarioChecks`。每项从原场景绑定 `id`、`seam`、`then`（存为 `expected`）及完整 `covers`，选择在该入口断言全部结果的命令。S1 用 `['node', 'check.cjs', 'all']` 检查停止状态和第一段读回。独立实施整个 MMF 时，`briefs` 和 `evidence` 均为空数组，同样需要完整场景检查。
 
-[prepare](../../delegate-ticket/scripts/prepare.js) 与 [implement](../../implement/scripts/implement.js) 是 CommonJS 导出。A03 负责校验现场、证据和集成验收，不执行合同中的命令。
+开发者执行获准命令，填写 `run`。其中 `base` 是运行时的 HEAD。片级回执中的 `base` 是派发基线，`commit` 是交付提交。技术负责人先核对每片已落入 `MmfPlan.base`。快进与合并核对祖先关系；改写提交须在集成历史中逐个找到等价补丁，核对文件路径、模式和前后内容。证据不足则退回该片。随后在干净的集成提交上运行获准的场景命令，记录真实输出和退出结果。每项门禁提交实际回执 `pass`，仅 E2E、消融允许用 `n/a` 并在 `detail` 说明依据。缺片、缺证或集成后丢失原结果均给出 `return` 和具体缺口。
+
+[prepare](../../delegate-ticket/scripts/prepare.js) 与 [implement](../../implement/scripts/implement.js) 既导出同名 CommonJS 函数，也支持在目标仓库根运行 Node CLI。Skill 负责取得现场、运行检查、读回实际结果；两个脚本只核收传入的合同与回执、只读核对 Git。CLI 从标准输入读取一个 JSON 对象，向标准输出写结果 JSON。通过退出 0，缺项退出 1。
+
+| CLI | 标准输入 | 输出 |
+| --- | --- | --- |
+| `node <delegate-ticket>/scripts/prepare.js` | `{ticket, scenarios, base, site}` | `Brief[]` 或 `MissingDecision` |
+| `node <implement>/scripts/implement.js` | `{input: brief, record: {run, gaps}}` | `SliceEvidence` |
+| `node <implement>/scripts/implement.js` | `{input: plan, record: {observations, gates, gaps}}` | `MmfVerdict` |
 
 ## 运行共同样例
 
 1. 从本仓根运行 `node skills/to-spec/scripts/check-spec.js skills/to-tickets/references/stop-turn/spec.md`。再运行 `node skills/to-tickets/scripts/check-tickets.js skills/to-tickets/references/stop-turn/spec.md skills/to-tickets/references/stop-turn/ticket.md`。预期 `ok`、第 1 波 `TURN-1`。旧输入回归入口为 `node --test skills/to-spec/tests/check-spec.test.js skills/to-tickets/tests/check-tickets.test.js`。
-2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')(base)` 从本仓读出三组样例，`base` 传入例子项目的实际提交。`single` 交给一个开发者，`split` 分给两个开发者，二者的票号和场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期输出包含 `TURN-1 / S1 ok`。它检查正例覆盖、弱票差异、缺失覆盖、收齐回执、集成丢结果退回与修复后的同 Seam 复验。
+2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')()` 从本仓读出三组 `site.slices` 草案。用例子项目的实际提交调用 `prepare(ticket, scenarios, base, {slices})`。`single` 产出一份合同，`split` 产出两份，票号与场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期输出包含 `TURN-1 / S1 ok`。它以真实 Git 和子进程验证片级交付与同 Seam 的场景观察。弱票案例传入人工对账指出的遗漏，验证缺项回传。门禁与双轴审查使用模拟回执。
 3. 在例子项目根分别运行 `node check.cjs status`、`node check.cjs results`。未实施时分别在 `running` 和空结果处报红。两个开发者可各自只改 `status.js` 或 `results.js` 并重跑本片命令。整票执行 `node check.cjs all`，同时观察停止与「第一段」。这些是样例项目的检查；真实实施回执填写实际基线、提交和命令结果。

@@ -6,7 +6,8 @@
 //   OUTPUT: 每行 "<error|warn|info>\t<规则>\t<说明>"；有 error 退出 1，否则退出 0
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
 //   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids、readScenarios
-//   EXPORT: checkTickets(specText, ticketText) -> [level, rule, message][]
+//   EXPORT: checkTickets(specText, ticketText, requireScenarios?) -> [level, rule, message][]
+//   EXPORT: parseTicket(id, title, body)、isUnknownDependency(dep) 供派发入口沿用票面字段与依赖规则
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
 //   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
@@ -33,8 +34,8 @@ const { splitSections, ids, readScenarios } = require("../../to-spec/scripts/che
 
 const FIELD = /^[\s>*-]*\**(Kind|Owns|Respects|Stories|Modules|Blocked by)\**\s*[:：]\**\s*(.*)$/;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
-const NONE = /^(none|无)\b/i;
-const UNKNOWN = /^Unknown（[^）]+）$/i;
+const NONE = /^(none|无)$/i;
+const isUnknownDependency = value => /^Unknown（[^）]+）$/i.test(value);
 const KINDS = new Set(["contract", "behavior", "structure", "spike"]);
 
 // ---- 解析 ---------------------------------------------------------------
@@ -58,7 +59,7 @@ function applyField(ticket, name, value) {
   if (name === "Respects") ticket.respects = ids(value);
   if (name === "Stories") ticket.stories = list().map(Number).filter(Number.isInteger);
   if (name === "Modules") ticket.modules = list();
-  if (name === "Blocked by") ticket.blockedBy = NONE.test(value) ? [] : UNKNOWN.test(value) ? [value] : list();
+  if (name === "Blocked by") ticket.blockedBy = NONE.test(value) ? [] : isUnknownDependency(value) ? [value] : value ? list() : null;
 }
 
 function parseTickets(text) {
@@ -188,7 +189,7 @@ function checkEdges(tickets) {
   for (const t of tickets) {
     if (t.blockedBy === null) errors.push(["error", "edges", `${t.id} 缺 Blocked by: 行；没有阻塞写 None`]);
     for (const dep of t.blockedBy || [])
-      if (UNKNOWN.test(dep)) errors.push(["warn", "edges", `${t.id} 的阻塞票为 ${dep}；本票及下游不可派发，不计入波次；创建依赖票后填入票 id`]);
+      if (isUnknownDependency(dep)) errors.push(["warn", "edges", `${t.id} 的阻塞票为 ${dep}；本票及下游不可派发，不计入波次；创建依赖票后填入票 id`]);
       else if (!known.has(dep)) errors.push(["error", "edges", `${t.id} 的阻塞票 ${dep} 不存在`]);
   }
   return errors;
@@ -196,7 +197,7 @@ function checkEdges(tickets) {
 
 // 波次 = 最长前驱链长度 + 1；保留 Unknown 前驱时，无层级的票也可能是待建票阻塞。
 function layer(tickets, includeUnknown = false) {
-  const deps = new Map(tickets.map((t) => [t.id, (t.blockedBy || []).filter((d) => (includeUnknown && UNKNOWN.test(d)) || tickets.some((x) => x.id === d))]));
+  const deps = new Map(tickets.map((t) => [t.id, (t.blockedBy || []).filter((d) => (includeUnknown && isUnknownDependency(d)) || tickets.some((x) => x.id === d))]));
   const level = new Map();
   let changed = true;
   while (changed) {
@@ -269,4 +270,4 @@ if (require.main === module) {
   process.exitCode = lines.some(([level]) => level === "error") ? 1 : 0;
 }
 
-module.exports = { checkTickets };
+module.exports = { checkTickets, parseTicket, isUnknownDependency };

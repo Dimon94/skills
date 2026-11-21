@@ -1,7 +1,7 @@
-// TURN-1 的预期产物。base 取自例子项目的 git rev-parse HEAD。
-module.exports = function examples(base) {
+// 技术负责人为 TURN-1 编写的现场草案；prepare 绑定原票号和目标仓库基线。
+module.exports = function examples() {
   const common = {
-    ticket: 'TURN-1', scenarios: ['S1'], base,
+    scenarios: ['S1'],
     read_first: ['turn.js', 'check.cjs'], exclusions: ['重复停止'],
   };
   const status = {

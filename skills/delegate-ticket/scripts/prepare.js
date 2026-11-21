@@ -1,11 +1,11 @@
 // L3/L4  技术负责人补现场，prepare 把现场与原票绑定。只读目标仓库，不执行合同中的命令。
-// L5     cwd = 目标仓库根。site.slices = 现场草案；site.decisions = 语义对账发现的缺项。
+// L5     cwd = 目标仓库根。site 携带草案、语义缺项和已满足依赖的集成提交。
 // L6     先核对原场景，再核对范围与合计覆盖。补齐后以原票号重跑，无持久副作用。
 // TEST   node skills/to-tickets/references/stop-turn/verify-contract.cjs
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { ids } = require('../../to-spec/scripts/check-spec.js');
+const { parseTicket, isUnknownDependency } = require('../../to-tickets/scripts/check-tickets.js');
 
 const text = value => typeof value === 'string' && value.trim() !== '';
 const strings = value => Array.isArray(value) && value.every(text);
@@ -13,8 +13,9 @@ const listed = value => strings(value) && value.length > 0;
 const relativeFile = file => text(file) && !path.isAbsolute(file) && !/[\\\x00]/u.test(file)
   && file.split('/').every(part => part && !['.', '..', '.git'].includes(part));
 
+const revision = value => typeof value === 'string' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
 function atRevision(base, args) {
-  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(base)) return false;
+  if (!revision(base)) return false;
   return spawnSync('git', args, { encoding: 'utf8' }).status === 0;
 }
 
@@ -28,9 +29,15 @@ function prepare(ticket, scenarios, base, site = {}) {
   const missing = [];
   const lack = (field, reason, owner = '技术负责人') => missing.push({ field, reason, owner });
   const body = ticket?.body || '';
-  const header = body.split(/^###\s/m, 1)[0];
-  const kind = field(header, 'Kind') || 'behavior';
-  const owns = ids(field(header, 'Owns'));
+  const { kind, owns, blockedBy, repeated } = parseTicket(ticket?.id, '', body);
+  if (blockedBy === null || repeated.includes('Blocked by')) lack('Blocked by', '请在原票确认唯一的依赖字段；无依赖写 None', '拆票者');
+  for (const dep of blockedBy || []) {
+    if (isUnknownDependency(dep)) lack('Blocked by', `请先在原票确定 ${dep} 的票号`, '拆票者');
+    else if (dep === ticket.id || !revision(base) || !site.dependencies?.some(item => item?.ticket === dep
+      && atRevision(item.commit, ['merge-base', '--is-ancestor', item.commit, base]))) {
+      lack('Blocked by', `${dep} 缺派发基线已包含其交付的提交证据`);
+    }
+  }
   const ref = field(body, 'Scenarios');
   const noScenario = /^(contract|structure|spike)$/.test(kind) && /^N\/A\s*[（(].+[)）]$/i.test(ref);
   const references = noScenario ? [] : ref.split(/[,，、\s]+/).filter(Boolean);

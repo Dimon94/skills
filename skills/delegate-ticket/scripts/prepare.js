@@ -1,11 +1,11 @@
 // L3/L4  技术负责人补现场，prepare 把现场与原票绑定。只读目标仓库，不执行合同中的命令。
 // L5     cwd = 目标仓库根。site 携带草案、语义缺项和已满足依赖的集成提交。
-// L6     先核对原场景，再核对范围与合计覆盖。补齐后以原票号重跑，无持久副作用。
+// L6     按规划侧票面规则核对场景与承诺，再核对范围与合计覆盖。补齐后以原票号重跑。
 // TEST   node skills/to-tickets/references/stop-turn/verify-contract.cjs
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { parseTicket, isUnknownDependency } = require('../../to-tickets/scripts/check-tickets.js');
+const { parseTicket, readScenarioContract, isUnknownDependency } = require('../../to-tickets/scripts/check-tickets.js');
 
 const text = value => typeof value === 'string' && value.trim() !== '';
 const strings = value => Array.isArray(value) && value.every(text);
@@ -19,17 +19,12 @@ function atRevision(base, args) {
   return spawnSync('git', args, { encoding: 'utf8' }).status === 0;
 }
 
-function field(body, name) {
-  const pattern = new RegExp(`^\\s*(?:[-*>]\\s*)?\\**${name}\\**\\s*[:：]\\**\\s*(.+)$`, 'gmi');
-  const matches = [...body.matchAll(pattern)];
-  return matches.length === 1 ? matches[0][1].trim() : '';
-}
-
 function prepare(ticket, scenarios, base, site = {}) {
   const missing = [];
   const lack = (field, reason, owner = '技术负责人') => missing.push({ field, reason, owner });
   const body = ticket?.body || '';
-  const { kind, owns, blockedBy, repeated } = parseTicket(ticket?.id, '', body);
+  const parsed = parseTicket(ticket?.id, '', body);
+  const { kind, owns, blockedBy, repeated } = parsed;
   if (blockedBy === null || repeated.includes('Blocked by')) lack('Blocked by', '请在原票确认唯一的依赖字段；无依赖写 None', '拆票者');
   for (const dep of blockedBy || []) {
     if (isUnknownDependency(dep)) lack('Blocked by', `请先在原票确定 ${dep} 的票号`, '拆票者');
@@ -38,18 +33,27 @@ function prepare(ticket, scenarios, base, site = {}) {
       lack('Blocked by', `${dep} 缺派发基线已包含其交付的提交证据`);
     }
   }
-  const ref = field(body, 'Scenarios');
-  const noScenario = /^(contract|structure|spike)$/.test(kind) && /^N\/A\s*[（(].+[)）]$/i.test(ref);
-  const references = noScenario ? [] : ref.split(/[,，、\s]+/).filter(Boolean);
   const known = new Map((scenarios || []).map(s => [s.id, s]));
+  const coverage = new Map([...known].map(([id, s]) => [id, Array.isArray(s.covers) ? s.covers : []]));
+  const { references, missing: contractGaps } = readScenarioContract(parsed, coverage, true);
+  for (const item of contractGaps) lack(item.field, item.reason, '拆票者');
+  const noFlow = ['contract', 'structure', 'spike'].includes(kind) && !owns.size && !parsed.respects.size
+    && [...coverage.values()].every(refs => !refs.length);
   if (!text(ticket?.id) || !text(body)) lack('ticket', '补原票号和读回的票面');
-  if (!ref || (!noScenario && !references.length)) lack('scenarios', '在原票补场景引用或无适用场景的理由', '需求作者');
   if (kind === 'behavior' && !owns.size) lack('owns', '行为票缺少 Owns', '拆票者');
   for (const id of references) {
     const scenario = known.get(id);
-    if (!listed(scenario?.covers) || !['given', 'when', 'then', 'source', 'seam'].every(k => text(scenario[k]))) {
-      lack('scenarios', `${id} 缺少原场景、独立预期或公开入口`, '需求作者');
+    if (!scenario) continue; // 未定义的引用已由票面检查指出。
+    if (!strings(scenario.covers) || !scenario.covers.every(ref => /^[TR]\d+$/.test(ref)) || (!noFlow && !scenario.covers.length)) {
+      lack('covers', `${id} 需列出 T/R；无业务流的保持场景可写空数组`, '需求作者');
     }
+    for (const key of ['given', 'when', 'then', 'source', 'seam']) {
+      if (!text(scenario[key])) lack(key, `${id} 缺 ${key}`, '需求作者');
+    }
+  }
+  if (kind === 'behavior') {
+    const covered = new Set([...references].flatMap(id => coverage.get(id) || []));
+    for (const id of owns) if (!covered.has(id)) lack('owns', `${id} 缺负责的场景`, '拆票者');
   }
   if (!atRevision(base, ['cat-file', '-e', `${base}^{commit}`])) lack('base', `无法读取基线提交 ${base}`);
   for (const item of site.decisions || []) {
@@ -79,8 +83,8 @@ function prepare(ticket, scenarios, base, site = {}) {
       if (!relativeFile(file) || writes.has(file)) lack('writable', `${file} 路径无效或写入重叠；先集中共享改动再派发`);
       writes.add(file);
     }
-    if (!strings(slice.scenarios) || slice.scenarios.some(id => !references.includes(id)) || (!noScenario && !slice.scenarios.length)) {
-      lack('scenarios', `${slice.slice_id} 应引用父票场景 ${references.join(', ')}`);
+    if (!strings(slice.scenarios) || slice.scenarios.some(id => !references.has(id)) || (references.size && !slice.scenarios.length)) {
+      lack('scenarios', `${slice.slice_id} 应引用父票场景 ${[...references].join(', ')}`);
     }
     if (!strings(slice.owns) || slice.owns.some(id => !owns.has(id))) lack('owns', `${slice.slice_id} 超出父票归属`);
     else slice.owns.forEach(id => covered.add(id));

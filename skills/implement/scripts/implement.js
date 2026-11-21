@@ -1,8 +1,9 @@
 // L3/L4  核收目标仓库的局部运行记录或集成记录。不启动开发者，不执行输入中的命令。
 // L5     input 是 Brief 或 MmfPlan。record 由执行 Skill 传入，格式见 delivery-contract.md。
-// L6     核对片提交已落入集成 HEAD；按观察前批准的场景检查核收同一提交上的运行和门禁。
+// L6     按派发合同重查原片范围，再证明片提交落入集成 HEAD，核收同一提交上的场景与门禁。
 // TEST   node skills/to-tickets/references/stop-turn/verify-contract.cjs
 const fs = require('node:fs');
+const { isUtf8 } = require('node:buffer');
 const { spawnSync } = require('node:child_process');
 const { isDeepStrictEqual: equal } = require('node:util');
 
@@ -10,8 +11,25 @@ const text = value => typeof value === 'string' && value.trim() !== '';
 const revision = value => typeof value === 'string' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
 const command = value => Array.isArray(value) && value.length > 0 && value.every(text);
 function git(...args) {
-  const result = spawnSync('git', args, { encoding: 'utf8' });
-  return result.status === 0 ? result.stdout.trimEnd() : null;
+  const result = spawnSync('git', args);
+  return result.status === 0 ? result.stdout : null;
+}
+
+// 只有 rev-parse / rev-list 的 ASCII 提交列表走文本通道。
+function revisions(...args) {
+  return git(...args)?.toString('ascii').trimEnd();
+}
+
+function scopeGaps(brief, commit) {
+  if (!revision(brief.base) || !revision(commit) || !git('merge-base', '--is-ancestor', brief.base, commit)) {
+    return [`当前提交未基于 ${brief.base}`];
+  }
+  const paths = git('diff', '--no-renames', '--name-only', '-z', brief.base, commit, '--');
+  if (!paths || (paths.length && paths.at(-1) !== 0)) return ['无法读取提交范围'];
+  if (!isUtf8(paths)) return ['提交含非 UTF-8 路径，无法匹配派发合同中的文件名'];
+  if (!Array.isArray(brief.writable)) return ['派发合同缺可写文件列表'];
+  return paths.toString('utf8').split('\0').slice(0, -1)
+    .filter(file => !brief.writable.includes(file)).map(file => `超出可写范围 ${file}`);
 }
 
 function sliceEvidence(brief, record, head) {
@@ -23,30 +41,24 @@ function sliceEvidence(brief, record, head) {
   if (!command(check) || !equal(check, run?.check) || run?.base !== head || run?.ok !== true || !text(run?.observed)) {
     gaps.push(`${ticket}/${slice_id} 缺当前提交上合同命令的通过记录与实际结果`);
   }
-  if (!revision(base) || git('merge-base', '--is-ancestor', base, head) === null) gaps.push(`当前提交未基于 ${base}`);
-  else {
-    const diff = git('diff', '--no-renames', '--name-only', '-z', base, head, '--');
-    if (diff === null) gaps.push('无法读取提交范围');
-    else for (const file of diff.split('\0').filter(Boolean)) {
-      if (!brief.writable?.includes(file)) gaps.push(`超出可写范围 ${file}`);
-    }
-  }
-  if (git('status', '--porcelain') !== '') gaps.push('工作区有未提交内容，检查结果无法绑定到提交');
+  gaps.push(...scopeGaps(brief, head));
+  if (git('status', '--porcelain', '-z')?.length !== 0) gaps.push('工作区有未提交内容，检查结果无法绑定到提交');
   return { ticket, slice_id, scenarios, base, commit, check, observed: run?.observed || '', gaps };
 }
 
 // 祖先关系直接证明落地。改写的提交先由 Git 筛出补丁候选，再核对路径、模式与前后 blob。
 function landed(base, commit, head) {
   if (git('merge-base', '--is-ancestor', commit, head) !== null) return true;
-  const pending = git('rev-list', `${base}..${commit}`, '--not', head);
-  const candidates = git('rev-list', '--cherry-mark', '--right-only', '--no-merges', `${commit}...${head}`);
+  const pending = revisions('rev-list', `${base}..${commit}`, '--not', head);
+  const candidates = revisions('rev-list', '--cherry-mark', '--right-only', '--no-merges', `${commit}...${head}`);
   if (!pending || !candidates) return false;
-  const delta = sha => git('-c', 'core.quotePath=true', 'diff-tree', '--raw', '-r', '--no-commit-id', '--no-renames', '--no-abbrev', sha);
+  const delta = sha => git('diff-tree', '--raw', '-r', '-z', '--no-commit-id', '--no-renames', '--no-abbrev', sha, '--');
   const remaining = pending.split('\n').map(delta);
-  if (remaining.some(change => !change)) return false;
+  if (remaining.some(change => !change?.length)) return false;
   for (const line of candidates.split('\n')) {
     if (!line.startsWith('=')) continue;
-    const index = remaining.indexOf(delta(line.slice(1)));
+    const candidate = delta(line.slice(1));
+    const index = remaining.findIndex(change => candidate?.equals(change));
     if (index !== -1) remaining.splice(index, 1);
     if (!remaining.length) return true;
   }
@@ -62,10 +74,13 @@ function collect(briefs, evidence, head, gaps) {
     const [e] = matches;
     if (matches.length !== 1 || briefs.filter(same).length !== 1 || e.base !== brief.base
         || !equal(e.scenarios, brief.scenarios) || !equal(e.check, brief.check) || !text(e.observed)
-        || !equal(e.gaps, []) || !revision(e.commit) || e.base === e.commit
-        || !revision(e.base) || git('merge-base', '--is-ancestor', e.base, e.commit) === null) {
+        || !equal(e.gaps, []) || !revision(e.commit) || e.base === e.commit) {
       gaps.push(`${key} 缺少与派发合同一致的唯一通过回执`);
-    } else if (!landed(e.base, e.commit, head)) {
+      continue;
+    }
+    const scope = scopeGaps(brief, e.commit);
+    if (scope.length) gaps.push(...scope.map(reason => `${key} ${reason}`));
+    else if (!landed(e.base, e.commit, head)) {
       gaps.push(`${key} 无法证明 ${e.commit} 已落入集成提交 ${head}`);
     } else accepted.push(e);
   }
@@ -89,7 +104,7 @@ function mmfVerdict(plan, record, head) {
   const { mmf, base, briefs, evidence } = plan;
   const gaps = [...(record.gaps || [])];
   const checks = [];
-  if (head !== base || !revision(base) || git('status', '--porcelain') !== '') gaps.push(`请在干净的集成提交 ${base} 核验`);
+  if (head !== base || !revision(base) || git('status', '--porcelain', '-z')?.length !== 0) gaps.push(`请在干净的集成提交 ${base} 核验`);
   if (!plan.scenarios.length) gaps.push('缺原 Spec 场景');
   const accepted = collect(briefs, evidence, head, gaps);
   const scenarios = plan.scenarios.map(s => {
@@ -121,7 +136,7 @@ function mmfVerdict(plan, record, head) {
 }
 
 function implement(input, record = {}) {
-  const head = git('rev-parse', 'HEAD');
+  const head = revisions('rev-parse', 'HEAD') ?? null;
   return 'mmf' in input ? mmfVerdict(input, record, head) : sliceEvidence(input, record, head);
 }
 

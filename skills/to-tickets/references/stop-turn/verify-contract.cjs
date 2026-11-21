@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const examples = require('./briefs.cjs');
+const { checkSpec } = require('../../../to-spec/scripts/check-spec.js');
+const { checkTickets } = require('../../scripts/check-tickets.js');
 const { prepare } = require('../../../delegate-ticket/scripts/prepare.js');
 const { implement } = require('../../../implement/scripts/implement.js');
 
@@ -33,10 +35,47 @@ const unexpected = [];
 function rejects(label, result, gap) {
   if (result.verdict !== 'return' || !result.gaps.some(item => item.includes(gap))) unexpected.push(label);
 }
-function cli(script, payload, status = 0) {
+function cli(script, payload, status = 0, label) {
   const result = spawnSync(process.execPath, [require.resolve(script)], { input: JSON.stringify(payload), encoding: 'utf8' });
-  assert.equal(result.status, status, result.stderr || result.stdout);
+  if (label && result.status !== status) unexpected.push(`${label}：退出 ${result.status}，期望 ${status}`);
+  else assert.equal(result.status, status, result.stderr || result.stdout);
   return JSON.parse(result.stdout);
+}
+
+function checkDispatch(base, draft) {
+  const spec = read('spec.md');
+  const structure = ticket.body.replace('Kind: behavior', 'Kind: structure').replaceAll('T1, R1', '无');
+  const unchanged = spec.replace(/## Business Flow[^]*?(?=## User Stories)/, '## Business Flow\nN/A（保持原行为）\n\n')
+    .replace('Owns: running, stopped, T1, R1', 'Owns: 无').replace('| S1 | T1, R1 |', '| S1 | N/A |');
+  const errors = (spec, body) => checkTickets(spec, body, true).filter(([level]) => level === 'error');
+  assert.deepEqual(checkSpec(unchanged, true), []);
+  assert.deepEqual(errors(unchanged, structure), []);
+  const dispatch = (body, scene, slice, status, label) => cli('../../../delegate-ticket/scripts/prepare.js', {
+    ticket: { id: ticket.id, body }, scenarios: [scene], base, site: { slices: [slice] },
+  }, status, label);
+  const scene = { ...scenarios[0], covers: [] };
+  const slice = { ...draft, owns: [] };
+  const valid = dispatch(structure, scene, slice, 0, '结构票保持 S1');
+  if (valid[0]?.ticket !== ticket.id || !valid[0].scenarios.includes(scene.id)) unexpected.push('结构票缺 S1 合同');
+  for (const field of ['then', 'source', 'seam', 'covers']) {
+    const incomplete = { ...scene, [field]: undefined };
+    assert.equal(dispatch(structure, incomplete, slice, 1).ticket, ticket.id);
+  }
+  for (const covers of ['N/A', ['unassigned']]) {
+    dispatch(structure, { ...scene, covers }, slice, 1, `非法 covers ${covers}`);
+  }
+  dispatch(structure.replace('Kind: structure', 'Kind: behavior'), scene, slice, 1);
+  dispatch(ticket.body, scene, draft, 1);
+  const contract = structure.replace('Kind: structure', 'Kind: contract').replace('Owns: 无', 'Owns: R1')
+    .replace('Scenarios: S1', 'Scenarios: N/A（仅冻结共享签名）');
+  const [frozen] = dispatch(contract, scenarios[0], { ...draft, scenarios: [], owns: ['R1'] }, 0);
+  assert.deepEqual(frozen.scenarios, []);
+  for (const field of ['Interface', 'Ensures']) {
+    const body = ticket.body.replace(`- ${field}:`, '- 备注:');
+    assert.ok(errors(spec, body).some(([, , reason]) => reason.includes(field)));
+    const result = dispatch(body, scenarios[0], draft, 1, `缺 ${field}`);
+    if (result.ticket !== ticket.id || !result.missing?.some(item => item.reason.includes(field))) unexpected.push(`原票缺项 ${field}`);
+  }
 }
 
 try {
@@ -49,6 +88,7 @@ try {
   git('commit', '-qm', '冻结 S1 入口');
   const base = head();
   const groups = examples();
+  checkDispatch(base, groups.single[0]);
   const dispatch = (slices, decisions = []) => prepare(ticket, scenarios, base, { slices, decisions });
   const single = dispatch(groups.single);
   assert.deepEqual(cli('../../../delegate-ticket/scripts/prepare.js', { ticket, scenarios, base, site: { slices: groups.single } }), single);
@@ -138,9 +178,44 @@ try {
   const pickedPlan = { ...plan, base: head() };
   const picked = cli('../../../implement/scripts/implement.js', { input: pickedPlan, record: integrated() });
   assert.equal(picked.verdict, 'pass');
-  assert.deepEqual(unexpected, [], '不应放行的输入');
+  // 同一回执在宽、窄合同下核验。重写的补丁只在文件名末尾相差一个字节。
+  const original = head();
+  const file = 'turn details/result ';
+  const broad = { ...single[0], base: original, writable: ['status.js', file] };
+  function change(resultFile) {
+    fs.mkdirSync('turn details', { recursive: true });
+    fs.writeFileSync(resultFile, '第一段\n');
+    git('add', '--', resultFile);
+    return commit('status.js', "module.exports = () => 'stopped'; // 结束\n");
+  }
+  change(file);
+  const receipt = cli('../../../implement/scripts/implement.js', { input: broad, record: { run: run(broad.check) } });
+  const collect = (brief, status, label) => cli('../../../implement/scripts/implement.js', {
+    input: { ...plan, base: head(), briefs: [brief], evidence: [receipt] }, record: integrated(),
+  }, status, label);
+  assert.equal(collect(broad, 0).verdict, 'pass');
+  const narrow = { ...broad, writable: ['status.js'] };
+  rejects('窄合同接受宽回执', collect(narrow, 1, '范围重验'), file);
+  git('checkout', '-qb', 'different-path', original);
+  change(file.trimEnd());
+  rejects('补丁实际改了另一个文件', collect(broad, 1, '路径尾空格'), broad.slice_id);
+  git('checkout', '-qb', 'same-path', original);
+  commit('context', '其他片的改动');
+  git('cherry-pick', receipt.commit);
+  assert.notEqual(head(), receipt.commit);
+  assert.equal(collect(broad, 0).verdict, 'pass');
+  // 两次交付只摘了末次。即使场景检查绿了，仍缺第一次的片提交。
+  git('checkout', '-qb', 'two-commits', receipt.commit);
+  const tip = commit('results.js', 'module.exports = turn => [...turn.results];\n');
+  const twoCommits = { ...broad, writable: [...broad.writable, 'results.js'] };
+  const both = cli('../../../implement/scripts/implement.js', { input: twoCommits, record: { run: run(broad.check) } });
+  git('checkout', '-qb', 'only-tip', original);
+  git('cherry-pick', tip);
+  const incomplete = { ...plan, base: head(), briefs: [twoCommits], evidence: [both] };
+  rejects('缺首个改动', cli('../../../implement/scripts/implement.js', { input: incomplete, record: integrated() }, 1), broad.slice_id);
+  assert.deepEqual(unexpected, [], '票面与派发合同不一致');
   if (process.argv.includes('--json')) console.log(JSON.stringify({ ticket, scenarios, briefs, evidence: plan.evidence, bad, verdict }, null, 2));
-  else console.log('TURN-1 / S1 ok: 依赖、单片、多片、场景绑定、旁支退回、合并与 cherry-pick 落地、同入口复验');
+  else console.log('TURN-1 / S1 ok: 票面与派发、片级与整体范围、旁支退回、合并与 cherry-pick 路径、同入口复验');
 } finally {
   process.chdir(origin);
   fs.rmSync(repo, { recursive: true, force: true });

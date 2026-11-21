@@ -7,7 +7,7 @@
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
 //   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids、readScenarios
 //   EXPORT: checkTickets(specText, ticketText, requireScenarios?) -> [level, rule, message][]
-//   EXPORT: parseTicket(id, title, body)、isUnknownDependency(dep) 供派发入口沿用票面字段与依赖规则
+//   EXPORT: parseTicket、readScenarioContract、isUnknownDependency 供派发入口读回同一份票面合同
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
 // L5
 //   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行
@@ -98,30 +98,32 @@ function scenarioFields(build, issue) {
   for (const line of build.split('\n')) {
     const field = /^[\s>*-]*\**(Scenarios|Interface|Ensures)\**\s*[:：]\**\s*(.*)$/.exec(line);
     if (!field) continue;
-    if (fields.has(field[1])) issue(`${field[1]} 重复`);
+    if (fields.has(field[1])) issue(field[1], `${field[1]} 重复`);
     fields.set(field[1], field[2].trim());
   }
   return fields;
 }
 
-function checkScenarioTicket(ticket, spec, required, referenced) {
-  const errors = [];
-  const issue = message => errors.push(['error', 'scenario', `${ticket.id}：${message}`]);
+function readScenarioContract(ticket, scenarios, required) {
+  const references = new Set();
+  const missing = [];
+  const issue = (field, reason) => missing.push({ field, reason });
   const sections = splitSections(ticket.body, '### ');
   const fields = scenarioFields(sections.get('What to build') || '', issue);
-  if (!required && !fields.has('Scenarios')) return errors;
   const declaration = fields.get('Scenarios') || '';
-  if (ticket.kind !== 'behavior' && /^N\/A\s*(?:（[^）]+）|\([^)]+\))$/.test(declaration)) return errors;
-  if (!declaration) issue('What to build 缺 Scenarios');
-  const references = new Set(declaration.split(/[,，、\s]+/).filter(Boolean));
-  for (const id of references) {
-    if (!spec.scenarios.has(id)) issue(`Scenarios 引用了未定义的场景 ${id}`);
-    referenced.add(id);
+  const noScenario = KINDS.has(ticket.kind) && ticket.kind !== 'behavior' && /^N\/A\s*(?:（[^）]+）|\([^)]+\))$/.test(declaration);
+  if ((!required && !fields.has('Scenarios')) || noScenario) return { references, missing };
+  for (const id of declaration.split(/[,，、\s]+/).filter(Boolean)) {
+    references.add(id);
+    if (!scenarios.has(id)) issue('Scenarios', `Scenarios 引用了未定义的场景 ${id}`);
   }
-  if (ticket.kind !== 'behavior') return errors;
-  for (const name of ['Interface', 'Ensures']) if (!fields.get(name)) issue(`What to build 缺 ${name}`);
-  checkAcceptance(ticket, sections.get('Acceptance criteria') || '', spec.scenarios, references, issue);
-  return errors;
+  if (!references.size) issue('Scenarios', 'What to build 缺 Scenarios');
+  if (ticket.kind === 'behavior') {
+    for (const name of ['Interface', 'Ensures']) if (!fields.get(name)) issue(name, `What to build 缺 ${name}`);
+    checkAcceptance(ticket, sections.get('Acceptance criteria') || '', scenarios, references,
+      reason => issue('Acceptance criteria', reason));
+  }
+  return { references, missing };
 }
 
 function checkAcceptance(ticket, acceptance, scenarios, references, issue) {
@@ -147,7 +149,11 @@ function checkAcceptance(ticket, acceptance, scenarios, references, issue) {
 function checkScenarioContracts(spec, tickets, required) {
   const referenced = new Set();
   const errors = spec.errors.map(([rule, message]) => ['error', rule, message]);
-  for (const t of tickets) errors.push(...checkScenarioTicket(t, spec, required, referenced));
+  for (const ticket of tickets) {
+    const { references, missing } = readScenarioContract(ticket, spec.scenarios, required);
+    for (const id of references) referenced.add(id);
+    for (const item of missing) errors.push(['error', 'scenario', `${ticket.id}：${item.reason}`]);
+  }
   for (const id of spec.scenarios.keys()) {
     if (required && !referenced.has(id)) errors.push(['error', 'scenario', `场景 ${id} 没有票引用`]);
   }
@@ -270,4 +276,4 @@ if (require.main === module) {
   process.exitCode = lines.some(([level]) => level === "error") ? 1 : 0;
 }
 
-module.exports = { checkTickets, parseTicket, isUnknownDependency };
+module.exports = { checkTickets, parseTicket, readScenarioContract, isUnknownDependency };

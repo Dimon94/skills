@@ -16,9 +16,9 @@
 
 | 任务类型 | 链路 |
 | --- | --- |
-| 大型需求 | `to-epic` 按需澄清决策、切出 MMF，并按授权发布 Epic Issue → `to-spec` 为每个 MMF 写一份 Spec → `to-tickets` 把 MMF 切成合同票加可并发的行为票（每条 T/R 唯一归属），经 `ticket-sizing` 定粒度、脚本核对覆盖与依赖图、用户裁决后发布 → 实现；每个 MMF 一个 MR，单票 MMF 也走 `to-tickets`，切片表只有一行 |
+| 大型需求 | `to-epic` 按需澄清决策、切出 MMF，并按授权发布 Epic Issue → `to-spec` 为每个 MMF 写一份 Spec → `to-tickets` 把 MMF 切成合同票加可并发的行为票（每条 T/R 唯一归属），经 `ticket-sizing` 定粒度、脚本核对覆盖与依赖图、用户裁决后发布 → `delegate-ticket` 为一票准备一份或多份派发合同 → `implement` 回交各片证据，再与 `code-review` 验收集成结果；每个 MMF 一个 MR，单票 MMF 也走 `to-tickets`，切片表只有一行 |
 | 常规需求 | 模型写最小计划 → `grill-with-docs` 拷问计划 → `implement` |
-| 小改动 | 直接 `implement`，由 `tdd` 按需决定是否先红后绿 |
+| 小改动 | 直接 `implement`，由 `bdd` 根据场景预期选择检查 |
 | 重构或优化 | 使用 `improve-codebase-architecture` 或 `productionize-app-with-services` 二选一分析 → 按分析所得工作量重新判断需求规模 → 进入上面的大型或小型需求链路 |
 | Bug | 独立 Worktree → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | 理解既有代码 | `investigate` 做只读调研：机制问题路由到 `how`，动机问题叠加 `why`，方案决策给推荐与取舍表 |
@@ -50,7 +50,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 
 | 仓库 | 链路职责 | 独立安装 |
 | --- | --- | --- |
-| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`、`tdd`、`code-review` 与 `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
+| [Dimon94/skills](https://github.com/Dimon94/skills) | `delegate-ticket`、`implement`、`bdd`、`code-review` 与 `git-commit`、`git-rebase-main` 等本地交付 Skill | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | Research、Grilling、架构分析、Wayfinder、Spec 与 Tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | 精选 `productionize-app-with-services` 上游快照的来源 | 由本仓安装脚本一并安装 |
 | [cursor/plugins](https://github.com/cursor/plugins) | `thermo-nuclear-code-quality-review` 快照及改写的 `how`、`why`、`blast-radius`、`investigate` 与 verification 一对的上游来源 | 由本仓安装脚本一并安装 |
@@ -91,7 +91,7 @@ cd "$HOME/.local/share/dimon-agent-workflow/skills"
 | `principle-laziness-protocol` | `implement`（第 2 步先做减法） |
 | `principle-subtract-before-you-add` | `implement`（第 2 步先做减法） |
 | `principle-minimize-reader-load` | `implement`（第 4 步对账前消融） |
-| `principle-test-behavior-not-implementation` | `tdd`（第 3 步断言扛得过只改内部） |
+| `principle-test-behavior-not-implementation` | `bdd`（从公开入口观察场景结果） |
 | `principle-prove-it-works` | `implement`（第 3 步完成条件，结果读自真产物） |
 
 新增叶子同改四处：`cursor-pstack` 来源、`dimon-mode` 原则节、AGENTS.md 的 `<principle_index>`、本表。只在有宿主引用时引入叶子。

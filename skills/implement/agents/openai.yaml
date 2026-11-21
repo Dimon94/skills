@@ -1,5 +1,5 @@
 interface:
   display_name: "Implement"
-  short_description: "按 spec 或 tickets 实现：按需 TDD、真实运行、一轮双轴审查"
+  short_description: "按派发合同交回局部证据，按 Spec 或 MMF 完成集成验收"
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

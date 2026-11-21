@@ -1,7 +1,93 @@
-// L3  输入为原票、Spec 场景及目标提交。公开签名见 to-tickets/references/delivery-contract.md。
-// L4  合同桩不派发。调用者取得显式失败，不能把空集合当作已完成。
-function prepare(ticket, scenarios, base) {
-  throw Object.assign(new Error(`${ticket.id}：prepare 尚未实现`), { code: 'ERR_NOT_IMPLEMENTED' });
+// L3/L4  技术负责人补现场，prepare 把现场与原票绑定。只读目标仓库，不执行合同中的命令。
+// L5     cwd = 目标仓库根。site.slices = 现场草案；site.decisions = 语义对账发现的缺项。
+// L6     先核对原场景，再核对范围与合计覆盖。补齐后以原票号重跑，无持久副作用。
+// TEST   node skills/to-tickets/references/stop-turn/verify-contract.cjs
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { ids } = require('../../to-spec/scripts/check-spec.js');
+
+const text = value => typeof value === 'string' && value.trim() !== '';
+const strings = value => Array.isArray(value) && value.every(text);
+const listed = value => strings(value) && value.length > 0;
+const relativeFile = file => text(file) && !path.isAbsolute(file) && !/[\\\x00]/u.test(file)
+  && file.split('/').every(part => part && !['.', '..', '.git'].includes(part));
+
+function atRevision(base, args) {
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(base)) return false;
+  return spawnSync('git', args, { encoding: 'utf8' }).status === 0;
 }
 
+function field(body, name) {
+  const pattern = new RegExp(`^\\s*(?:[-*>]\\s*)?\\**${name}\\**\\s*[:：]\\**\\s*(.+)$`, 'gmi');
+  const matches = [...body.matchAll(pattern)];
+  return matches.length === 1 ? matches[0][1].trim() : '';
+}
+
+function prepare(ticket, scenarios, base, site = {}) {
+  const missing = [];
+  const lack = (field, reason, owner = '技术负责人') => missing.push({ field, reason, owner });
+  const body = ticket?.body || '';
+  const header = body.split(/^###\s/m, 1)[0];
+  const kind = field(header, 'Kind') || 'behavior';
+  const owns = ids(field(header, 'Owns'));
+  const ref = field(body, 'Scenarios');
+  const noScenario = /^(contract|structure|spike)$/.test(kind) && /^N\/A\s*[（(].+[)）]$/i.test(ref);
+  const references = noScenario ? [] : ref.split(/[,，、\s]+/).filter(Boolean);
+  const known = new Map((scenarios || []).map(s => [s.id, s]));
+  if (!text(ticket?.id) || !text(body)) lack('ticket', '补原票号和读回的票面');
+  if (!ref || (!noScenario && !references.length)) lack('scenarios', '在原票补场景引用或无适用场景的理由', '需求作者');
+  if (kind === 'behavior' && !owns.size) lack('owns', '行为票缺少 Owns', '拆票者');
+  for (const id of references) {
+    const scenario = known.get(id);
+    if (!listed(scenario?.covers) || !['given', 'when', 'then', 'source', 'seam'].every(k => text(scenario[k]))) {
+      lack('scenarios', `${id} 缺少原场景、独立预期或公开入口`, '需求作者');
+    }
+  }
+  if (!atRevision(base, ['cat-file', '-e', `${base}^{commit}`])) lack('base', `无法读取基线提交 ${base}`);
+  for (const item of site.decisions || []) {
+    if (['field', 'reason', 'owner'].every(key => text(item?.[key]))) missing.push(item);
+    else lack('decisions', '指出原合同的具体缺项、原因和决定者');
+  }
+  if (!Array.isArray(site.slices) || site.slices.length === 0) lack('slices', '按票面补一份现场草案；独立可验收时可拆多份');
+  if (missing.length) return { ticket: ticket?.id, missing };
+
+  const slices = [];
+  const writes = new Set();
+  const covered = new Set();
+  for (const draft of site.slices) {
+    const slice = { ...draft, ticket: ticket.id, base };
+    for (const key of ['slice_id', 'title', 'goal', 'expected']) {
+      if (!text(slice[key])) lack(key, `${slice.slice_id || ticket.id} 缺 ${key}`);
+    }
+    if (slices.some(s => s.slice_id === slice.slice_id)) lack('slice_id', `片标识重复 ${slice.slice_id}`);
+    if (!strings(slice.exclusions)) lack('exclusions', `${slice.slice_id} 需说明范围边界`);
+    if (!listed(slice.check)) lack('check', `${slice.slice_id} 缺验收命令参数`);
+    if (!listed(slice.read_first)) lack('read_first', `${slice.slice_id} 缺先例`);
+    else for (const file of slice.read_first) {
+      if (!relativeFile(file) || !atRevision(base, ['cat-file', '-e', `${base}:${file}`])) lack('read_first', `${base} 缺先例 ${file}`);
+    }
+    if (!listed(slice.writable)) lack('writable', `${slice.slice_id} 缺可写文件`);
+    else for (const file of slice.writable) {
+      if (!relativeFile(file) || writes.has(file)) lack('writable', `${file} 路径无效或写入重叠；先集中共享改动再派发`);
+      writes.add(file);
+    }
+    if (!strings(slice.scenarios) || slice.scenarios.some(id => !references.includes(id)) || (!noScenario && !slice.scenarios.length)) {
+      lack('scenarios', `${slice.slice_id} 应引用父票场景 ${references.join(', ')}`);
+    }
+    if (!strings(slice.owns) || slice.owns.some(id => !owns.has(id))) lack('owns', `${slice.slice_id} 超出父票归属`);
+    else slice.owns.forEach(id => covered.add(id));
+    slices.push(slice);
+  }
+  for (const id of owns) if (!covered.has(id)) lack('owns', `所有执行片均未覆盖 ${id}`);
+  for (const id of references) if (!slices.some(s => s.scenarios?.includes(id))) lack('scenarios', `所有执行片均未覆盖 ${id}`);
+  return missing.length ? { ticket: ticket.id, missing } : slices;
+}
+
+if (require.main === module) {
+  const { ticket, scenarios, base, site } = JSON.parse(fs.readFileSync(0, 'utf8'));
+  const result = prepare(ticket, scenarios, base, site);
+  console.log(JSON.stringify(result, null, 2));
+  process.exitCode = Array.isArray(result) ? 0 : 1;
+}
 module.exports = { prepare };

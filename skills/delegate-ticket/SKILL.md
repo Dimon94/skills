@@ -1,11 +1,13 @@
 ---
 name: delegate-ticket
-description: "按实施合同准备派发合同：绑定票、场景、基线、先例、可写范围和带独立预期的检查；用于用户显式调用 /delegate-ticket。"
-disable-model-invocation: true
+description: 根据 ticket、场景与现场基线准备派发合同，在用户授权委派时派给开发者并收齐逐片证据。
 ---
 
-# Delegate Ticket
+# 按票委派
 
-技术负责人把一张实施合同补成可执行的派发合同。输入字段与输出归 [交接合同](../to-tickets/references/delivery-contract.md) 的 `Ticket`、`Scenario`、`Brief` 和 `MissingDecision` 所有。
+技术负责人输入原票号、票面、引用的 Spec 场景和目标仓库。交付一组 `Brief`，或带原票号的 `MissingDecision`。字段见[交接合同](../to-tickets/references/delivery-contract.md)。
 
-A01 只冻结公开调用点。`scripts/prepare.js` 导出 `prepare(ticket, scenarios, base)`，当前显式抛出 `ERR_NOT_IMPLEMENTED`。A03 接入准备行为，继续返回一份或多份 `Brief`，缺少业务决定时返回 `MissingDecision`。
+1. 在目标仓库用 `git rev-parse HEAD` 取得确定基线，读票面的 Owns、Respects、Interface、Ensures 和边界。在该提交上查现有入口、先例和可运行的检查。逐项对照原场景的前提、动作、全部结果与独立预期。票面只剩“停止成功”、原场景还要求“第一段仍可读”时，把遗漏的结果、原场景和决定者写入 `site.decisions`。技术负责人补现场，拆票者补责任，需求作者裁决业务冲突。沿原票号重跑。
+2. 默认写一份草案。只有各片能独立验证且写入互不重叠时才拆。每片写清可直接实施的设计、签名与承诺、归属、获准文件、基线上要先读的相对路径、一条验收命令、该命令的具体预期和排除项。金额、权限、去重、并发等命中项目门禁的规则点名检查和负责片。先集中完成共享改动，再从新基线准备依赖它的下一波。按每条 T/R 和每项结果核对各片合起来覆盖原票，编号相同仍要核对语义。
+3. 在目标仓库根，将 `{ticket, scenarios, base, site: {slices, decisions}}` 作为 JSON 从标准输入传给 `node <本 Skill>/scripts/prepare.js`。`slices` 是上一步写出的草案，字段见 `Brief`，脚本绑定父票和基线。`decisions` 为空数组时表示已完成语义对账且无缺项。退出 1 时把具体缺项交给该 owner。退出 0 时保留**完整合同清单**供核收，交付每份合同。
+4. 用户已授权委派时，通过宿主实际启动开发者，在各自从合同基线建立的独立工作树中运行 `implement` 的派发合同入口。每人只收到本片合同、必要项目约定及其指针。收回每人的 `SliceEvidence`，按原清单的 `ticket + slice_id` 核对基线、提交、命令、观察和缺口。缺片继续收，缺证交原开发者补。同一票收齐后交 MMF 负责人在集成提交按原场景验收。人工转交时直接给出合同和回执格式；Driver 模式把合同或回执交还 transport，由宿主启动与回收。

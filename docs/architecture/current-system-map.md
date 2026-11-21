@@ -18,13 +18,13 @@ Status: current
 
 ## 场景与 ticket 的交接
 
-[共同合同与停止回合样例](../../skills/to-tickets/references/delivery-contract.md)冻结 A02 与 A03 的读写边界。`to-spec` 拥有场景的独立预期，`to-tickets` 拥有票级 T/R 分配。`prepare` 和 `implement` 的 Node 合同桩可以调用，尚未接通行为。原有规划检查器保留各自的 Markdown 输入与诊断格式。
+[共同合同与停止回合样例](../../skills/to-tickets/references/delivery-contract.md)冻结 A02 与 A03 的读写边界。`to-spec` 拥有场景的独立预期，`to-tickets` 拥有票级 T/R 分配。`prepare` 校验现场草案并生成绑定基线的 Brief，`implement` 校验证据并生成 SliceEvidence 或 MmfVerdict。原有规划检查器保留各自的 Markdown 输入与诊断格式。
 
 | 合同层 | 归属与后续接线 | 验证入口 |
 | --- | --- | --- |
 | L2 规划（A02） | `bdd` 提供场景与证据选择，`to-spec` 和 `to-tickets` 写出 Spec 与实施合同。 | 两个规划检查器、各自的 `references/verification.md` 和共同合同的错票。 |
 | L2 执行（A03） | `delegate-ticket` 准备派发合同，`implement` 回交片级证据或 MMF 验收结果，`code-review` 审集成提交。`implement`、`dimon-mode` 与其 `playbooks/bug-fix.md` 从 `tdd` 迁至 `bdd`。 | `stop-turn/briefs.cjs` 中的两片漏项和 `example/check.cjs` 的整票读回。 |
-| L3–L5 | `skills/delegate-ticket/scripts/prepare.js` 与 `skills/implement/scripts/implement.js` 冻结调用点。字段及错误见共同合同。 | 以同一 `TURN-1`、`S1` 调用各桩，未实现时显式失败。 |
+| L3–L5 | `skills/delegate-ticket/scripts/prepare.js` 与 `skills/implement/scripts/implement.js` 冻结调用点。字段及错误见共同合同。 | 以同一 `TURN-1`、`S1` 调用并核对 Brief、SliceEvidence、缺项退回和集成复验。 |
 | L6（A03） | 补基线和先例 → 按票收齐各片 → 集成提交对账。缺项交回原 owner。 | 准备单片、多片；在集成提交重跑原场景。 |
 
 A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.claude/skills/{bdd,delegate-ticket}`，经 `scripts/link-skills.sh` 与完整开发工作流安装入口生成。入口、调用者和安装验证一并迁移后退役 `tdd`。改编来源与 ADR 0006 保留历史出处。
@@ -50,8 +50,8 @@ A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.clau
 | skills/resolving-merge-conflicts | 真实 merge/rebase 冲突的解决流程（本仓自有，原文取自上游快照，上游已删除；出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有 rebase 发起、推送或收尾 | SKILL.md + agents/openai.yaml | git CLI | `node scripts/check-skills.js` |
 | skills/{thermo-nuclear-code-quality-review,better-*,vercel-react-best-practices,supabase-postgres-best-practices,productionize-app-with-services,show-me,principle-*,benchmark-checklist,statechart} | 提供来源清单锁定的第三方套件 Skill 上游快照 | 不拥有上游行为演进或隐式本地 patch | 各自 SKILL.md | 上游 Git 仓库；sync-upstream-skills | 来源 hash + `node scripts/check-skills.js` |
 | skills/code-review | Standards / Spec 双轴审查、P0–P3 严重度与 P0/P1 阻断线、P0/P1 可跑反例、每个 MMF 一轮的审查范围与 Standards 轴触发条件、Spec 缺口（措辞歧义不判实现）（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有审查模型选择、Pipeline 证据 transport、P2 issue 登记、实现或发布 | SKILL.md | caller 的固定证据与规范/spec | 与上游 diff 只含本仓增补 + `node scripts/check-skills.js` |
-| skills/tdd | 按需红绿：改动分流、独立预期、按缺陷位置选层、red/green 与真跑的空返回和近似错误探针（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有项目测试规范、测试审查、形式验证生成或提交 | SKILL.md + agents/openai.yaml | test-review 测试启发式；目标项目测试规范 | `node scripts/check-skills.js`与人工审查 |
-| skills/implement | 显式调用的 spec/tickets 实现：验收与失败方式、按切片调用 tdd、入口清单、相关 E2E 与形式验证、审查前对账、仅在整个 MMF 完成时调用 code-review（fixed point 为 MMF 开工前 SHA，spec 源为 MMF Spec 与验收清单）与 P2 issue 登记、P0/P1 以反例变绿加完整测试关闭、经 git-commit 提交、上下文吃紧时转子代理或 wip 交接（本仓自有，改写自上游，出处同上） | 不拥有审查规则与严重度、测试细则、推送、PR 或合并 | SKILL.md + agents/openai.yaml | tdd、code-review、git-commit；按需 blast-radius、git-worktree（wip 交接）、principle-guard-the-context-window；目标项目 tracker 与 formal-verify skill | `node scripts/check-skills.js`与人工审查 |
+| skills/bdd | 场景独立预期、公开入口选择与缺陷复现；把结果接到可证明的检查 | 不拥有项目测试规范、测试审查、实现或提交 | SKILL.md + agents/openai.yaml | test-review 启发式；目标项目测试规范 | `node scripts/check-skills.js`与人工审查 |
+| skills/implement | 按 Spec 或 Brief 实施：验收与失败方式、按切片调用 bdd、入口清单、相关 E2E 与形式验证、审查前对账、仅在整个 MMF 完成时调用 code-review（fixed point 为 MMF 开工前 SHA，spec 源为 MMF Spec 与验收清单）与 P2 issue 登记、P0/P1 以反例变绿加完整测试关闭、经 git-commit 提交、上下文吃紧时转子代理或 wip 交接（本仓自有，改写自上游，出处同上） | 不拥有审查规则与严重度、测试细则、推送、PR 或合并 | SKILL.md + agents/openai.yaml | bdd、code-review、git-commit；按需 blast-radius、git-worktree（wip 交接）、principle-guard-the-context-window；目标项目 tracker 与 formal-verify skill | `node scripts/check-skills.js`与人工审查 |
 | skills/test-review | 按目标项目测试规范审查测试正确性、必要性与覆盖证据；Standards / Spec 两轴独立 | 不拥有测试清理、规范修订、全仓审计或合并 | SKILL.md | caller 的固定证据、项目测试规范与 spec；宿主子 agent（可用时） | `node scripts/check-skills.js` + 隔离案例双轴前向测试 |
 | skills/test-discipline | 测试与压测文件判定、写前自检核心、项目测试规范定位、Claude/Codex PreToolUse 与 SubagentStart 提醒、共享字面量写入目标解析与 Claude Bash 提醒、Codex PostToolUse/Bash 调用后提醒、Codex 多文件补丁解析与 transcript 只读去重、Pi 当前进程（含独立子进程）的 edit/write、bash 与 codemode 字面量写入成功后提醒，同一运行时按测试文件去重；显式建档流程与基线测试规范模板；Claude/Codex hook 与 Pi 扩展 symlink 的注册、--check 与 --uninstall（取舍与回退见 repo://docs/adr/0003-skill-owned-agent-hooks.md） | 不拥有项目阶段、生成后项目规范的后续维护或用户全局配置的其余内容；不覆盖 Pi 带 parentToolCallId 的嵌套结果 | SKILL.md + hooks/entry.cjs（claude / codex） + hooks/codex.cjs + hooks/pi.js + scripts/install-hooks.cjs + references/ | Node.js；Pi 扩展 API；test-review 测试启发式；project-template 改写来源见 adapted-sources.md | `node --test skills/test-discipline/tests/*.test.cjs`；临时 git 仓手动演练补索引与生成基线 |
 | skills/how | 代码机制讲解与子系统走读（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有动机溯源 | SKILL.md + references/ | 无 | `node scripts/check-skills.js`与人工审查 |

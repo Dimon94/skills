@@ -31,7 +31,7 @@ type Brief = {
   check: string[]; expected: string; exclusions: string[];
 };
 type MissingDecision = { ticket: string; missing: { field: string; reason: string; owner: string }[] };
-declare function prepare(ticket: Ticket, scenarios: Scenario[], base: Revision): Brief[] | MissingDecision;
+declare function prepare(ticket: Ticket, scenarios: Scenario[], base: Revision, site?: { slices?: Brief[]; decisions?: MissingDecision['missing'][] }): Brief[] | MissingDecision;
 ```
 
 `ticket + slice_id` 标识一次票内分片。`scenarios` 引用原场景，`owns` 表达父票分给本片的 T/R。各片的目标与期望合起来覆盖整票。`writable`、`read_first` 为目标仓库根的相对文件路径。`check` 是一条命令的参数数组，首项为程序，`expected` 写该命令要观察到的结果。技术负责人协调共享写入，派发同波独立文件。收到缺项后从原 owner 取得决定，再用原票号和场景准备合同。
@@ -43,6 +43,7 @@ type SliceEvidence = {
 };
 type MmfPlan = {
   mmf: string; base: Revision; scenarios: Scenario[]; briefs: Brief[]; evidence: SliceEvidence[];
+  // 集成提交上的 observations 与 gates 由 implement 的 record 参数提供。
 };
 type MmfVerdict = {
   mmf: string; base: Revision; verdict: 'pass' | 'return';
@@ -54,10 +55,10 @@ declare function implement(input: Brief | MmfPlan): SliceEvidence | MmfVerdict;
 
 开发者记录实际命令、观察结果和提交；没有提交时写 `null` 并说明缺口。技术负责人按原票核收每个必需片，在 `MmfPlan.base` 指定的集成提交上逐场景对账。`MmfVerdict.checks` 记录适用的 E2E、消融、全量检查与 Standards/Spec 审查的结果坐标。缺片、缺证或整合后丢失原结果时给出 `return` 和具体缺口。
 
-[prepare 合同桩](../../delegate-ticket/scripts/prepare.js) 与 [implement 合同桩](../../implement/scripts/implement.js) 是 CommonJS 导出。A01 调用抛出 `ERR_NOT_IMPLEMENTED`。A03 承接正常 Skill 入口和执行行为。
+[prepare](../../delegate-ticket/scripts/prepare.js) 与 [implement](../../implement/scripts/implement.js) 是 CommonJS 导出。A03 负责校验现场、证据和集成验收，不执行合同中的命令。
 
 ## 运行共同样例
 
 1. 从本仓根运行 `node skills/to-spec/scripts/check-spec.js skills/to-tickets/references/stop-turn/spec.md`。再运行 `node skills/to-tickets/scripts/check-tickets.js skills/to-tickets/references/stop-turn/spec.md skills/to-tickets/references/stop-turn/ticket.md`。预期 `ok`、第 1 波 `TURN-1`。旧输入回归入口为 `node --test skills/to-spec/tests/check-spec.test.js skills/to-tickets/tests/check-tickets.test.js`。
-2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')(base)` 从本仓读出三组样例，`base` 传入例子项目的实际提交。`single` 交给一个开发者，`split` 分给两个开发者，二者的票号和场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期 `A01 contract fixture ok`。它检查正例覆盖、弱票差异、缺失覆盖和两个合同桩的显式红灯。
+2. 将 [例子项目的公开入口](stop-turn/example/turn.js) 所在目录作为目标仓库根。`require('./skills/to-tickets/references/stop-turn/briefs.cjs')(base)` 从本仓读出三组样例，`base` 传入例子项目的实际提交。`single` 交给一个开发者，`split` 分给两个开发者，二者的票号和场景相同。`missingResult` 的两片都检查状态，交齐也缺 R1。运行 `node skills/to-tickets/references/stop-turn/verify-contract.cjs`，预期输出包含 `TURN-1 / S1 ok`。它检查正例覆盖、弱票差异、缺失覆盖、收齐回执、集成丢结果退回与修复后的同 Seam 复验。
 3. 在例子项目根分别运行 `node check.cjs status`、`node check.cjs results`。未实施时分别在 `running` 和空结果处报红。两个开发者可各自只改 `status.js` 或 `results.js` 并重跑本片命令。整票执行 `node check.cjs all`，同时观察停止与「第一段」。这些是样例项目的检查；真实实施回执填写实际基线、提交和命令结果。

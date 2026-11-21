@@ -8,7 +8,7 @@ Related: repo://docs/adr/0010-dimon-mode-entry.md；repo://skills/dimon-mode/pla
 
 ADR 0010 §2 规定 dimon-mode 只路由到已有 Skill，不引入上游剧本文件，理由是照搬剧本会和各阶段 Skill 形成第二套流程。
 
-修缺陷的零件都已存在（how、why、tdd 缺陷行、principle-fix-root-causes、code-review），但没有一个 Skill 拥有它们的顺序，也没有 Skill 写“推翻的假设要回退”“单元测试证明不了缺陷消失”“失败的复现先于修复提交”和回复格式。pstack 的 poteto-mode 同为显式调用入口，把这类顺序放在 `playbooks/` 下。
+修缺陷的零件都已存在（how、why、bdd 缺陷复现、principle-fix-root-causes、code-review），但没有一个 Skill 拥有它们的顺序，也没有 Skill 写“推翻的假设要回退”“单元测试证明不了缺陷消失”“失败的复现先于修复提交”和回复格式。pstack 的 poteto-mode 同为显式调用入口，把这类顺序放在 `playbooks/` 下。
 
 同时发现缺陷：implement、code-review 在 R3 出口要求运行 `retro`，它是 mattpocock 的外部 Skill，不在本仓与来源清单内，且 `disable-model-invocation: true`，agent 无法调用（引入于 `28e5cfc`）。
 

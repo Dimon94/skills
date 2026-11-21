@@ -7,7 +7,7 @@
 - **my-skills（本仓）管编排的精度和执行时的原则。** 需求先切成 MMF，每个 MMF 写一份 Spec，再切成带依赖边的 ticket。执行到关键决策点时，宿主 Skill 会读取对应的原则叶子。
 - **delivery-pipeline 管自动调度。** 它是可选的。不装它，也能用本仓走完从切票到合回 main 的整条链路。
 
-原则会不会进入执行，取决于运行时目录里那个名字实际链接到哪个来源。执行器按名字调用 `tdd`、`code-review` 这些 Skill。名字链接到本仓，本仓的原则就会触发；链接到别处，就不会。
+原则会不会进入执行，取决于运行时目录里那个名字实际链接到哪个来源。执行器按名字调用 `bdd`、`code-review` 这些 Skill。名字链接到本仓，本仓的原则就会触发；链接到别处，就不会。
 
 ## 1. 装好，并确认每个名字只有一个来源
 
@@ -15,12 +15,12 @@
 
 ```bash
 ./scripts/install-development-workflow.sh --check
-readlink -f ~/.agents/skills/tdd ~/.agents/skills/code-review ~/.agents/skills/ticket-sizing
+readlink -f ~/.agents/skills/bdd ~/.agents/skills/delegate-ticket ~/.agents/skills/code-review ~/.agents/skills/ticket-sizing
 ```
 
-每个 Skill 名字只能有一个来源。上游仓库只按名字挑选需要的 Skill 单独链接，不整包安装。比如整包装 mattpocock-skills 时，它自带的 `tdd`、`code-review`、`implement`、`to-spec`、`retro` 会和本仓同名。每个名字的来源以 `scripts/install-development-workflow.sh` 里的 `link_named_skill` 调用为准。
+每个 Skill 名字只能有一个来源。上游仓库只按名字挑选需要的 Skill 单独链接，不整包安装。比如整包装 mattpocock-skills 时，它自带的 `code-review`、`implement`、`to-spec`、`retro` 会和本仓同名。每个名字的来源以 `scripts/install-development-workflow.sh` 里的 `link_named_skill` 调用为准。
 
-完成条件：`--check` 退出码为 0；上面三个名字都解析到本仓的 `skills/`。
+完成条件：`--check` 退出码为 0；上面四个名字都解析到本仓的 `skills/`。
 
 ## 2. 把需求切成 Spec 和 ticket
 
@@ -42,31 +42,31 @@ grep -l '^disable-model-invocation: true' ~/.agents/skills/*/SKILL.md
 
 | 执行器 | 怎么启动 | 并发 | 会经过的本仓宿主 Skill |
 | --- | --- | --- | --- |
-| `implement` | 用户输入 `/implement`，交给它 Spec 或票 | 单线；大块读取交给子代理 | `implement`、`tdd`、`code-review` |
-| `implement-spec` | 需要先按名字单独链接（本仓 installer 不装它），并已运行 `/setup-matt-pocock-skills` | 按依赖图的 frontier 并行；每张票开一个后台子代理 | `tdd`、`code-review` |
+| `implement` | 输入 `/implement` 交付完整需求，或先用 `/delegate-ticket` 准备派发合同 | 每片各自回交，MMF 收齐后集成 | `delegate-ticket`、`implement`、`bdd`、`code-review` |
+| `implement-spec` | 需要先按名字单独链接（本仓 installer 不装它），并已运行 `/setup-matt-pocock-skills` | 按依赖图的 frontier 并行；每张票开一个后台子代理 | 按该外部版本核实运行时依赖 |
 | delivery-pipeline | 安装它，再运行 `delivery-pipeline-setup` 配置 worker；按环境选 transport 壳 | 自动调度、集成和审查 | 取决于 worker 实际调用的 Skill，查法见表下命令 |
 
 查 delivery-pipeline 的 worker 会按名字调用哪些本仓 Skill：
 
 ```bash
-rg -n -e tdd -e implement -e code-review "$(dirname "$(readlink -f ~/.agents/skills/delivery-pipeline)")"
+rg -n -e bdd -e delegate-ticket -e implement -e code-review "$(dirname "$(readlink -f ~/.agents/skills/delivery-pipeline)")"
 ```
 
 选 `implement-spec` 就绕开了 `implement`，`implement` 宿主的原则叶子（「原则叶子」表中宿主为 `implement` 的各行）都不会触发。需要这些原则时选 `implement`。
 
 完成条件：执行器已选定；`readlink -f` 确认它会调用的每个宿主 Skill 都解析到本仓。
 
-## 4. 并行写入：一票一树一写者
+## 4. 并行写入：一片一树一写者
 
 规则以 [docs/agents/git-branching.md](agents/git-branching.md) 为准，操作命令以 [skills/git-worktree/SKILL.md](../skills/git-worktree/SKILL.md) 为准。多 agent 场景下有三点要落实：
 
 - 每个 MMF 开一条 MR 分支，作为集成分支。ticket 都留在这条分支内，MMF 整体只合入 main 一次（[ADR 0015](adr/0015-mmf-delivery-unit.md)）。
-- 每张票建自己的树，起点是这条集成分支：`worktree.sh new <type>/<scope> <集成分支>`。
+- 每个并行执行片建自己的树，起点是这条集成分支：`worktree.sh new <type>/<scope> <集成分支>`。
 - 只读的子代理（调研、审查）不用建树。需要写文件的子代理，必须有自己的树。
 
 依赖未满足的票，等前置票合入集成分支之后再开工。两张票只是改同一个 Module 的实现，属于合并冲突风险，不算依赖；共享写入目标前移到合同票，判断规则见 [skills/to-tickets/SKILL.md](../skills/to-tickets/SKILL.md) 第 4 步。
 
-完成条件：`worktree.sh ls` 中每张在做的票恰好对应一棵树和一个分支；主目录仍在 main 上，没有未提交的改动。
+完成条件：`worktree.sh ls` 中每个在写的执行片恰好对应一棵树和一个分支；主目录仍在 main 上，没有未提交的改动。
 
 ## 5. 审查、合回 main、回收
 

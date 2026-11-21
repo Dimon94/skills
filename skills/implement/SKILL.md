@@ -1,16 +1,24 @@
 ---
 name: implement
-description: "按 spec、计划或 tickets 实现：逐条拆验收与失败方式，按需 TDD，跑相关 E2E 与形式验证，整个 MMF 完成时双轴审查一轮，P2 登记 issue，再提交。"
+description: 按派发合同实施一片并回交检查证据，或按完整 Spec、MMF、计划和用户需求实施并在集成提交上完成整体验收。
 disable-model-invocation: true
 ---
 
 # Implement
 
-实现用户在 spec、计划或 tickets 中描述的工作。小改动没有计划时，以用户的请求为 spec。
+收到 `Brief` 走「执行一片」。收到 Spec、MMF、普通计划或单独的完整需求走「整体验收」。小改动以用户的请求为 spec。字段和 JSON 调用方式见[交接合同](../to-tickets/references/delivery-contract.md)。
 
-上下文按任务需要用：读够、想够再动手。上下文吃紧时，选一条路接着推进：大块读取和长输出交给子代理，主线只收摘要（按运行时目录完整读取 `principle-guard-the-context-window/SKILL.md`）；或在任务分支上提交一个 `wip:`，恢复说明写进提交正文，由下一段会话接手（按 `git-worktree` 第 3、4 节，本 Skill 授权这次提交）。
+## 执行一片
 
-需要读取派发合同、局部证据或 MMF 验收回执时，查[交接合同](../to-tickets/references/delivery-contract.md)的 `Brief`、`SliceEvidence` 与 `MmfVerdict`。
+1. 核对当前工作树起点与 `base`，读取 `read_first` 和项目约定。复述本片的场景、`goal`、`expected` 和排除项。缺先例、范围或业务决定时，带原票号、片标识和缺口回交技术负责人。
+2. 调用 `bdd` 选择可证明本片结果的公开入口。已有检查能拒绝对应错误时直接复用。缺陷在同一输入和入口先复现再修复。需要新检查时，写明它能拒绝哪一种既有证据拒绝不了的错误。仅修改 `writable` 文件，运行合同的 `check` 和明确归本片的风险检查。范围不足时记录缺口。
+3. 按授权提交获准文件。在干净的交付提交上实际运行 `check`，从输出读回约定结果，对照独立预期。将实际命令、SHA、观察值和成功与否写入 `record.run`，将未完成项写入 `record.gaps`。在目标仓库根向 `node <本 Skill>/scripts/implement.js` 输入 `{input: brief, record}`，把输出的 `SliceEvidence` 交回技术负责人并结束本片。没有提交时保留缺口。全量门禁和双轴审查由 MMF 负责人集中执行。
+
+## 整体验收
+
+直接实施时从第 1 步开始，已收回所有执行片时从原 Spec 和开工前 SHA 恢复验收清单，集成后进入第 3 步。保留派发时的完整合同清单，包括尚未交回的片。
+
+上下文按任务需要用：读够、想够再动手。上下文吃紧时，选一条路接着推进：获得用户委派授权后，将大块读取和长输出交给子代理，主线只收摘要（按运行时目录完整读取 `principle-guard-the-context-window/SKILL.md`）；或在任务分支上提交一个 `wip:`，恢复说明写进提交正文，由下一段会话接手（按 `git-worktree` 第 3、4 节，本 Skill 授权这次提交）。
 
 ## 1. 读入验收
 
@@ -18,7 +26,7 @@ disable-model-invocation: true
 
 用户给了票号时，从 issue tracker 读取并先说出票标题；票号有歧义就问。
 
-从 spec 逐条拆验收：每个“必须”和“不得”都有一条。每条验收要带独立预期：输入或动作、期望结果、来源（定义见 `tdd` 第 2 步）。spec 或计划里缺的，从原文补；指不出来源的，停下来问用户。编排派发（packet 带 Lane ID）时不问用户：把缺来源的验收写进工件，以 `LANE_DONE <lane> BLOCKED needs-decision:acceptance-source; <工件路径>` 结束。
+从 spec 逐条拆验收：每个“必须”和“不得”都有一条。每条验收要带独立预期：输入或动作、期望结果、来源（判断依据见 `bdd`）。spec 或计划里缺的，从原文补；指不出来源的，停下来问用户。编排派发（packet 带 Lane ID）时不问用户：把缺来源的验收写进工件，以 `LANE_DONE <lane> BLOCKED needs-decision:acceptance-source; <工件路径>` 结束。
 
 spec 用代码写了 Interface 时，每条 `Ensures:` 也是一条验收，实现的签名与它一致。需要偏离时，把偏离和理由写进交付说明。
 
@@ -34,11 +42,11 @@ spec 用代码写了 Interface 时，每条 `Ensures:` 也是一条验收，实�
 
 动手前先做减法：按运行时目录完整读取 `principle-subtract-before-you-add/SKILL.md` 和 `principle-laziness-protocol/SKILL.md`，列出本次范围内可删的现有复杂度（死代码、spec 没要求的校验、空壳引用），先删再加。
 
-按 vertical slice 推进，每片调用 Skill `tdd`。常跑类型检查和单个测试文件。
+按可观察结果推进，每片调用 `bdd`，复用能区分正确和错误结果的检查。技术负责人需要委派时调用 `delegate-ticket`，交出基线和本片设计，收齐证据再集成。常跑类型检查和单个测试文件。
 
 这一片不是一眼能看完的几处编辑时（批量修改、迁移、分析、验证），按运行时目录完整读取 `principle-build-the-lever/SKILL.md`，先写能重跑的脚本、codemod 或生成器，用它完成或证明这片工作。
 
-完成条件：每条验收都走完 `tdd`，留下运行记录或不写测试的理由；已删项列出，没有可删项时写“无”并列出检查过的范围。
+完成条件：每条验收都按 `bdd` 选定检查或说明缺项，留下运行记录或不写测试的理由；已删项列出，没有可删项时写“无”并列出检查过的范围。
 
 ## 3. 真实运行
 
@@ -80,6 +88,6 @@ spec 用代码写了 Interface 时，每条 `Ensures:` 也是一条验收，实�
 
 ## 6. 提交
 
-用 `git-commit` 提交到当前分支。提交说明写：验证命令与结果、不写测试的理由、未跑的检查与剩余风险。
+按授权用 `git-commit` 把工作提交到当前分支。交付说明写出验证命令与结果、复用既有检查的理由和剩余缺口。在最终干净提交上核对实际结果。集成提交发生变化时，重新绑定受影响的检查与 `code-review` 结论。
 
-完成条件：交付说明列出每条验收的检查与结果，或列为缺口。
+用原 Spec 场景、所有已派合同及回执组成 `MmfPlan`。独立执行整个需求时 `briefs` 和 `evidence` 都用空数组。按[交接合同](../to-tickets/references/delivery-contract.md)填写集成提交的 `observations`、门禁与 `code-review` 实际两轴回执，在目标仓库根向 `node <本 Skill>/scripts/implement.js` 输入 `{input: plan, record}`。交回 `MmfVerdict`。`return` 时指出具体场景、预期、实际结果和责任人，修复后在同一 Seam 重验。

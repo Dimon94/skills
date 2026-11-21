@@ -21,7 +21,7 @@
 | test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
 | test-discipline | Dimon94/project-template | `template/docs/agents/quality-standards.md`「测试质量」 | `be3d011` | <https://github.com/Dimon94/project-template/blob/be3d011/template/docs/agents/quality-standards.md#6-测试质量> |
 | code-review | mattpocock/skills | `skills/engineering/code-review` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/code-review/SKILL.md> |
-| tdd | mattpocock/skills | `skills/engineering/tdd` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/tdd/SKILL.md> |
+| tdd（历史，已退役） | mattpocock/skills | `skills/engineering/tdd` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/tdd/SKILL.md> |
 | implement | mattpocock/skills | `skills/engineering/implement` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/implement/SKILL.md> |
 | to-epic | mattpocock/skills | `skills/in-progress/chief-of-staff`、`skills/engineering/codebase-design`、`skills/engineering/wayfinder`、`skills/productivity/writing-for-agents` | `49dd158d1076134a641b33efb035946536778336` | <https://github.com/mattpocock/skills/tree/49dd158d1076134a641b33efb035946536778336/skills> |
 | to-spec | mattpocock/skills | `skills/engineering/to-spec` | `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa` | <https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md> |
@@ -47,7 +47,7 @@
 
 `code-review` 以上游为基础，增加调用方证据包与 WIP 范围、P0–P3 严重度与两值 verdict、审查中断不算完成、每个 MMF 一轮且 P0/P1 必须带可跑反例、Standards 轴按触发条件运行、fixed point 已有的问题降为 P2 不阻断，并删除坏味道基线；取舍见 repo://docs/adr/0008-review-round-limit.md、repo://docs/adr/0011-baseline-findings-do-not-block.md 与 repo://docs/adr/0022-one-review-per-mmf.md。
 
-`tdd` 保留红绿循环、vertical slice、穿过公开入口测试与重构不进循环；改为按改动分流、独立预期、按缺陷位置选层与真跑探针，seam 不再逐个找用户确认，不携带上游 tests.md、mocking.md。`implement` 保留读票、调用 tdd、类型检查与全量测试、code-review 与提交；加入验收独立预期、失败方式、入口清单、相关 E2E 与形式验证、审查前对账、P0/P1 修复与 P2 issue。取舍见 repo://docs/adr/0006-owned-tdd-implement.md 与 repo://docs/adr/0008-review-round-limit.md。
+历史 `tdd` 保留红绿循环、vertical slice、穿过公开入口测试与重构不进循环；改为按改动分流、独立预期、按缺陷位置选层与真跑探针，seam 不再逐个找用户确认，不携带上游 tests.md、mocking.md。`implement` 保留读票、调用 tdd、类型检查与全量测试、code-review 与提交；加入验收独立预期、失败方式、入口清单、相关 E2E 与形式验证、审查前对账、P0/P1 修复与 P2 issue。取舍见 repo://docs/adr/0006-owned-tdd-implement.md 与 repo://docs/adr/0008-review-round-limit.md。
 
 `to-epic` 借鉴目标负责制、深 Module 词汇、context pointer 写法，以及同 commit 的 `skills/engineering/to-spec`、`skills/engineering/to-tickets` 的产物与发布设计；本仓拥有 Epic → MMF 的切分、依赖和滚动细化合同。表中 commit 保留来源基线，当前行为按本仓维护，不参与快照更新。codebase-design、research、prototype、to-spec 与 to-tickets 按需从运行时定位，不复制内容；执行方独立选择。交付层级决定见 repo://docs/adr/0004-epic-spec-delivery-boundary.md。
 
@@ -55,6 +55,8 @@
 
 `retro` 合并两个上游：mattpocock `retro` 的改进类别、检查优先、无防护即发现与“实现 / 审查”文件放置规则（`references/environment.md`）；pstack `reflect` 的会话定位、三视角清单、只路由到用过的 Skill、筛选标准与三段输出、批准后按路由应用（`references/lenses.md`、`synthesis.md`）。本仓改动：agent 可调用，供 implement、code-review 的反例修不绿出口使用；三视角默认由当前 agent 依次执行，用户要求时才派子代理，模型按调用方配置，不写默认模型；Backlog 经用户授权才登记；`writing-for-agents` 改为可用时才用，`create-skill` 不引入；不改插件缓存一条推广为不改运行时投影与上游快照；先用 postmortem recall，记录归 postmortem。
 
-`dimon-mode` 的 `playbooks/bug-fix.md` 保留上游的六步顺序与回复格式；去掉默认修复模型、子代理委派与 PR 步骤，改为指向本仓已有的 how、why、tdd、code-review 与 principle-fix-root-causes。
+`dimon-mode` 的 `playbooks/bug-fix.md` 保留上游的六步顺序与回复格式；去掉默认修复模型、子代理委派与 PR 步骤，最初指向本仓已有的 how、why、tdd、code-review 与 principle-fix-root-causes。现行运行时改用 `bdd`。
+
+`delegate-ticket` 借鉴 bees 按合同拆分、逐份委派和回收的方法。本仓拥有派发合同和现场核验。`bdd` 承接原 `tdd` 的独立预期和缺陷复现，`implement` 的片级证据、MMF 集成验收和双轴审查范围由本仓维护。
 
 `architect` 保留上游的追踪系统、两种形状与三条选择标准、绕行补丁重复即重画。本仓改动：模型可调用，供 to-spec、dimon-mode 与 bug-fix 调用；按三条标准选定后要写状态归属表，每个状态一行答出 owner，答不出即未选定；大型或有争议的设计改走 `principle-exhaust-the-design-space`，不引入 `arena`。取舍见 repo://docs/adr/0021-architect-statechart-design-chain.md。

@@ -41,8 +41,23 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
   for (const key of ["MATTPOCOCK_SKILLS_DIR", "BRAINSTORMING_SKILLS_DIR", "DELIVERY_PIPELINE_DIR",
     "FIREWORKS_TECH_GRAPH_DIR", "COMPLEXITY_OPTIMIZER_DIR", "FORCE_COLOR", "COLORTERM"]) delete env[key];
   const run = (flag) => spawnSync("bash", [script, flag], { env, encoding: "utf8" });
+  const root = path.resolve(__dirname, "..");
+  const legacy = path.join(agents, "tdd");
+  fs.mkdirSync(agents, { recursive: true });
+  fs.mkdirSync(claude, { recursive: true });
+  fs.symlinkSync(path.join(root, "skills/tdd"), legacy);
   let result = run("--offline");
   assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.lstatSync(legacy, { throwIfNoEntry: false }), undefined);
+  for (const destination of [agents, claude]) {
+    assert.equal(fs.realpathSync(path.join(destination, "delegate-ticket")), path.join(root, "skills/delegate-ticket"));
+  }
+  fs.symlinkSync(path.join(root, "skills/tdd"), legacy);
+  result = run("--check");
+  assert.equal(result.status, 1);
+  assert.ok(fs.lstatSync(legacy).isSymbolicLink());
+  fs.unlinkSync(legacy);
+  fs.mkdirSync(legacy);
   const intermediate = path.join(home, "library-wayfinder");
   fs.symlinkSync("sources/mattpocock-skills/skills/engineering/wayfinder", intermediate);
   const target = path.join(agents, "wayfinder");
@@ -55,6 +70,7 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
   result = run("--offline");
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.equal(fs.readlinkSync(target), intermediate);
+  assert.ok(fs.statSync(legacy).isDirectory());
 
   fs.unlinkSync(intermediate);
   fs.symlinkSync("sources/mattpocock-skills/skills/engineering/research", intermediate);

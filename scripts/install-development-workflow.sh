@@ -134,9 +134,28 @@ link_named_skill() {
   skill_count=$((skill_count + 1))
 }
 
+retire_named_skill() {
+  local name="$1" source="$2" destination target
+  for destination in "$AGENTS_SKILLS_DIR" "$CLAUDE_SKILLS_DIR"; do
+    target="$destination/$name"
+    if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$source")" ]; then
+      if [ "$CHECK_ONLY" -eq 1 ]; then
+        printf 'error: retired Skill is still linked: %s\n' "$target" >&2
+        exit 1
+      fi
+      rm "$target"
+      printf 'retired %s (%s)\n' "$name" "$destination"
+    fi
+  done
+}
+
 for skill_md in "$ROOT"/skills/*/SKILL.md; do
-  link_named_skill "$(basename "$(dirname "$skill_md")")" "$(dirname "$skill_md")"
+  name="$(basename "$(dirname "$skill_md")")"
+  if [ "$name" != "tdd" ]; then
+    link_named_skill "$name" "$(dirname "$skill_md")"
+  fi
 done
+retire_named_skill tdd "$ROOT/skills/tdd"
 
 for name in \
   wayfinder research grill-with-docs improve-codebase-architecture \

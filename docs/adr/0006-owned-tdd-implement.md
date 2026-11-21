@@ -1,8 +1,10 @@
 # tdd 与 implement 转为本仓自有 Skill
 
-Status: accepted
+Status: accepted（2026-11-20 修订）
 
-Related: repo://skills/tdd/SKILL.md；repo://skills/implement/SKILL.md；repo://docs/adr/0005-code-review-upstream-severity.md；repo://docs/research/2026-11-03-agent-tdd-industry.md；repo://docs/research/2026-11-03-agent-tdd-cross-domain.md
+本仓用 `bdd` 承接独立预期、按风险选检查及缺陷复现，退役 `tdd` 运行时入口。`delegate-ticket` 准备派发合同，`implement` 执行单片时只回交合同证据，整套消融、E2E、全量门禁和 `code-review` 两轴审查归集成后的 MMF。下文记录 2026-11-04 的历史决定。
+
+Related: repo://skills/bdd/SKILL.md；repo://skills/implement/SKILL.md；repo://docs/adr/0005-code-review-upstream-severity.md；repo://docs/research/2026-11-03-agent-tdd-industry.md；repo://docs/research/2026-11-03-agent-tdd-cross-domain.md
 
 ## Context
 

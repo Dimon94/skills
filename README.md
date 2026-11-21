@@ -16,9 +16,9 @@ Run `python3 docs/assets/render-development-workflow.py` to rebuild the SVGs fro
 
 | Task type | Workflow |
 | --- | --- |
-| Large requirement | `to-epic` resolves planning questions, cuts the Epic into MMFs, and publishes the Epic Issue when authorized → `to-spec` writes one Spec per MMF → `to-tickets` cuts the MMF into a contract ticket plus concurrent behavior tickets that each own unique T/R items, sizes them with `ticket-sizing`, checks coverage and the dependency graph by script, and publishes after the user decides → implement; each MMF ships as one MR, and a one-ticket MMF is a one-row slice table |
+| Large requirement | `to-epic` resolves planning questions, cuts the Epic into MMFs, and publishes the Epic Issue when authorized → `to-spec` writes one Spec per MMF → `to-tickets` cuts the MMF into a contract ticket plus concurrent behavior tickets that each own unique T/R items, sizes them with `ticket-sizing`, checks coverage and the dependency graph by script, and publishes after the user decides → `delegate-ticket` prepares one or more briefs per ticket → `implement` returns slice evidence and verifies the integrated MMF with `code-review`; each MMF ships as one MR, and a one-ticket MMF is a one-row slice table |
 | Regular requirement | the model drafts a minimal plan → `grill-with-docs` stress-tests it → `implement` |
-| Small change | `implement` directly; `tdd` decides per change whether a failing check comes first |
+| Small change | `implement` directly; `bdd` selects a check against the expected scenario outcome |
 | Refactor or optimization | Analyze with either `improve-codebase-architecture` or `productionize-app-with-services` → classify the resulting work by size → follow the large- or small-requirement workflow above |
 | Bug | `git-worktree` → `diagnosing-bugs` → `git-commit` → `git-rebase-main` |
 | Understand existing code | `investigate` runs a read-only investigation: it routes mechanism questions to `how`, adds `why` for motivation, and answers decisions with a recommendation and tradeoffs |
@@ -52,7 +52,7 @@ To deliver work with several coordinated agents after installing, follow the [mu
 
 | Repository | Workflow responsibility | Standalone install |
 | --- | --- | --- |
-| [Dimon94/skills](https://github.com/Dimon94/skills) | `implement`, `tdd`, `code-review`, `to-spec`, and local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
+| [Dimon94/skills](https://github.com/Dimon94/skills) | `delegate-ticket`, `implement`, `bdd`, `code-review`, `to-spec`, and local delivery Skills such as `git-commit` and `git-rebase-main` | [`scripts/link-skills.sh`](scripts/link-skills.sh) |
 | [mattpocock/skills](https://github.com/mattpocock/skills) | Research, grilling, architecture analysis, Wayfinder, and tickets | [Installation](https://github.com/mattpocock/skills#installation-30-second-setup) |
 | [swyxio/skills](https://github.com/swyxio/skills) | Upstream source for the curated `productionize-app-with-services` snapshot | Included by this repository's installer |
 | [cursor/plugins](https://github.com/cursor/plugins) | Upstream source for the `thermo-nuclear-code-quality-review` snapshot and the adapted `how`, `why`, `blast-radius`, `investigate`, `sharpen`, `correct`, and verification-skill pair | Included by this repository's installer |
@@ -93,7 +93,7 @@ Run `$sync-upstream-skills` to check curated snapshots; it writes only after an 
 | `principle-laziness-protocol` | `implement` (step 2, subtract first) |
 | `principle-subtract-before-you-add` | `implement` (step 2, subtract first) |
 | `principle-minimize-reader-load` | `implement` (step 4, ablation before reconciliation) |
-| `principle-test-behavior-not-implementation` | `tdd` (step 3, assertions survive internal changes) |
+| `principle-test-behavior-not-implementation` | `bdd` (check observable outcomes at a public seam) |
 | `principle-prove-it-works` | `implement` (step 3 exit, results read from the real artifact) |
 | `principle-build-the-lever` | `implement` (step 2, non-trivial slice gets a rerunnable script) |
 | `principle-encode-lessons-in-structure` | `retro` (step 1 recurrence, step 4 structural pass) |

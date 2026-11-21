@@ -2,7 +2,7 @@
 
 # --- L3 文件合同 ---
 # INPUT: workflow-source/original.*.svg（cb72fdc 的原始布局）；GLOSSARY.md；
-# to-epic、to-spec、to-tickets、implement、tdd 与 Git Skill 的 SKILL.md；
+# to-epic、to-spec、to-tickets、delegate-ticket、implement、bdd 与 Git Skill 的 SKILL.md；
 # delivery-pipeline 的 gate-state-machine、test-decision-and-rebase。
 # OUTPUT: development-workflow.{en,zh-CN}.svg；PNG 由 fireworks-tech-graph 导出。
 # TEST: fireworks-tech-graph 五项结构检查、Chromium 渲染与 PNG 目视检查。
@@ -33,7 +33,7 @@ LARGE = [
 SMALL = [
     ('small-grill', 'PLAN', 'Minimal Plan → grill-with-docs', '常规需求拷问计划；小改动直接进入 implement', 'Regular: stress-test plan; small changes: implement directly'),
     ('implement', 'IMPLEMENT', 'git-worktree → implement', '独立写任务；固定基线、验收与独立预期', 'Isolate writes; fix baseline, acceptance and expectations'),
-    ('tdd', 'SLICE LOOP', 'tdd · Red → Green → Probe', '按需红绿；无行为变化不新写测试；每片循环', 'Red / green as needed; probe; no new tests for docs'),
+    ('bdd', 'SLICE CHECK', 'bdd · Scenario → Evidence', '从公开入口读回场景结果；复用已有检查', 'Observe the scenario outcome; reuse existing checks'),
     ('verify', 'REAL EXECUTION', 'E2E / verify-<app> / formal-verify-*', '真实入口与全量检查；命中既有形式验证则运行', 'Real entrypoints + full checks; run covered formal checks'),
     ('reconcile', 'RECONCILE', 'Acceptance ↔ Actual Artifacts', '消融不必要层；每条验收与真实产物对账', 'Remove unneeded layers; reconcile acceptance with artifacts'),
     ('local-review', 'REVIEW', 'code-review · Standards + Spec', '最多三轮；P0/P1 修复复审；P2 登记；P3 报告', 'Up to 3 rounds; fix P0/P1; log P2; report P3'),
@@ -44,7 +44,7 @@ SMALL = [
 BUG = [
     ('bug-worktree', 'ISOLATE', 'git-worktree', '一项 Bug · 一个写者 · 固定真实复现入口', 'One bug / writer; fix the real reproduction surface'),
     ('diagnosing-bugs', 'DEBUG', 'diagnosing-bugs · how · why', '运行证据排除假设；定位根因与回归来源', 'Eliminate hypotheses with runtime evidence; find cause'),
-    ('bug-fix', 'RED → FIX', 'tdd · Root-cause Fix', '同一输入先失败；修根因并检查同类位置', 'Same input fails first; fix root cause and peer cases'),
+    ('bug-fix', 'RED → FIX', 'bdd · Root-cause Fix', '同一输入先失败；修根因并检查同类位置', 'Same input fails first; fix root cause and peer cases'),
     ('bug-verify', 'REPRODUCE AGAIN', 'Real Reproduction → PASS', '在原入口验证；单元测试不能替代真实复现', 'Recheck the original surface; unit tests are insufficient'),
     ('bug-review', 'REVIEW', 'code-review', '复现 / 根因为 Spec；双轴通过后才能提交', 'Repro / root cause as Spec; both axes must pass'),
     ('git-commit', 'LOCAL', 'git-commit', '只提交本缺陷的代码、检查与文档', 'Commit only this fix, checks and documentation'),
@@ -159,7 +159,7 @@ def add_pipeline(root, original, language):
     root.append(edge('rebase-remote', 'sync-main', 'remote', 'M1180 2064 H1240'))
     root.append(edge('large-pipeline', 'to-tickets-publish', 'dp-input', 'M350 1670 V1730 H165 V1840'))
     note(root, 800, 1962, '更多 ready 票：重算 frontier' if language == 'zh-CN' else 'More ready work: recompute frontier', 400)
-    note(root, 60, 2148, 'worker：复用 02B 实现与验证；CLI 逐票 Review 由宿主预算决定，整体 Review 不省略。' if language == 'zh-CN' else 'Workers use 02B implementation / verification; CLI review placement follows host policy.', 1900)
+    note(root, 60, 2148, 'delegate-ticket 按基线委派；开发者逐片回交，技术负责人在集成提交上整体验收。' if language == 'zh-CN' else 'delegate-ticket prepares briefs; developers return slice evidence for integrated MMF review.', 1900)
 
 
 def add_review(root, original, language):

@@ -28,6 +28,7 @@
 - [to-tickets 迁入本仓，合同先行切票](0020-owned-to-tickets-contract-first.md)
 - [设计链接入 architect 与 statechart](0021-architect-statechart-design-chain.md)
 - [Review 每个 MMF 一轮，阻断 finding 带可跑反例](0022-one-review-per-mmf.md)
+- [OCR 作为 code-review 的专项，复用 Review 模型](0023-ocr-review-specialty.md)
 
 ## 命名
 

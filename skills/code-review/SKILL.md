@@ -41,9 +41,18 @@ A finding needs a concrete trigger and an observable impact. Taste, naming, YAGN
 
 审查前先跑项目的 canonical CI 或检查命令（调用方已跑且 HEAD 未变时引用其结果）。失败项直接交调用方修，不派审查者。
 
+### 3a. OCR 专项
+
+两步成本不同，触发条件分开，都与两轴同一轮。范围参数与第 1 步一致：分支或 fixed point 用 `--from <fixed-point>`，单个提交用 `--commit <sha>`，WIP 不带范围参数。
+
+1. **覆盖清单。** 不调模型，diff 含应用代码（OCR 有规则的语言，Markdown 不算）就跑。运行 `ocr delegate preview --format json <范围>`，再对其 `reviewable_files` 运行 `ocr delegate rule --format json <范围> <paths>`。两个子代理都拿到 `reviewable_files`：每个文件要么给出结论，要么写明跳过理由。规则组交给 Standards 子代理作额外检查点。`excluded_files` 仍按 diff 审。
+2. **native 审查。** 一次约 5 分钟、上百万 token，只在用户点名时运行；调用方不得自行开启。点名后 Standards 轴必跑，用来核实结果。运行 `node <本 Skill>/scripts/ocr-native.js <范围> --output <临时文件>`。脚本用 delivery-pipeline Review 矩阵 `whole-change.standards` 的主选模型，结果交给 Standards 子代理逐条核实。OCR 的 comment 不是 finding：能按第 4 步给出反例的，按「严重度」定级并标来源 `ocr`；给不出的降为 P2 或写 Unknown。
+
+`ocr` 未安装时报告写 `OCR: skipped` 和理由。脚本返回 `failed` 时写 `OCR: failed` 和原因，不换候补模型重跑。两种情况都不改两轴 verdict。
+
 ### 4. Spawn the sub-agents in parallel
 
-Spec 轴每次都跑。Standards 轴只在 diff 触及权限、数据外泄、持久 schema 或外部合同，且这些改动没有检查或形式验证覆盖时才跑；不跑时在报告里写 `Standards: skipped` 和理由。
+Spec 轴每次都跑。Standards 轴只在 diff 触及权限、数据外泄、持久 schema 或外部合同，且这些改动没有检查或形式验证覆盖时才跑；用户点名 native 审查时也跑。不跑时在报告里写 `Standards: skipped` 和理由。
 
 Issue the sub-agent calls together, in the foreground, and aggregate the reports they return.
 
@@ -51,12 +60,14 @@ Issue the sub-agent calls together, in the foreground, and aggregate the reports
 
 - The full diff command and commit list.
 - The list of standards-source files you found in step 3.
+- 第 3a 步的覆盖清单、规则组与 native 结果文件路径（运行了才给）。
 - The brief: "Find every P0/P1 now: trace main paths, permissions, persisted state and external contracts. For each one, check the same class elsewhere in the diff. Report it with the standard it breaks (file + rule). Mention P2/P3 only when you meet them; do not hunt for them. Skip anything tooling enforces. P0/P1 are uncapped; everything else stays under 200 words."
 
 **Spec sub-agent prompt** should include:
 
 - The diff command and commit list.
 - The path or fetched contents of the spec.
+- 第 3a 步的覆盖清单（运行了才给）。
 - The brief: "Find every P0/P1 now. Report: (a) requirements the spec asked for that are missing or partial; (b) unrequested behaviour that changes what users or callers observe; (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. For each P0/P1, check the same class elsewhere in the diff. P0/P1 are uncapped; everything else stays under 200 words."
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
@@ -69,7 +80,7 @@ Spec brief 再追加一句：spec 某行的措辞容许两种可观察行为不�
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 
-End with a one-line summary: per axis, the verdict, the finding count by severity, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
+End with a one-line summary: per axis, the verdict, the finding count by severity, and the worst issue _within each axis_ (if any). 第 3a 步运行过时，再写一行 `OCR: ran|skipped|failed`、模型、`ocrVersion` 与 comment 数。 Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
 
 每轴 verdict 只取两值：存在未解决的 P0/P1 为 `BLOCK`，否则为 `PASS`。验证缺口和 Spec 缺口写进报告，不改变 verdict；Spec 缺口交调用方收紧 spec 措辞。审查中断、超时或缺少 verdict 时为未完成，重跑同一轮，不以实现者自评或测试通过代替。
 

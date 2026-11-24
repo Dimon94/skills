@@ -111,7 +111,7 @@ disable-model-invocation: true
 | 逐票预测 | `ticket-sizing` |
 | 把 Spec 切成 ticket 并发到 tracker | `to-tickets`（用户调用） |
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
-| 外部宿主操控独立 Herdr session 自动推进多需求与缺陷 | `herdr-autopilot`（用户调用） |
+| 外部宿主操控默认 Herdr 窗口自动推进多需求与缺陷 | `herdr-autopilot`（用户调用） |
 | 排下周 Cycle、同步本周工作集合 | `delivery-cycle` |
 | 按 Spec 或票实现 | `implement` 按 `bdd` 实施；按票委派用 `delegate-ticket` |
 | 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |

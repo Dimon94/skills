@@ -3,8 +3,8 @@
 
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
-// - Owns: isolated session guard, managed-lane ledger, circuit breaker, poll.
-// - Never touches default/focused Herdr session or unmanaged agents.
+// - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll.
+// - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
 // ============================================================================
 
@@ -13,7 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-const DEFAULT_SESSION = 'autopilot';
+const DEFAULT_SESSION = 'default';
 const DEFAULT_MAX_REPLIES = 3;
 const DEFAULT_READ_LINES = 60;
 const VALID_STAGES = new Set([
@@ -33,9 +33,6 @@ function validateSession(session) {
   const value = String(session || '').trim();
   if (!value) {
     throw new Error('session is required and cannot be empty; pass --session <name>');
-  }
-  if (value.toLowerCase() === 'default') {
-    throw new Error('refusing session "default": autopilot must use a dedicated named Herdr session');
   }
   if (!SESSION_NAME_RE.test(value)) {
     throw new Error(`invalid session name "${value}": use [a-zA-Z0-9._-]`);
@@ -83,7 +80,8 @@ function saveLedger(ledgerPath, ledger) {
 }
 
 function defaultHerdrRunner(session, args) {
-  const stdout = execFileSync('herdr', ['--session', session, ...args], {
+  const cliArgs = session === DEFAULT_SESSION ? args : ['--session', session, ...args];
+  const stdout = execFileSync('herdr', cliArgs, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });

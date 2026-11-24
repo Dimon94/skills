@@ -13,18 +13,17 @@ function makeTempLedger() {
   return path.join(dir, 'autopilot.json');
 }
 
-test('validateSession rejects default and empty sessions (fail-close)', () => {
-  assert.throws(() => validateSession('default'), /refusing session "default"/);
-  assert.throws(() => validateSession('DEFAULT'), /refusing session "default"/);
-  assert.throws(() => validateSession(''), /cannot be empty/);
+test('validateSession accepts default and named sessions, rejects empty/invalid', () => {
+  assert.equal(validateSession('default'), 'default');
   assert.equal(validateSession('autopilot'), 'autopilot');
+  assert.throws(() => validateSession(''), /cannot be empty/);
+  assert.throws(() => validateSession('bad session!'), /invalid session name/);
 });
 
-test('poll ignores unmanaged agents and only reads non-working managed lanes', () => {
+test('poll defaults to default session, ignores unmanaged agents, and only reads non-working managed lanes', () => {
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
-    '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'feat-a',
     '--agent', 'auto-feat-a',
@@ -33,7 +32,6 @@ test('poll ignores unmanaged agents and only reads non-working managed lanes', (
   ]);
   runCli([
     'register',
-    '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'feat-b',
     '--agent', 'auto-feat-b',
@@ -48,9 +46,9 @@ test('poll ignores unmanaged agents and only reads non-working managed lanes', (
       return JSON.stringify({
         result: {
           agents: [
-            { name: 'manual-human-pane', pane_id: 'w1:p1', status: 'idle' },
-            { name: 'auto-feat-a', pane_id: 'w2:p1', status: 'working' },
-            { name: 'auto-feat-b', pane_id: 'w2:p2', status: 'done' },
+            { name: 'manual-human-pane', pane_id: 'w1:p1', agent_status: 'idle' },
+            { name: 'auto-feat-a', pane_id: 'w2:p1', agent_status: 'working' },
+            { name: 'auto-feat-b', pane_id: 'w2:p2', agent_status: 'done' },
           ],
         },
       });
@@ -61,8 +59,9 @@ test('poll ignores unmanaged agents and only reads non-working managed lanes', (
     throw new Error(`unexpected call: ${args.join(' ')}`);
   };
 
-  const res = runCli(['poll', '--session', 'autopilot', '--ledger', ledgerPath], fakeRunner);
+  const res = runCli(['poll', '--ledger', ledgerPath], fakeRunner);
   assert.equal(res.exitCode, 0);
+  assert.equal(res.output.session, 'default');
   assert.equal(res.output.status, 'attention');
   assert.equal(res.output.working.length, 1);
   assert.equal(res.output.working[0].id, 'feat-a');

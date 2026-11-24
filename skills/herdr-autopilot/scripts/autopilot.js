@@ -5,14 +5,16 @@
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll.
 // - register --pane names the containing tab using --label or the lane id.
+// - done 在登记的工作树和本地分支回收、pane 关闭后写入。
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
 // ============================================================================
 
+const { ownedTree, closeout } = require('./closeout.js');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const DEFAULT_SESSION = 'default';
 const DEFAULT_MAX_REPLIES = 3;
@@ -277,7 +279,7 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
 
     const state = live.agent_status || live.status || live.state || 'unknown';
     lane.last_observed_state = state;
-    if (live.pane_id) lane.pane = live.pane_id;
+    if (!lane.pane && live.pane_id) lane.pane = live.pane_id;
 
     if (state === 'working') {
       lane.consecutive_replies = 0;
@@ -393,11 +395,26 @@ function runCli(argv, runner = defaultHerdrRunner) {
     if (flags.label !== undefined && (!lane.pane || typeof flags.label !== 'string' || !flags.label.trim())) {
       throw new Error('--label requires --pane and a nonempty title');
     }
+    if (flags.worktree || flags.base || flags['pane-only']) {
+      if (!lane.pane || (flags['pane-only'] && (flags.worktree || flags.base))) {
+        throw new Error('登记工作树或 --pane-only 时需要唯一 pane');
+      }
+      lane.cleanup = flags['pane-only'] ? {} : { tree: ownedTree(lane.repo, flags.worktree, flags.base) };
+      if (Object.values(ledger.lanes).some(other => other !== lane && !other.closed_at &&
+          (other.pane === lane.pane || (lane.cleanup.tree && other.cleanup?.tree?.path === lane.cleanup.tree.path)))) {
+        throw new Error('资源已由其他 lane 登记');
+      }
+    }
     if (lane.pane) {
       const pane = JSON.parse(runner(session, ['pane', 'get', lane.pane])).result?.pane;
       if (pane?.pane_id !== lane.pane || !pane.tab_id || (lane.workspace && pane.workspace_id !== lane.workspace)) {
         throw new Error('cannot identify tab for the registered pane and workspace');
       }
+      if (lane.cleanup && !pane.terminal_id) throw new Error('缺少 pane 身份');
+      if (lane.cleanup?.tree && fs.realpathSync(pane.cwd) !== lane.cleanup.tree.path) {
+        throw new Error('pane 启动目录与任务工作树不符');
+      }
+      lane.terminal_id = pane.terminal_id;
       runner(session, ['tab', 'rename', pane.tab_id, flags.label || lane.id]);
     }
     saveLedger(ledgerPath, ledger);
@@ -417,6 +434,18 @@ function runCli(argv, runner = defaultHerdrRunner) {
   }
 
   if (command === 'set-stage') {
+    if (flags.stage === 'done') {
+      const current = requireLane(ledger, flags.id);
+      const checkpoint = () => saveLedger(ledgerPath, ledger);
+      try {
+        closeout(current, session, runner, checkpoint);
+      } catch (error) {
+        escalateLane(ledger, flags.id, error.message);
+        checkpoint();
+        throw error;
+      }
+      current.escalated_reason = null;
+    }
     const lane = setStage(ledger, flags.id, flags.stage);
     saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output: lane };
@@ -437,9 +466,23 @@ function runCli(argv, runner = defaultHerdrRunner) {
   throw new Error(`unknown command "${command}"`);
 }
 
+// 进程锁覆盖账本的读取、外部动作和落盘；内核在进程退出时释放锁。
+function lockedCli(argv) {
+  const { command, flags } = parseArgs(argv);
+  if (!command || ['--help', '-h', 'list'].includes(command)) return runCli(argv);
+  const ledger = flags.ledger || defaultLedgerPath(validateSession(flags.session || DEFAULT_SESSION));
+  fs.mkdirSync(path.dirname(ledger), { recursive: true });
+  const mac = process.platform === 'darwin';
+  const args = [...(mac ? ['-k'] : []), ledger + '.lock', process.execPath, __filename, '--locked', ...argv];
+  const child = spawnSync(mac ? 'lockf' : 'flock', args, { stdio: 'inherit' });
+  if (child.error) throw child.error;
+  process.exit(child.status ?? 1);
+}
+
 if (require.main === module) {
   try {
-    const { exitCode, output } = runCli(process.argv.slice(2));
+    const { exitCode, output } = process.argv[2] === '--locked'
+      ? runCli(process.argv.slice(3)) : lockedCli(process.argv.slice(2));
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     process.exit(exitCode);
   } catch (err) {

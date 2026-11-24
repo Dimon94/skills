@@ -17,7 +17,7 @@ disable-model-invocation: true
 
 ## 主循环
 
-每次手动触发或定时巡检，按顺序执行 4 步：
+每次手动触发或定时巡检，按顺序执行 5 步：
 
 ### 1. 巡检快照
 
@@ -51,9 +51,12 @@ node scripts/autopilot.js poll
    ```bash
    node scripts/autopilot.js register \
      --id <lane_id> --repo <repo_path> --stage <stage> \
-     --agent <agent_name> --pane <pane_id> --workspace <ws_id>
+     --agent <agent_name> --pane <pane_id> --workspace <ws_id> \
+     --worktree <任务工作树根目录> --base <实际合入的本地分支名>
    herdr agent prompt <agent_name> "<首条命令>"
    ```
+
+只读任务使用 `--pane-only` 代替 `--worktree` 和 `--base`。写任务在新建的任务工作树根目录启动 pane。
 
 ### 3. 暂停分诊（仅当 `needs_attention` 非空时）
 
@@ -83,7 +86,17 @@ node scripts/autopilot.js poll
 - **用户答复已升级项后**：
   将用户的拍板原文转发给对应 `agent_name`，并调用 `node scripts/autopilot.js resolve --id <lane_id>` 恢复自动巡检。
 
-### 4. 汇报收口
+### 4. 验收和清理
+
+每次巡检也检查 `awaiting_merge`。确认交付已验收、PR/MR 已合入并更新对应的本地合入分支后，执行下列命令。只读任务在结果已交付后执行。Herdr 的 idle/done 只能作为检查交付结果的信号。
+
+```bash
+node scripts/autopilot.js set-stage --id <lane_id> --stage done
+```
+
+脚本核对已登记的 pane 和 agent、任务工作树归属、工作树洁净状态和 Git 祖先关系，依次回收工作树、本地任务分支、pane，再写入 done。只读任务只关闭 pane。失败原因进入 escalated，排除原因后重试同一命令。旧账本缺少所有权、squash/rebase 后无法证明祖先关系时保留现场并上报。
+
+### 5. 汇报收口
 
 只输出有变化的项与当前需人类处理的队列：
 

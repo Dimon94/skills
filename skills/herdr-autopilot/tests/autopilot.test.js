@@ -231,3 +231,67 @@ test('register names the tab containing the enrolled pane', () => {
     assert.equal(title, label || 'ads-links');
   }
 });
+
+test('done keeps unmerged and dirty trees, then retires Git before closing the pane', () => {
+  const { execFileSync } = require('node:child_process');
+  const ledger = makeTempLedger();
+  const repo = fs.realpathSync(path.dirname(ledger));
+  const tree = path.join(repo, 'feature');
+  const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, '-c', 'user.name=test',
+    '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'pipe' });
+  git(repo, 'init', '-b', 'main');
+  git(repo, 'commit', '--allow-empty', '-m', 'base');
+  git(repo, 'worktree', 'add', '-b', 'feature', tree);
+  git(tree, 'commit', '--allow-empty', '-m', 'feature');
+  const pane = { pane_id: 'p1', tab_id: 't1', terminal_id: 'term', agent_status: 'done', cwd: tree };
+  let attempts = 0;
+  function runner(session, args) {
+    switch (args.slice(0, 2).join(' ')) {
+      case 'pane get': return JSON.stringify({ result: { pane } });
+      case 'tab rename': return '';
+      case 'pane list': return JSON.stringify({ result: { panes: [pane] } });
+      case 'agent list': return JSON.stringify({ result: { agents: [{ name: 'fix', pane_id: 'p1' }] } });
+      case 'pane close':
+        assert.equal(fs.existsSync(tree), false);
+        assert.equal(git(repo, 'branch', '--list', 'feature').length, 0);
+        if (++attempts === 1) throw new Error('close failed');
+        return '';
+      default: throw new Error('unexpected command');
+    }
+  }
+  const cli = (cmd, ...args) => runCli([cmd, '--ledger', ledger, '--id', 'fix', ...args], runner);
+  cli('register', '--agent', 'fix', '--stage', 'bugfix', '--repo', repo, '--worktree', tree,
+    '--base', 'main', '--pane', 'p1');
+  const done = () => cli('set-stage', '--stage', 'done');
+  assert.throws(done, /merge-base/);
+  git(repo, 'merge', '--ff-only', 'feature');
+  fs.writeFileSync(path.join(tree, 'draft'), 'work');
+  assert.throws(done, /工作树有未清理文件/);
+  assert.equal(attempts, 0);
+  fs.unlinkSync(path.join(tree, 'draft'));
+  assert.throws(done, /close failed/);
+  assert.equal(cli('list').output.lanes[0].escalated_reason, 'close failed');
+  assert.equal(done().output.status, 'done');
+  done();
+  assert.equal(attempts, 2);
+});
+
+test('pane-only closeout checks terminal identity and keeps legacy lanes intact', () => {
+  const ledger = makeTempLedger();
+  const pane = { pane_id: 'p1', terminal_id: 'one', tab_id: 't1', agent_status: 'idle' };
+  const calls = [];
+  function runner(session, args) {
+    calls.push(args.join(' '));
+    return JSON.stringify({ result: { pane, panes: [pane], agents: [{ name: 'reader', pane_id: 'p1' }] } });
+  }
+  const cli = (cmd, id, ...args) => runCli([cmd, '--ledger', ledger, '--id', id, ...args], runner);
+  cli('register', 'old', '--agent', 'legacy', '--stage', 'spec');
+  assert.throws(() => cli('set-stage', 'old', '--stage', 'done'), /缺少登记/);
+  cli('register', 'read', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only');
+  pane.terminal_id = 'two';
+  assert.throws(() => cli('set-stage', 'read', '--stage', 'done'), /身份/);
+  assert.equal(calls.includes('pane close p1'), false);
+  pane.terminal_id = 'one';
+  cli('set-stage', 'read', '--stage', 'done');
+  assert.equal(calls.at(-1), 'pane close p1');
+});

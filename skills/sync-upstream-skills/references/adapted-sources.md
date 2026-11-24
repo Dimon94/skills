@@ -15,7 +15,8 @@
 | investigate | cursor/plugins | `pstack/skills/poteto-mode/playbooks/investigation.md` | `ecc249f1` | <https://github.com/cursor/plugins/blob/main/pstack/skills/poteto-mode/playbooks/investigation.md> |
 | no-comments | cursor/plugins | `pstack/skills/no-comments`、`pstack/agents/comment-sicko.md` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/no-comments/SKILL.md> |
 | in-your-own-words | cursor/plugins | `pstack/skills/in-your-own-words` | `6ce45c59b9301a638c1fe1a7b8dc2a82b650898f` | <https://github.com/cursor/plugins/blob/6ce45c59b9301a638c1fe1a7b8dc2a82b650898f/pstack/skills/in-your-own-words/SKILL.md> |
-| sharpen | cursor/plugins | `pstack/skills/sharpen` | `24621dbcc59e205a7faadb0e06d540f91712b5cc` | <https://github.com/cursor/plugins/blob/24621dbcc59e205a7faadb0e06d540f91712b5cc/pstack/skills/sharpen/SKILL.md> |
+| reframe | cursor/plugins | `pstack/skills/reframe` | `9e278fe4d4ecd8bfe98b1b79bf4be662efb338cc` | <https://github.com/cursor/plugins/blob/9e278fe4d4ecd8bfe98b1b79bf4be662efb338cc/pstack/skills/reframe/SKILL.md> |
+| sharpen | cursor/plugins | `pstack/skills/sharpen` | `bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7` | <https://github.com/cursor/plugins/blob/bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7/pstack/skills/sharpen/SKILL.md> |
 | correct | cursor/plugins | `pstack/skills/correct` | `24621dbcc59e205a7faadb0e06d540f91712b5cc` | <https://github.com/cursor/plugins/blob/24621dbcc59e205a7faadb0e06d540f91712b5cc/pstack/skills/correct/SKILL.md> |
 | automate-me | cursor/plugins | `pstack/skills/automate-me` | `3dbd22ff12742fb28c9700b9760baa29ed41dc13` | <https://github.com/cursor/plugins/blob/3dbd22ff12742fb28c9700b9760baa29ed41dc13/pstack/skills/automate-me/SKILL.md> |
 | test-review | mattpocock/skills | `skills/engineering/code-review` | `f3fc5632f401156837ee3872f14fe33ccf1024ea` | <https://github.com/mattpocock/skills/blob/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review/SKILL.md> |
@@ -41,7 +42,7 @@
 
 `no-comments` 保留注释清理、必要例外、独立审查与根因修复流程；将 Comment Sicko 规则收进 Skill 的只读 reference，用宿主子 agent 替代 Cursor Task 类型。移除 poteto-mode、architect 与 principle Skill 的安装依赖，结构推演留在入口；how/why 复用现有 Skill。疑义项按 Unknown 保留，正确性抑制先修根因再删除，有效约束待编码时保留。`in-your-own-words` 保留只复述目标与问题的职责。两者使用中文，保留上游的 `disable-model-invocation: true`；Codex 显式调用策略归各自 `agents/openai.yaml`。均由本仓维护，不进入快照锁定清单。
 
-`sharpen` 保留四问与“更深不更大、不替用户决定、不执行任务”；改写后的请求补上 pstack `docs/guide/02-poteto-mode.md`「What goes in a prompt」的五项要素，缺项写 Unknown。`correct` 保留错误类别、两次才算、四级层级、旧错误上先失败与规则表；层级判断指向 `principle-encode-lessons-in-structure`，会话级教训分给 `retro`，提交改为按项目规则并需用户明确要求。两者使用中文，保留 `disable-model-invocation: true`，由本仓维护，不进入快照锁定清单。
+`reframe` 保留上游的全部结构：从原始文件、代码和原话出发，歧义时先列 2–3 个候选问题与区分信号，再按影响度排 8–12 个专业术语（每个链接打开核实）、2–3 个相邻领域类比与失效点、未提及但必关心的项及术语重写，并补充不执行任务及指向 `/sharpen` 或 `/dimon-mode` 的收口。`sharpen` 保留四问、“更深不更大、不替用户决定、不执行任务”及上游 `bf0c7cd8` 新增的“实验可决定的选择要求先做原型、产品偏好留给用户”，同时保留输入里的既有专业术语（如 `/reframe` 产出），补上 pstack `docs/guide/02-poteto-mode.md`「What goes in a prompt」的五项要素，缺项写 Unknown，并指向 `/dimon-mode` 执行。`correct` 保留错误类别、两次才算、四级层级、旧错误上先失败与规则表；层级判断指向 `principle-encode-lessons-in-structure`，会话级教训分给 `retro`，提交改为按项目规则并需用户明确要求。三者使用中文，保留 `disable-model-invocation: true` 与各自的 `agents/openai.yaml`，由本仓维护，不进入快照锁定清单。
 
 `automate-me` 保留跨会话时间片、用户校准与按目标 mode 上次变更做增量更新；生成器与个人产物分离，产物写目标项目的 `skills/<handle>-mode`。本仓改写宿主会话发现、单次反馈保持候选、项目规则与已有 Skill 的边界，并沿用本仓写作、显式调用、前向验证与授权规则；不引入 Cursor 专属路径、create-skill、unslop 或固定 PR 收尾。取舍见 repo://docs/adr/0018-owned-automate-me.md。
 

@@ -57,7 +57,8 @@ A02/A03 的安装目标为 `~/.agents/skills/{bdd,delegate-ticket}` 和 `~/.clau
 | skills/how | 代码机制讲解与子系统走读（本仓自有，改写自上游，出处见 sync-upstream-skills/references/adapted-sources.md） | 不拥有动机溯源 | SKILL.md + references/ | 无 | `node scripts/check-skills.js`与人工审查 |
 | skills/no-comments | 显式调用的注释清理、必要例外与范围内根因修复（本仓自有，改写自 pstack，出处同上） | 不拥有范围外重构、提交或发布 | SKILL.md + references/comment-sicko.md + agents/openai.yaml | how、why；宿主子 agent（可用时） | `node scripts/check-skills.js` + 隔离案例前向验证 |
 | skills/in-your-own-words | 显式调用时复述用户目标与问题（本仓自有，改写自 pstack，出处同上） | 不拥有实现或文件修改 | SKILL.md + agents/openai.yaml | 无 | `node scripts/check-skills.js` + 隔离案例前向验证 |
-| skills/sharpen | 显式调用时把用户请求改写得更深而不更大，只交付四问与改写后的请求（本仓自有，改写自 pstack，出处同上） | 不拥有任务执行或文件修改 | SKILL.md + agents/openai.yaml | 无 | `node scripts/check-skills.js` |
+| skills/reframe | 显式调用时为用户要构建的内容命名专业术语、借用相邻领域词汇、核实参考链接并重写描述（本仓自有，改写自 pstack，出处同上） | 不拥有任务执行或文件修改 | SKILL.md + agents/openai.yaml | 无 | `node scripts/check-skills.js` |
+| skills/sharpen | 显式调用时保留既有专业术语把用户请求改写得更深而不更大，要求实验可决定的选择先做原型，只交付四问与改写后的请求（本仓自有，改写自 pstack，出处同上） | 不拥有任务执行或文件修改 | SKILL.md + agents/openai.yaml | 无 | `node scripts/check-skills.js` |
 | skills/correct | 显式调用时从仓库历史找 agent 反复犯的错误类别，逐类在最高可行层级消除，并证明新检查在旧错误上失败（本仓自有，改写自 pstack，出处同上） | 不拥有会话级教训（归 retro）、提交或推送 | SKILL.md + agents/openai.yaml | principle-encode-lessons-in-structure | `node scripts/check-skills.js` |
 | skills/ticket-sizing | 逐票 token 拆分信号、粒度判定、MMF 合计与 100k 拆分线的超线拆票；本仓自有 Skill | 不拥有切片流程、用户裁决或发布（to-tickets） | SKILL.md + agents/openai.yaml | to-tickets；GLOSSARY.md 的 MMF 词条 | `node scripts/check-skills.js` + `node --test test/*.test.js` |
 | skills/why | 代码与决策的动机溯源（本仓自有，改写自上游，出处同上） | 不拥有机制讲解 | SKILL.md + references/ | git CLI、gh CLI；环境可用的证据类 MCP | `node scripts/check-skills.js`与人工审查 |

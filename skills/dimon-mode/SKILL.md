@@ -103,7 +103,8 @@ disable-model-invocation: true
 | 任务 | owner skill |
 | --- | --- |
 | 复述用户真正要什么 | `in-your-own-words`（用户调用） |
-| 发请求前把它改得更深、补齐完成条件和证据 | `sharpen`（用户调用） |
+| 说不清要做什么、先命名专业术语并借用相邻领域词汇重写描述 | `reframe`（用户调用） |
+| 保留专业术语把请求改得更深而不更大、以专家方式重写并补齐完成条件与证据 | `sharpen`（用户调用） |
 | 用决策地图澄清 Epic 或 MMF 的阻塞问题 | `wayfinder`（用户调用） |
 | 大需求切成多个 MMF | `to-epic`（用户调用） |
 | 给一个 MMF 写 Spec | `to-spec`（用户调用） |
@@ -130,6 +131,12 @@ disable-model-invocation: true
 | 应用改过，项目 `verify-*` 的 feature map 可能过期 | `maintain-verification-skill`（用户调用） |
 | 并发、重试、状态机、解析器等承诺，测试够不着出错的情况 | `create-formal-verification-skill`（用户调用） |
 | 已验证代码经合并、重构改过，却没重跑检查 | `maintain-formal-verification-skill`（用户调用） |
+
+意图还模糊或未定名时，按前置提示词链把需求打磨后再交给实现：
+
+- 说不清要造什么、缺领域术语：先运行 `/reframe`，用专业术语、核实过的参考链接与相邻领域词汇重写描述。
+- 拿到专业术语描述（或已有明确意图）但要进一步深化：运行 `/sharpen`，沿用该术语、不扩大范围，以专家工作方式重写提示词并补齐完成条件与证据。
+- 拿到重写后的提示词：运行 `/dimon-mode`，按对应任务路由实现。
 
 大需求不等于必有迷雾，按阻塞位置选入口：
 

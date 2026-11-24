@@ -22,7 +22,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 4. 按 [bdd](../bdd/SKILL.md) 把业务决定写成有独立来源的 Given / When / Then 场景。覆盖每条 T/R，也覆盖已决定的失败、重试和跨步骤不变量。同一场景可同时覆盖转移与规则。在能观察全部结果的公开 Seam 上选检查，写出复用、补强或待裁决的理由。
 
-优先复用 Issue 中对该测试 Seam 仍适用的用户确认。缺少适用确认时先取得用户确认，再发布 Spec。编排调用时以 `NEXT: blocked-human <待确认的测试 Seam>` 交回调用方。
+优先复用 Issue 中仍适用的测试决定。调用方传入 `planning_mode: auto` 时，从独立业务预期和公开入口选择能观察完整结果的 Seam，记录选择、理由和证据坐标后继续。业务预期无独立来源、互相矛盾或需要改变时，才以 `NEXT: blocked-human <待决定事项>` 交回。独立调用或沿原人工计划审核合同时，缺少适用确认先取得用户确认。
 
 5. 定形状：要新建或修改 Module 时，运行 `architect`，把选定形状的签名和状态归属写进 Implementation Decisions。完成条件：Business Flow 的每个状态都能用一行答出 owner Module。
 

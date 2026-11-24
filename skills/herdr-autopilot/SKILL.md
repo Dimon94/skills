@@ -71,7 +71,7 @@ node scripts/autopilot.js poll --session autopilot
      若阶段已切换（例如 `to-epic` 完成转 `/to-spec`），同步调用 `node scripts/autopilot.js set-stage --session autopilot --id <lane_id> --stage <next_stage>`。
   3. 退出码 `2` 表示触发连续自动回复熔断（已自动标为 `escalated`），停止自动回复并列入本轮上报。
 - **升级人类（Escalate）**：
-  命中产品/偏好歧义、不可逆操作或异常卡死时，先标记状态，不向 pane 发输入：
+  仅在缺少外部权限/凭证、遇到不可逆操作、触发熔断或同类失败连续两次未定位根因时标记状态，不向 pane 发输入；`to-epic` / `to-spec` / `to-tickets` / `dimon-mode` 过程链路内的常规规划与拆票裁决由总控直接拍板推进：
   ```bash
   node scripts/autopilot.js escalate --session autopilot --id <lane_id> --reason "<一句话原因>"
   ```

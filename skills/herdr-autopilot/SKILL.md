@@ -10,10 +10,10 @@ disable-model-invocation: true
 
 ## 边界
 
-- 所有 `herdr` 命令都带 `--session <session>`（默认 `autopilot`），绝不操控用户的默认或 focused Herdr session。
+- **单一独立窗口**：所有自动驾驶任务统一落在同一个 `--session autopilot` 内（除非用户显式指定其他 session 名），绝不操控用户的默认或 focused Herdr session。
+- **不按任务拆 session**：多个需求、并行队列或“新会话”一律在同一个 `autopilot` session 内通过不同的 `workspace` / `tab` / `pane` 与语义化命名（如 `ads-triage`、`ads-ready`）区分，保证用户在副屏只开一个 `herdr session attach autopilot` 窗口即可看到全部 Agent 会话。
 - 只读取、回复账本中登记的 lane；未登记的 pane/agent 一律忽略。
 - 不可逆操作（合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息）只升级给用户，绝不代输确认口令。
-- 用户随时可运行 `herdr session attach <session>` 打开 Herdr 窗口围观或接管。
 
 ## 主循环
 

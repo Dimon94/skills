@@ -276,7 +276,7 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
       continue;
     }
 
-    const state = live.status || live.state || 'unknown';
+    const state = live.agent_status || live.status || live.state || 'unknown';
     lane.last_observed_state = state;
     if (live.pane_id) lane.pane = live.pane_id;
 

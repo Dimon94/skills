@@ -165,3 +165,50 @@ test('set-stage advances stage and resets reply counter', () => {
   assert.equal(advanced.output.status, 'awaiting_merge');
   assert.equal(advanced.output.consecutive_replies, 0);
 });
+
+test('poll reads real Herdr agent_status field for working and idle lanes', () => {
+  const ledgerPath = makeTempLedger();
+  runCli([
+    'register',
+    '--session', 'autopilot',
+    '--ledger', ledgerPath,
+    '--id', 'triage',
+    '--agent', 'ads-triage',
+    '--stage', 'spec',
+  ]);
+  runCli([
+    'register',
+    '--session', 'autopilot',
+    '--ledger', ledgerPath,
+    '--id', 'ready',
+    '--agent', 'ads-ready',
+    '--stage', 'pipeline',
+  ]);
+
+  const fakeRunner = (_session, args) => {
+    if (args[0] === 'agent' && args[1] === 'list') {
+      return JSON.stringify({
+        result: {
+          agents: [
+            { name: 'ads-triage', pane_id: 'w2:p1', agent_status: 'idle' },
+            { name: 'ads-ready', pane_id: 'w3:p1', agent_status: 'working' },
+          ],
+        },
+      });
+    }
+    if (args[0] === 'agent' && args[1] === 'read' && args[2] === 'ads-triage') {
+      return JSON.stringify({ result: { text: 'Triage complete.' } });
+    }
+    throw new Error(`unexpected call: ${args.join(' ')}`);
+  };
+
+  const res = runCli(['poll', '--session', 'autopilot', '--ledger', ledgerPath], fakeRunner);
+  assert.equal(res.exitCode, 0);
+  assert.equal(res.output.working.length, 1);
+  assert.equal(res.output.working[0].id, 'ready');
+  assert.equal(res.output.working[0].state, 'working');
+  assert.equal(res.output.needs_attention.length, 1);
+  assert.equal(res.output.needs_attention[0].id, 'triage');
+  assert.equal(res.output.needs_attention[0].state, 'idle');
+  assert.equal(res.output.needs_attention[0].tail, 'Triage complete.');
+});

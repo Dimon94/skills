@@ -47,7 +47,7 @@ node scripts/autopilot.js poll
    ```bash
    herdr agent start <agent_name> --kind pi --pane <pane_id>
    ```
-3. 先登记账本，再投递首条命令：
+3. 登记时用 lane ID 命名该 pane 所在的标签页。需要自定义标题时给 register 加 `--label "任务简称"`。登记成功后再投递首条命令：
    ```bash
    node scripts/autopilot.js register \
      --id <lane_id> --repo <repo_path> --stage <stage> \

@@ -4,6 +4,7 @@
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll.
+// - register --pane names the containing tab using --label or the lane id.
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
 // ============================================================================
@@ -389,6 +390,16 @@ function runCli(argv, runner = defaultHerdrRunner) {
       stage: flags.stage,
       maxReplies: flags['max-replies'],
     });
+    if (flags.label !== undefined && (!lane.pane || typeof flags.label !== 'string' || !flags.label.trim())) {
+      throw new Error('--label requires --pane and a nonempty title');
+    }
+    if (lane.pane) {
+      const pane = JSON.parse(runner(session, ['pane', 'get', lane.pane])).result?.pane;
+      if (pane?.pane_id !== lane.pane || !pane.tab_id || (lane.workspace && pane.workspace_id !== lane.workspace)) {
+        throw new Error('cannot identify tab for the registered pane and workspace');
+      }
+      runner(session, ['tab', 'rename', pane.tab_id, flags.label || lane.id]);
+    }
     saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output: lane };
   }

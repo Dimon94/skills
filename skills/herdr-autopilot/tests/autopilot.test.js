@@ -211,3 +211,23 @@ test('poll reads real Herdr agent_status field for working and idle lanes', () =
   assert.equal(res.output.needs_attention[0].state, 'idle');
   assert.equal(res.output.needs_attention[0].tail, 'Triage complete.');
 });
+
+test('register names the tab containing the enrolled pane', () => {
+  for (const label of [undefined, '核对链接']) {
+    let title = '1';
+    const runner = (session, args) => {
+      assert.equal(session, 'default');
+      if (args[0] === 'pane') {
+        assert.deepEqual(args, ['pane', 'get', 'wA1:p1']);
+        return JSON.stringify({ result: { pane: { workspace_id: 'wA1', pane_id: 'wA1:p1', tab_id: 'wA1:t1' } } });
+      }
+      assert.deepEqual(args.slice(0, 3), ['tab', 'rename', 'wA1:t1']);
+      title = args[3];
+    };
+    const args = ['register', '--ledger', makeTempLedger(), '--id', 'ads-links',
+      '--stage', 'spec', '--agent', 'ads-links', '--workspace', 'wA1', '--pane', 'wA1:p1'];
+    if (label) args.push('--label', label);
+    runCli(args, runner);
+    assert.equal(title, label || 'ads-links');
+  }
+});

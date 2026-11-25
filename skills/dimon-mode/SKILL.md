@@ -20,7 +20,8 @@ disable-model-invocation: true
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
 - 改任何仓库文件前：按 `git-worktree` 建任务树，在树里写；主工作树只做集成。一行文档也不例外。
-- 提交用 `git-commit`，推送或建 PR 用 `git-push-pr`，合回 main 用 `git-rebase-main`，合并 PR 用 `gh-merge-pr`。都只在用户明确要求时执行。
+- 本地可逆交付自动收尾：在任务工作树验证通过后，若项目允许本地集成（未规定 `main` 仅经 PR/MR 前进），自动执行 `git-commit` + `git-rebase-main` 合回 `main`（含 `worktree.sh gc --apply` 回收任务树），无需人手触发；推送、建 PR、合并 PR（`git-push-pr`、`gh-merge-pr`）等远端动作仍只在用户明确要求时执行。
+- 调度或实施带 tracker Issue 的任务时，开工同步置为 `In Progress`（并推升未开始的父 Spec/Epic）、待合入置为 `In Review`、验收合入后关闭直接 Issue 为 `Done` 并回读确认（`herdr-autopilot` 由脚本门禁自动执行；存在外部上线验收门时显式保留并说明原因）。
 - 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。同一类错误在仓库里被纠正第二次：建议用户运行 `/correct`。
 - 任务中途发现某个 skill 坏了：单独报告位置和原因，不悄悄绕过。
 

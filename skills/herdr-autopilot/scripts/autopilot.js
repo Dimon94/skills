@@ -5,6 +5,7 @@
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll, watch.
 // - register --pane 强制可视化命名（"<Issue号> <中文简写>[ <英文>]"，拒绝裸 ASCII slug），同步命名 pane / tab（--keep-tab-label 保留共享四格 tab 名）/ 可选 workspace。
+// - launch 按 model-roles 配置启动 pane agent（见 launch.js）；register --pane 只接受 launch 过的 pane 并冻结 lane.launch。
 // - place 按 2x2 四格容量（每 tab 最多 4 pane：1->右、2->左下、3->右下、满 4 新开 -2）无抢焦点落位并命名。
 // - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
 // - poll 同一签名（等人栏的状态与原因，或待处理栏的 state@state_change_seq）只报一次，没变的进 unchanged 且不读尾部；全部没变即 quiet；--full 重报全量。
@@ -20,6 +21,7 @@ const { ownedTree, closeout } = require('./closeout.js');
 const { syncIssueState } = require('./issue-sync.js');
 const { formatVisualLabel, placePane, MAX_WORKSPACE_COLS, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
 const { watchLane, spawnDaemonWatcher, stopWatcher, t3WakeEnv } = require('./watch.js');
+const { launchAgent, claimLaunch } = require('./launch.js');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -375,7 +377,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     return {
       exitCode: 0,
       output: {
-        commands: ['init', 'place', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
+        commands: ['init', 'place', 'launch', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
         default_session: DEFAULT_SESSION,
       },
     };
@@ -419,6 +421,13 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
       excludeTab: flags['exclude-tab'],
       runner,
     });
+    return { exitCode: 0, output };
+  }
+
+  if (command === 'launch') {
+    const output = launchAgent(ledger, { stage: flags.stage, task: flags.task, agent: flags.agent, pane: flags.pane },
+      { session, runner, planner: deps.planner });
+    saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output };
   }
 
@@ -475,6 +484,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
       }
     }
     if (lane.pane) {
+      lane.launch = claimLaunch(ledger, lane.pane, lane.agent);
       const pane = JSON.parse(runner(session, ['pane', 'get', lane.pane])).result?.pane;
       if (pane?.pane_id !== lane.pane || !pane.tab_id || (lane.workspace && pane.workspace_id !== lane.workspace)) {
         throw new Error('cannot identify tab for the registered pane and workspace');

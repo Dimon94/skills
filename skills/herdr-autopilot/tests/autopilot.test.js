@@ -25,6 +25,20 @@ function runCli(argv, runner, deps = {}) {
   return rawRunCli(argv, runner, { issueSync: stubIssueSync, env: T3_ENV, ...deps });
 }
 
+// 替身 planner 模拟 model_config.py：planning 配的是 claude / Opus 5.5。
+function fakePlanner({ task, workerName, paneId }) {
+  const triple = task === 'planning' ? ['claude', 'claude-opus-5-5', 'medium'] : ['pi', 'gpt-6.2-sol', 'high'];
+  return { agent: triple[0], model: triple[1], effort: triple[2],
+    argv: ['herdr', 'agent', 'start', workerName, '--kind', triple[0], '--pane', paneId, '--', '--model', triple[1]] };
+}
+
+function launched(ledger, pane, agent, extra = ['--stage', 'spec']) {
+  const calls = [];
+  const res = rawRunCli(['launch', '--ledger', ledger, '--pane', pane, '--agent', agent, ...extra],
+    (_s, args) => { calls.push(args); return ''; }, { planner: fakePlanner });
+  return { ...res, calls };
+}
+
 function makeTempLedger() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'herdr-autopilot-'));
   return path.join(dir, 'autopilot.json');
@@ -316,6 +330,7 @@ test('register enforces compact visual naming on workspace, tab, and pane', () =
     return '';
   };
   const ledger = makeTempLedger();
+  launched(ledger, 'wA1:p1', 'jb548');
   // Reject missing label or bare ASCII slug without Chinese short name.
   assert.throws(
     () => runCli(['register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec', '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1'], runner),
@@ -367,6 +382,7 @@ test('done keeps unmerged and dirty trees, then retires Git before closing the p
     }
   }
   const cli = (cmd, ...args) => runCli([cmd, '--ledger', ledger, '--id', 'fix', ...args], runner);
+  launched(ledger, 'p1', 'fix', ['--stage', 'bugfix', '--task', 'backend']);
   cli('register', '--issue', 'DD-1', '--agent', 'fix', '--stage', 'bugfix', '--repo', repo, '--worktree', tree,
     '--base', 'main', '--pane', 'p1', '--label', '修复回归');
   const done = () => cli('set-stage', '--stage', 'done');
@@ -394,6 +410,7 @@ test('pane-only closeout checks terminal identity and keeps legacy lanes intact'
   const cli = (cmd, id, ...args) => runCli([cmd, '--ledger', ledger, '--id', id, ...args], runner);
   cli('register', 'old', '--issue', 'DD-1', '--agent', 'legacy', '--stage', 'spec');
   assert.throws(() => cli('set-stage', 'old', '--stage', 'done'), /缺少登记/);
+  launched(ledger, 'p1', 'reader');
   cli('register', 'read', '--issue', 'DD-1', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only', '--label', '只读核对');
   pane.terminal_id = 'two';
   assert.throws(() => cli('set-stage', 'read', '--stage', 'done'), /身份/);
@@ -694,6 +711,7 @@ test('register and set-stage done fail-close when issue readback remains Backlog
     if (key === 'pane close') { closeCalls += 1; return ''; }
     throw new Error(`unexpected ${key}`);
   };
+  launched(ledger, 'p1', 'jb548', ['--stage', 'pipeline']);
   rawRunCli(
     ['register', '--ledger', ledger, '--id', 'jb548', '--issue', 'JB-548', '--agent', 'jb548', '--stage', 'pipeline', '--repo', repo, '--worktree', tree, '--base', 'main', '--pane', 'p1', '--label', '扩表Job'],
     runner,
@@ -755,10 +773,12 @@ test('keep-issue-open requires reason, pane-only skips auto-close, terminal issu
     targets.push([issue, target]);
     return stubIssueSync(issue, target);
   };
+  launched(ledger, 'p1', 'r1');
   rawRunCli(['register', '--ledger', ledger, '--id', 'ro', '--issue', 'JB-512', '--agent', 'r1', '--stage', 'spec', '--pane', 'p1', '--pane-only', '--label', '巡检只读'], runner, { issueSync: spySync });
   rawRunCli(['set-stage', '--ledger', ledger, '--id', 'ro', '--stage', 'done'], runner, { issueSync: spySync });
   assert.deepEqual(targets, [['JB-512', 'started']]);
 
+  launched(ledger, 'p2', 'r2');
   rawRunCli(['register', '--ledger', ledger, '--id', 'w1', '--issue', 'JB-513', '--agent', 'r2', '--stage', 'spec', '--pane', 'p2', '--pane-only', '--label', '留门验收'], runner, { issueSync: spySync });
   assert.throws(
     () => rawRunCli(['set-stage', '--ledger', ledger, '--id', 'w1', '--stage', 'done', '--keep-issue-open'], runner, { issueSync: spySync }),
@@ -860,4 +880,35 @@ test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, an
     ['w1:p1', 'down'],
     ['w1:p2', 'down'],
   ]);
+});
+
+// 期望值来源：$correct 重放旧错误——计划配 claude/Opus 5.5，lane 却被手写 `herdr agent start --kind pi` 启动后直接登记。
+test('launch starts planning lanes from model config and register rejects panes not launched that way', () => {
+  const ledger = makeTempLedger();
+  const runner = (_s, args) => (args[0] === 'pane' && args[1] === 'get'
+    ? JSON.stringify({ result: { pane: { pane_id: 'p1', tab_id: 't1' } } }) : '');
+  const register = (agent) => runCli(['register', '--ledger', ledger, '--id', 'jb574', '--issue', 'JB-574',
+    '--agent', agent, '--stage', 'tickets', '--pane', 'p1', '--label', '分发拆票'], runner);
+
+  // 旧错误：pane 不经 launch 启动，register 必须拒绝。
+  assert.throws(() => register('jb574'), /不是经 launch 按模型配置启动的/);
+
+  // tickets 属 planning：按配置启动 claude / Opus 5.5，不落到默认 pi。
+  const res = launched(ledger, 'p1', 'jb574', ['--stage', 'tickets']);
+  assert.deepEqual(res.calls, [['agent', 'start', 'jb574', '--kind', 'claude', '--pane', 'p1', '--', '--model', 'claude-opus-5-5']]);
+  assert.equal(res.output.task, 'planning');
+
+  assert.throws(() => register('other'), /与 --agent "other" 不符/);
+  const lane = register('jb574').output;
+  assert.deepEqual([lane.launch.kind, lane.launch.model, lane.launch.task], ['claude', 'claude-opus-5-5', 'planning']);
+  // 记录只能消费一次：同一 pane 不能再登记第二条 lane。
+  assert.throws(() => runCli(['register', '--ledger', ledger, '--id', 'again', '--issue', 'JB-574', '--agent', 'jb574',
+    '--stage', 'tickets', '--pane', 'p1', '--label', '分发拆票'], runner), /不是经 launch/);
+});
+
+test('launch requires an explicit task type for bugfix and rejects non-start plans', () => {
+  const ledger = makeTempLedger();
+  assert.throws(() => launched(ledger, 'p1', 'fix', ['--stage', 'bugfix']), /需要显式 --task/);
+  assert.throws(() => rawRunCli(['launch', '--ledger', ledger, '--pane', 'p1', '--agent', 'fix', '--stage', 'spec'],
+    () => '', { planner: () => ({ argv: ['herdr', 'pane', 'close', 'p1'] }) }), /不是 herdr agent start/);
 });

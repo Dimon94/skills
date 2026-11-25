@@ -12,6 +12,7 @@ disable-model-invocation: true
 
 - **默认主窗口合一**：默认使用 `default` Herdr session（所有 `herdr` 命令直接执行，无需额外适配远程连接）；除非用户显式指定其他 `--session`，否则不为任务拆独立 session。
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
+- **模型按配置**：lane 的 harness、model、effort 只经 `launch` 从 delivery-pipeline 模型配置解析；`register` 拒绝未经 `launch` 启动的 pane。
 - **零抢焦点**：所有 workspace / tab / pane 操作携带 `--no-focus`，不依赖 `--current` 或 focused pane。
 - **2×2 四格与可视化命名**：每张 worker tab 最多 4 个 pane，按左上 → 右上 → 左下 → 右下均分，满 4 自动开 `-2`；workspace、tab、pane 统一采用 `<Issue号> <中文简写>[ <英文>]` 短命名，由脚本校验汉字与显示宽度上限。
 - **不可逆硬拦截**：合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息只升级给用户，绝不代输确认口令。
@@ -66,11 +67,12 @@ node scripts/autopilot.js poll
      --tab-prefix "<中文简写[ 英文]>" --pane-label "<中文简写[ 英文]>" \
      [--workspace-label "<中文简写[ 英文]>"] [--exclude-tab <coord_tab_id>]
    ```
-2. 在返回的 `pane_id` 启动目标交互式 Agent（默认 `pi`，名称遵循 `[a-z][a-z0-9_-]{0,31}`）：
+2. 在返回的 `pane_id` 按模型配置启动 Agent（名称遵循 `[a-z][a-z0-9_-]{0,31}`）。harness、model、effort 只由 `launch` 从 `~/.config/delivery-pipeline/model-roles.json` 解析，不手写 `herdr agent start`：
    ```bash
-   herdr agent start <agent_name> --kind pi --pane <pane_id>
+   node scripts/autopilot.js launch --stage <stage> --agent <agent_name> --pane <pane_id> [--task <任务类型>]
    ```
-3. 登记 lane（`--pane` 必带可视化 `--label`，脚本自动补齐 `<Issue号>` 并校验宽度；落入共享四格 worker tab 时加 `--keep-tab-label` 保留 tab 名），登记成功后再投递首条命令并挂事件 watcher：
+   `epic` / `spec` / `tickets` / `pipeline` 默认用 `planning` 项；`bugfix` 必须显式 `--task`（如 `backend`、`frontend`）。能力探测不到所配模型时 `launch` 失败，按报错修配置或升级给用户，不换 harness 绕过。
+3. 登记 lane（`--pane` 只接受经 `launch` 启动的 pane，账本冻结其 harness 与模型；`--pane` 必带可视化 `--label`，脚本自动补齐 `<Issue号>` 并校验宽度；落入共享四格 worker tab 时加 `--keep-tab-label` 保留 tab 名），登记成功后再投递首条命令并挂事件 watcher：
    ```bash
    node scripts/autopilot.js register \
      --id <lane_id> --issue <issue key 或 URL> --repo <repo_path> --stage <stage> \

@@ -129,6 +129,12 @@ try {
   const noPrecedent = dispatch([{ ...groups.single[0], read_first: ['absent.js'] }]);
   assert.equal(noPrecedent.ticket, ticket.id);
   assert.match(noPrecedent.missing[0].reason, /absent.js/);
+  // 可写范围的目录项以 `/` 结尾，覆盖其下尚不存在的文件；与同范围内的其他项不得互相包含。
+  const scoped = writable => dispatch([{ ...groups.single[0], writable }]);
+  assert.deepEqual(scoped(['status.js', 'results.js', 'tests/'])[0]?.writable, ['status.js', 'results.js', 'tests/']);
+  for (const writable of [['tests/', 'tests/a.js'], ['tests/a.js', 'tests/'], ['tests//'], ['/'], ['../tests/']]) {
+    assert.match(scoped(writable).missing?.[0]?.reason || '', /路径无效或写入重叠/, JSON.stringify(writable));
+  }
   const conflict = { field: 'S1', reason: '新期望要求清空第一段，与原场景矛盾', owner: '需求作者' };
   assert.deepEqual(dispatch(groups.split, [conflict]).missing, [conflict]);
   const weak = { ...ticket, body: read('ticket-missing-result.md') };
@@ -232,6 +238,8 @@ try {
     input: { ...plan, base: head(), briefs: [brief], evidence: [receipt] }, record: integrated(),
   }, status, label);
   assert.equal(collect(broad, 0).verdict, 'pass');
+  assert.equal(collect({ ...broad, writable: ['status.js', 'turn details/'] }, 0, '目录项覆盖新文件').verdict, 'pass');
+  rejects('目录项放行了相邻目录', collect({ ...broad, writable: ['status.js', 'turn/'] }, 1, '目录前缀'), file);
   const narrow = { ...broad, writable: ['status.js'] };
   rejects('窄合同接受宽回执', collect(narrow, 1, '范围重验'), file);
   git('checkout', '-qb', 'different-path', original);

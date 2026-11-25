@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const { isUtf8 } = require('node:buffer');
 const { spawnSync } = require('node:child_process');
 const { isDeepStrictEqual: equal } = require('node:util');
+const { covers } = require('../../delegate-ticket/scripts/prepare.js');
 
 const text = value => typeof value === 'string' && value.trim() !== '';
 const revision = value => typeof value === 'string' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
@@ -29,7 +30,7 @@ function scopeGaps(brief, commit) {
   if (!isUtf8(paths)) return ['提交含非 UTF-8 路径，无法匹配派发合同中的文件名'];
   if (!Array.isArray(brief.writable)) return ['派发合同缺可写文件列表'];
   return paths.toString('utf8').split('\0').slice(0, -1)
-    .filter(file => !brief.writable.includes(file)).map(file => `超出可写范围 ${file}`);
+    .filter(file => !brief.writable.some(entry => covers(entry, file))).map(file => `超出可写范围 ${file}`);
 }
 
 function sliceEvidence(brief, record, head) {

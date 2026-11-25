@@ -42,7 +42,7 @@ declare function prepare(ticket: Ticket, scenarios: Scenario[], base: Revision, 
 
 `delegate-ticket` 负责语义对账、查先例和填写 `site`。`prepare` 从原票解析 `Blocked by`。`None` 或 `无` 可直接准备。已命名的前置票由负责人读回其完成证据，把票号和已落地的交付提交放入 `site.dependencies`；脚本逐票核实提交在 `base` 的历史里。`Unknown（原因）`、缺依赖证据或缺现场草案均返回原票号的 `MissingDecision`。
 
-`ticket + slice_id` 标识一次票内分片。`scenarios` 引用原场景，`owns` 表达父票分给本片的 T/R。各片的目标与期望合起来覆盖整票。`writable`、`read_first` 为目标仓库根的相对文件路径。`check` 是一条命令的参数数组，首项为程序，`expected` 写该命令要观察到的结果。技术负责人协调共享写入，派发同波独立文件。收到缺项后从原 owner 取得决定，再用原票号和场景准备合同。
+`ticket + slice_id` 标识一次票内分片。`scenarios` 引用原场景，`owns` 表达父票分给本片的 T/R。各片的目标与期望合起来覆盖整票。`writable`、`read_first` 为目标仓库根的相对文件路径。`writable` 的一项也可以是以 `/` 结尾的目录，覆盖其下所有文件，用于名字派发前定不准的新文件；同一票内各项互不包含。`check` 是一条命令的参数数组，首项为程序，`expected` 写该命令要观察到的结果。技术负责人协调共享写入，派发同波独立文件。收到缺项后从原 owner 取得决定，再用原票号和场景准备合同。
 
 ```ts
 type SliceEvidence = {

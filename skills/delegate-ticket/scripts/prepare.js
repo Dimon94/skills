@@ -12,6 +12,9 @@ const strings = value => Array.isArray(value) && value.every(text);
 const listed = value => strings(value) && value.length > 0;
 const relativeFile = file => text(file) && !path.isAbsolute(file) && !/[\\\x00]/u.test(file)
   && file.split('/').every(part => part && !['.', '..', '.git'].includes(part));
+// 可写范围的一项是精确文件，或以 `/` 结尾的目录：目录下的文件（含派发时还不存在的）都在范围内。
+const scopeEntry = entry => text(entry) && relativeFile(entry.replace(/\/$/, ''));
+const covers = (entry, file) => entry === file || (entry.endsWith('/') && file.startsWith(entry));
 
 const revision = value => typeof value === 'string' && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
 function atRevision(base, args) {
@@ -79,9 +82,11 @@ function prepare(ticket, scenarios, base, site = {}) {
       if (!relativeFile(file) || !atRevision(base, ['cat-file', '-e', `${base}:${file}`])) lack('read_first', `${base} 缺先例 ${file}`);
     }
     if (!listed(slice.writable)) lack('writable', `${slice.slice_id} 缺可写文件`);
-    else for (const file of slice.writable) {
-      if (!relativeFile(file) || writes.has(file)) lack('writable', `${file} 路径无效或写入重叠；先集中共享改动再派发`);
-      writes.add(file);
+    else for (const entry of slice.writable) {
+      if (!scopeEntry(entry) || [...writes].some(other => covers(other, entry) || covers(entry, other))) {
+        lack('writable', `${entry} 路径无效或写入重叠；先集中共享改动再派发`);
+      }
+      writes.add(entry);
     }
     if (!strings(slice.scenarios) || slice.scenarios.some(id => !references.has(id)) || (references.size && !slice.scenarios.length)) {
       lack('scenarios', `${slice.slice_id} 应引用父票场景 ${[...references].join(', ')}`);
@@ -101,4 +106,4 @@ if (require.main === module) {
   console.log(JSON.stringify(result, null, 2));
   process.exitCode = Array.isArray(result) ? 0 : 1;
 }
-module.exports = { prepare };
+module.exports = { prepare, covers };

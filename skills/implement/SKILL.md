@@ -92,4 +92,4 @@ spec 用代码写了 Interface 时，每条 `Ensures:` 也是一条验收，实�
 
 按授权用 `git-commit` 把工作提交到当前分支。交付说明写出验证命令与结果、复用既有检查的理由和剩余缺口。在最终干净提交上核对实际结果。集成提交发生变化时，重新绑定受影响的检查与 `code-review` 结论。
 
-在第 1 步的原场景和已批准检查上补入最终集成 SHA、所有已派合同及回执，组成 `MmfPlan`。独立执行整个需求时 `briefs` 和 `evidence` 都用空数组。按[交接合同](../to-tickets/references/delivery-contract.md)填写集成提交的 `observations`、门禁与 `code-review` 实际两轴回执，在目标仓库根向 `node <本 Skill>/scripts/implement.js` 输入 `{input: plan, record}`。交回 `MmfVerdict`。`return` 时指出具体场景、预期、实际结果和责任人，修复后在同一 Seam 重验。
+在第 1 步的原场景和已批准检查上补入最终集成 SHA、所有已派合同及回执，组成 `MmfPlan`。独立执行整个需求时 `briefs` 和 `evidence` 都用空数组。按[交接合同](../to-tickets/references/delivery-contract.md)填写集成提交的 `observations`、门禁与 `code-review` 实际两轴回执，在目标仓库根向 `node <本 Skill>/scripts/implement.js` 输入 `{input: plan, record}`。交回 `MmfVerdict`。`return` 时指出具体场景、预期、实际结果和责任人，修复后在同一 Seam 重验。票或 MMF 已获验收且已合入目标分支、且具备 tracker 写权限时，同步更新该直接 Issue 状态并回读确认（存在外部上线验收门时保持待验收并说明）。

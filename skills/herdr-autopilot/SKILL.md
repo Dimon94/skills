@@ -14,6 +14,7 @@ disable-model-invocation: true
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
 - **零抢焦点**：严禁使用 `--current` 或依赖 focused pane；新建 workspace / worktree / tab / pane 一律带 `--no-focus`，并用语义化名称区分各任务（如 `ads-triage`、`ads-ready`）。
 - **不可逆硬拦截**：合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息只升级给用户，绝不代输确认口令。
+- **Issue 状态强同步**：`register`、`set-stage --stage awaiting_merge`、`set-stage --stage done` 由脚本自动调用 tracker 同步状态并回读校验，回读不符即 fail-close；严禁口头汇报进展而把 Issue 留在 `Backlog`。
 
 ## 主循环
 
@@ -60,7 +61,7 @@ node scripts/autopilot.js poll
 
 只读任务使用 `--pane-only` 代替 `--worktree` 和 `--base`。写任务在新建的任务工作树根目录启动 pane。
 
-`--issue` 写本 lane 服务的 Epic、Spec 或 ticket，缺了 register 直接失败。Bug 没有 issue 时，先按目标项目的调试闭环建单再登记；没有建单授权就 escalate。首条命令带上同一坐标，Epic 下的 MMF 写成 `/to-spec <Epic URL> <MMF 标识>`。lane 新建的 Spec 和 ticket 必须是该 issue 的原生子项：Spec 由 to-spec 读回 `--parent` 核对，ticket 由 to-tickets 读回父子关系。正文链接只算 related，不算挂上。
+`--issue` 写本 lane 服务的 Epic、Spec 或 ticket，缺了 register 直接失败。`register` 通过后脚本会自动把该 issue 及尚未开始的 Linear 父链（Spec / Epic）置为 `In Progress` 并回读确认，失败或 issue 已处终态时拒绝登记。Bug 没有 issue 时，先按目标项目的调试闭环建单再登记；没有建单授权就 escalate。首条命令带上同一坐标，Epic 下的 MMF 写成 `/to-spec <Epic URL> <MMF 标识>`。lane 新建的 Spec 和 ticket 必须是该 issue 的原生子项：Spec 由 to-spec 读回 `--parent` 核对，ticket 由 to-tickets 读回父子关系。正文链接只算 related，不算挂上。
 
 ### 3. 暂停分诊（仅当 `needs_attention` 非空时）
 
@@ -84,9 +85,14 @@ node scripts/autopilot.js poll
   node scripts/autopilot.js escalate --id <lane_id> --reason "<一句话原因>"
   ```
 - **PR/MR 就绪待合入**：
-  `delivery-pipeline-herdr` 或 `bugfix` 已完成验收并等待人类合入时：
+  `delivery-pipeline-herdr` 或 `bugfix` 已完成验收并等待人类合入时（脚本同步把直接 issue 推进至 `In Review` 并回读）：
   ```bash
   node scripts/autopilot.js set-stage --id <lane_id> --stage awaiting_merge
+  ```
+- **流水线内子票状态同步**：
+  巡检 `pipeline` lane 时，若观察到某张子票（如 `JB-546`）已开始实施或已验收合入集成分支，但未单独登记为独立 lane，立即运行确定性同步命令更新该子票状态并回读：
+  ```bash
+  node scripts/autopilot.js sync-issue --issue <ticket_key_or_url> --target <started|review|done>
   ```
 - **用户答复已升级项后**：
   将用户的拍板原文转发给对应 `agent_name`，并调用 `node scripts/autopilot.js resolve --id <lane_id>` 恢复自动巡检。
@@ -99,7 +105,7 @@ node scripts/autopilot.js poll
 node scripts/autopilot.js set-stage --id <lane_id> --stage done
 ```
 
-脚本核对已登记的 pane 和 agent、任务工作树归属、工作树洁净状态和 Git 祖先关系，依次回收工作树、本地任务分支、pane，再写入 done。只读任务只关闭 pane。失败原因进入 escalated，排除原因后重试同一命令。旧账本缺少所有权、squash/rebase 后无法证明祖先关系时保留现场并上报。
+脚本核对已登记的 pane 和 agent、任务工作树归属、工作树洁净状态和 Git 祖先关系，依次回收工作树、本地任务分支、pane，随后把直接 issue 置为 `Done` 并回读确认，全部通过才写入 `done`（父项 Epic/Spec 保持只读不自动关闭）。只读任务（`--pane-only`）只关闭 pane，默认不关闭 issue。若该 issue 因外部部署或线上验收门暂不能关闭，显式传 `--keep-issue-open --reason "<原因>"`（脚本保持其为 `In Review` 并记录原因）。任一步失败即进入 `escalated`，排除原因后重试同一命令即可幂等续跑。旧账本缺少所有权、squash/rebase 后无法证明祖先关系时保留现场并上报。
 
 ### 5. 汇报收口
 

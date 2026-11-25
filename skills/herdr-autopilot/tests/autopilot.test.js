@@ -6,7 +6,21 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { validateSession, runCli } = require('../scripts/autopilot.js');
+const { validateSession, runCli: rawRunCli } = require('../scripts/autopilot.js');
+const { syncIssueState, parseIssueRef } = require('../scripts/issue-sync.js');
+
+function stubIssueSync(issue, target) {
+  const map = {
+    started: { state: 'In Progress', status_type: 'started' },
+    review: { state: 'In Review', status_type: 'started' },
+    done: { state: 'Done', status_type: 'completed' },
+  };
+  return { tracker: 'linear', issue, previous_state: 'Backlog', changed: true, parents_synced: [], ...map[target] };
+}
+
+function runCli(argv, runner, deps = {}) {
+  return rawRunCli(argv, runner, { issueSync: stubIssueSync, ...deps });
+}
 
 function makeTempLedger() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'herdr-autopilot-'));
@@ -444,4 +458,228 @@ test('watch --daemon deduplicates live watcher by pidfile and reports already_ru
   assert.equal(second.output.already_running, true);
   assert.equal(second.output.pid, process.pid);
   assert.equal(spawns, 1);
+});
+
+// 期望值来源：用户纠正 e9bf46be-d564-4ec6-b871-31f573a5970a 调度期间 JB-512/JB-542/JB-548 全程留在 Backlog；
+// register 必须把直接 issue 与未开始父链置为 In Progress 并回读，awaiting_merge 推至 In Review，done 仅关闭直接 issue。
+test('Linear issue sync promotes ticket and unstarted parents on register, moves to In Review and Done with readback', () => {
+  const statuses = [
+    { id: 'st-backlog', type: 'backlog', name: 'Backlog' },
+    { id: 'st-todo', type: 'unstarted', name: 'Todo' },
+    { id: 'st-progress', type: 'started', name: 'In Progress' },
+    { id: 'st-review', type: 'started', name: 'In Review' },
+    { id: 'st-done', type: 'completed', name: 'Done' },
+    { id: 'st-canceled', type: 'canceled', name: 'Canceled' },
+  ];
+  const db = {
+    'JB-512': { id: 'JB-512', status: 'Backlog', statusType: 'backlog', teamId: 'team-jb', parentId: null },
+    'JB-542': { id: 'JB-542', status: 'Backlog', statusType: 'backlog', teamId: 'team-jb', parentId: 'JB-512' },
+    'JB-548': { id: 'JB-548', status: 'Backlog', statusType: 'backlog', teamId: 'team-jb', parentId: 'JB-542' },
+  };
+  const mutations = [];
+  const callLinear = (tool, args) => {
+    if (tool === 'get_issue') return { ...db[args.id] };
+    if (tool === 'list_issue_statuses') return statuses;
+    if (tool === 'save_issue') {
+      mutations.push(args);
+      const next = statuses.find((s) => s.id === args.state || s.name === args.state);
+      db[args.id].status = next.name;
+      db[args.id].statusType = next.type;
+      return { id: args.id };
+    }
+    throw new Error(`unexpected tool ${tool}`);
+  };
+  const realSync = (issue, target) => syncIssueState(issue, target, { callLinear });
+
+  const ledgerPath = makeTempLedger();
+  const reg = rawRunCli(
+    ['register', '--ledger', ledgerPath, '--id', 'jb548', '--issue', 'https://linear.app/erplus/issue/JB-548/demo', '--agent', 'jb548', '--stage', 'pipeline'],
+    undefined,
+    { issueSync: realSync }
+  );
+  assert.equal(reg.exitCode, 0);
+  assert.equal(reg.output.issue_state, 'In Progress');
+  assert.equal(db['JB-548'].status, 'In Progress');
+  assert.equal(db['JB-542'].status, 'In Progress');
+  assert.equal(db['JB-512'].status, 'In Progress');
+
+  // Re-running sync-issue --target started is idempotent (zero mutations).
+  const beforeCount = mutations.length;
+  const noop = rawRunCli(['sync-issue', '--issue', 'JB-548', '--target', 'started'], undefined, { issueSync: realSync });
+  assert.equal(noop.output.changed, false);
+  assert.equal(mutations.length, beforeCount);
+
+  // Poll surfaces synced issue_state.
+  const poll = rawRunCli(
+    ['poll', '--ledger', ledgerPath],
+    () => JSON.stringify({ result: { agents: [{ name: 'jb548', pane_id: 'p1', agent_status: 'working' }] } }),
+    { issueSync: realSync }
+  );
+  assert.equal(poll.output.working[0].issue_state, 'In Progress');
+
+  // awaiting_merge moves direct issue to In Review; parents stay In Progress.
+  const review = rawRunCli(
+    ['set-stage', '--ledger', ledgerPath, '--id', 'jb548', '--stage', 'awaiting_merge'],
+    undefined,
+    { issueSync: realSync }
+  );
+  assert.equal(review.output.issue_state, 'In Review');
+  assert.equal(db['JB-548'].status, 'In Review');
+  assert.equal(db['JB-542'].status, 'In Progress');
+
+  // sync-issue --target done closes only JB-548, never parent Spec/Epic.
+  const closed = rawRunCli(['sync-issue', '--issue', 'JB-548', '--target', 'done'], undefined, { issueSync: realSync });
+  assert.equal(closed.output.state, 'Done');
+  assert.equal(db['JB-548'].status, 'Done');
+  assert.equal(db['JB-542'].status, 'In Progress');
+  assert.equal(db['JB-512'].status, 'In Progress');
+});
+
+// 期望值来源：$correct 证明旧错误会失败——若 issue 写入后回读仍留在 Backlog，register 与 set-stage --stage done 必须 fail-close。
+test('register and set-stage done fail-close when issue readback remains Backlog, and done retry is idempotent', () => {
+  const { execFileSync } = require('node:child_process');
+  const statuses = [
+    { id: 'st-backlog', type: 'backlog', name: 'Backlog' },
+    { id: 'st-progress', type: 'started', name: 'In Progress' },
+    { id: 'st-review', type: 'started', name: 'In Review' },
+    { id: 'st-done', type: 'completed', name: 'Done' },
+  ];
+  let dropWrites = true;
+  const issue = { id: 'JB-548', status: 'Backlog', statusType: 'backlog', teamId: 'team-jb', parentId: null };
+  const callLinear = (tool, args) => {
+    if (tool === 'get_issue') return { ...issue };
+    if (tool === 'list_issue_statuses') return statuses;
+    if (tool === 'save_issue') {
+      if (!dropWrites) {
+        const next = statuses.find((s) => s.id === args.state || s.name === args.state);
+        issue.status = next.name;
+        issue.statusType = next.type;
+      }
+      return { id: args.id };
+    }
+    throw new Error(`unexpected tool ${tool}`);
+  };
+  const realSync = (raw, target) => syncIssueState(raw, target, { callLinear });
+
+  // 1) Old error on register: issue stays Backlog -> register fails and writes nothing to ledger.
+  const ledger = makeTempLedger();
+  assert.throws(
+    () => rawRunCli(['register', '--ledger', ledger, '--id', 'jb548', '--issue', 'JB-548', '--agent', 'jb548', '--stage', 'pipeline'], undefined, { issueSync: realSync }),
+    /状态回读校验失败/
+  );
+  assert.equal(rawRunCli(['list', '--ledger', ledger]).output.lanes.length, 0);
+
+  // 2) Normal register with real worktree + pane, then simulate failure on done.
+  dropWrites = false;
+  const repo = fs.realpathSync(path.dirname(ledger));
+  const tree = path.join(repo, 'jb548-tree');
+  const git = (cwd, ...args) => execFileSync('git', ['-C', cwd, '-c', 'user.name=test',
+    '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'pipe' });
+  git(repo, 'init', '-b', 'main');
+  git(repo, 'commit', '--allow-empty', '-m', 'base');
+  git(repo, 'worktree', 'add', '-b', 'jb548-branch', tree);
+  git(tree, 'commit', '--allow-empty', '-m', 'work');
+  git(repo, 'merge', '--ff-only', 'jb548-branch');
+
+  const pane = { pane_id: 'p1', tab_id: 't1', terminal_id: 'term', agent_status: 'done', cwd: tree };
+  let closeCalls = 0;
+  const runner = (_session, args) => {
+    const key = args.slice(0, 2).join(' ');
+    if (key === 'pane get') return JSON.stringify({ result: { pane } });
+    if (key === 'tab rename') return '';
+    if (key === 'pane list') return JSON.stringify({ result: { panes: closeCalls ? [] : [pane] } });
+    if (key === 'agent list') return JSON.stringify({ result: { agents: [{ name: 'jb548', pane_id: 'p1' }] } });
+    if (key === 'pane close') { closeCalls += 1; return ''; }
+    throw new Error(`unexpected ${key}`);
+  };
+  rawRunCli(
+    ['register', '--ledger', ledger, '--id', 'jb548', '--issue', 'JB-548', '--agent', 'jb548', '--stage', 'pipeline', '--repo', repo, '--worktree', tree, '--base', 'main', '--pane', 'p1'],
+    runner,
+    { issueSync: realSync }
+  );
+  assert.equal(issue.status, 'In Progress');
+
+  // Old error on done: write silently dropped -> done fails-close and escalates lane.
+  dropWrites = true;
+  assert.throws(
+    () => rawRunCli(['set-stage', '--ledger', ledger, '--id', 'jb548', '--stage', 'done'], runner, { issueSync: realSync }),
+    /状态回读校验失败/
+  );
+  const escalated = rawRunCli(['list', '--ledger', ledger]).output.lanes[0];
+  assert.equal(escalated.status, 'escalated');
+  assert.match(escalated.escalated_reason, /状态回读校验失败/);
+
+  // Retry once Linear recovers: closeout is idempotent (no second pane close), issue transitions to Done.
+  dropWrites = false;
+  const finished = rawRunCli(['set-stage', '--ledger', ledger, '--id', 'jb548', '--stage', 'done'], runner, { issueSync: realSync });
+  assert.equal(finished.output.status, 'done');
+  assert.equal(finished.output.issue_state, 'Done');
+  assert.equal(issue.status, 'Done');
+  assert.equal(closeCalls, 1);
+});
+
+test('keep-issue-open requires reason, pane-only skips auto-close, terminal issues reject register, and GitHub URLs sync', () => {
+  assert.deepEqual(parseIssueRef('https://github.com/Dimon94/skills/issues/42'), {
+    tracker: 'github',
+    repo: 'Dimon94/skills',
+    number: '42',
+  });
+
+  // Terminal issue rejects register.
+  const doneIssue = { id: 'JB-999', status: 'Done', statusType: 'completed', teamId: 't1', parentId: null };
+  assert.throws(
+    () => syncIssueState('JB-999', 'started', {
+      callLinear: (tool) => (tool === 'get_issue' ? doneIssue : [{ id: 's1', type: 'started', name: 'In Progress' }]),
+    }),
+    /已处于终态/
+  );
+
+  // pane-only lane skips auto-closing issue on done; --keep-issue-open requires --reason and keeps issue at In Review.
+  const ledger = makeTempLedger();
+  const panes = [
+    { pane_id: 'p1', terminal_id: 't1', tab_id: 'tab1', agent_status: 'idle' },
+    { pane_id: 'p2', terminal_id: 't2', tab_id: 'tab2', agent_status: 'idle' },
+  ];
+  const agents = [
+    { name: 'r1', pane_id: 'p1' },
+    { name: 'r2', pane_id: 'p2' },
+  ];
+  const runner = (_session, args) => {
+    const pane = args[0] === 'pane' && args[1] === 'get' ? panes.find((p) => p.pane_id === args[2]) : panes[0];
+    return JSON.stringify({ result: { pane, panes, agents } });
+  };
+  const targets = [];
+  const spySync = (issue, target) => {
+    targets.push([issue, target]);
+    return stubIssueSync(issue, target);
+  };
+  rawRunCli(['register', '--ledger', ledger, '--id', 'ro', '--issue', 'JB-512', '--agent', 'r1', '--stage', 'spec', '--pane', 'p1', '--pane-only'], runner, { issueSync: spySync });
+  rawRunCli(['set-stage', '--ledger', ledger, '--id', 'ro', '--stage', 'done'], runner, { issueSync: spySync });
+  assert.deepEqual(targets, [['JB-512', 'started']]);
+
+  rawRunCli(['register', '--ledger', ledger, '--id', 'w1', '--issue', 'JB-513', '--agent', 'r2', '--stage', 'spec', '--pane', 'p2', '--pane-only'], runner, { issueSync: spySync });
+  assert.throws(
+    () => rawRunCli(['set-stage', '--ledger', ledger, '--id', 'w1', '--stage', 'done', '--keep-issue-open'], runner, { issueSync: spySync }),
+    /--reason/
+  );
+  const kept = rawRunCli(
+    ['set-stage', '--ledger', ledger, '--id', 'w1', '--stage', 'done', '--keep-issue-open', '--reason', '等待生产发布验收'],
+    runner,
+    { issueSync: spySync }
+  );
+  assert.equal(kept.output.status, 'done');
+  assert.equal(kept.output.issue_state, 'In Review');
+  assert.equal(kept.output.issue_kept_open_reason, '等待生产发布验收');
+
+  // GitHub issue close + readback.
+  let ghState = 'OPEN';
+  const ghRes = syncIssueState('https://github.com/Dimon94/skills/issues/42', 'done', {
+    runGh: (args) => {
+      if (args[1] === 'view') return JSON.stringify({ state: ghState });
+      if (args[1] === 'close') { ghState = 'CLOSED'; return ''; }
+      throw new Error(`unexpected gh ${args.join(' ')}`);
+    },
+  });
+  assert.equal(ghRes.state, 'CLOSED');
+  assert.equal(ghRes.changed, true);
 });

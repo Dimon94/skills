@@ -5,14 +5,17 @@
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll, watch.
 // - register --pane names the containing tab using --label or the lane id.
-// - register 必须带 --issue（issue key 或 URL）；poll 每一栏都带出 issue，lane 可按 issue 找回。
+// - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
 // - watch 以 herdr agent wait 阻塞等终态/阻断态并主动唤醒 T3 主会话，不持账本锁。
-// - done 在登记的工作树和本地分支回收、pane 关闭后写入，并清理对应 watcher。
+// - set-stage --stage awaiting_merge 推进 issue 至 In Review（或保持进行中）并回读校验。
+// - set-stage --stage done 在登记的工作树和本地分支回收、pane 关闭后，同步关闭直接 issue 至 Done 并回读校验（写任务除非显式 --keep-issue-open --reason），再写入 done 并清理 watcher。
+// - sync-issue 供协调方同步子票状态（started | review | done）并回读校验，不持账本锁。
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
 // ============================================================================
 
 const { ownedTree, closeout } = require('./closeout.js');
+const { syncIssueState } = require('./issue-sync.js');
 const { watchLane, spawnDaemonWatcher, stopWatcher } = require('./watch.js');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -264,8 +267,15 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
   const awaitingMerge = [];
   const missing = [];
 
-  // 每一栏都带 lane 身份：lane id、所服务的 issue、agent、阶段。
-  const view = (lane, extra) => ({ id: lane.id, issue: lane.issue || null, agent: lane.agent, stage: lane.stage, ...extra });
+  // 每一栏都带 lane 身份：lane id、所服务的 issue 与最近同步状态、agent、阶段。
+  const view = (lane, extra) => ({
+    id: lane.id,
+    issue: lane.issue || null,
+    issue_state: lane.issue_state || null,
+    agent: lane.agent,
+    stage: lane.stage,
+    ...extra,
+  });
   const readTail = (lane) => extractReadText(runner(session, [
     'agent', 'read', lane.agent, '--source', 'recent-unwrapped', '--lines', String(lines),
   ]));
@@ -340,16 +350,47 @@ function parseArgs(argv) {
   return { command, flags };
 }
 
+function recordIssueSync(lane, syncResult) {
+  lane.issue_state = syncResult.state;
+  lane.issue_status_type = syncResult.status_type;
+  lane.issue_sync_at = new Date().toISOString();
+  return syncResult;
+}
+
+function syncLaneIssueOnDone(lane, flags, issueSyncFn) {
+  const isPaneOnly = Boolean(lane.cleanup && !lane.cleanup.tree);
+  if (flags['keep-issue-open']) {
+    const reason = String(flags.reason || '').trim();
+    if (!reason) throw new Error('--keep-issue-open requires --reason "<保留原因>"');
+    lane.issue_kept_open_reason = reason;
+    return recordIssueSync(lane, issueSyncFn(lane.issue, 'review'));
+  }
+  if (isPaneOnly && !flags['close-issue']) {
+    return null;
+  }
+  return recordIssueSync(lane, issueSyncFn(lane.issue, 'done'));
+}
+
 function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   const { command, flags } = parseArgs(argv);
+  const issueSyncFn = deps.issueSync || syncIssueState;
   if (!command || command === '--help' || command === '-h') {
     return {
       exitCode: 0,
       output: {
-        commands: ['init', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'escalate', 'resolve', 'list'],
+        commands: ['init', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
         default_session: DEFAULT_SESSION,
       },
     };
+  }
+
+  if (command === 'sync-issue') {
+    const issue = String(flags.issue || '').trim();
+    if (!ISSUE_RE.test(issue)) {
+      throw new Error(`sync-issue requires --issue <issue key 或 URL>; got "${issue}"`);
+    }
+    const target = String(flags.target || '').trim();
+    return { exitCode: 0, output: issueSyncFn(issue, target) };
   }
 
   const session = validateSession(flags.session || DEFAULT_SESSION);
@@ -400,10 +441,14 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
         throw new Error('pane 启动目录与任务工作树不符');
       }
       lane.terminal_id = pane.terminal_id;
+      const syncRes = recordIssueSync(lane, issueSyncFn(lane.issue, 'started'));
       runner(session, ['tab', 'rename', pane.tab_id, flags.label || lane.id]);
+      saveLedger(ledgerPath, ledger);
+      return { exitCode: 0, output: { ...lane, issue_sync: syncRes } };
     }
+    const syncRes = recordIssueSync(lane, issueSyncFn(lane.issue, 'started'));
     saveLedger(ledgerPath, ledger);
-    return { exitCode: 0, output: lane };
+    return { exitCode: 0, output: { ...lane, issue_sync: syncRes } };
   }
 
   if (command === 'poll') {
@@ -458,10 +503,15 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
 
   if (command === 'set-stage') {
     if (flags.stage === 'done') {
+      if (flags['keep-issue-open'] && !String(flags.reason || '').trim()) {
+        throw new Error('--keep-issue-open requires --reason "<保留原因>"');
+      }
       const current = requireLane(ledger, flags.id);
       const checkpoint = () => saveLedger(ledgerPath, ledger);
+      let issueSync = null;
       try {
         closeout(current, session, runner, checkpoint);
+        issueSync = syncLaneIssueOnDone(current, flags, issueSyncFn);
       } catch (error) {
         escalateLane(ledger, flags.id, error.message);
         checkpoint();
@@ -469,6 +519,16 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
       }
       current.escalated_reason = null;
       stopWatcher(ledgerPath, session, flags.id);
+      const lane = setStage(ledger, flags.id, flags.stage);
+      saveLedger(ledgerPath, ledger);
+      return { exitCode: 0, output: issueSync ? { ...lane, issue_sync: issueSync } : lane };
+    }
+    if (flags.stage === 'awaiting_merge') {
+      const current = requireLane(ledger, flags.id);
+      const issueSync = recordIssueSync(current, issueSyncFn(current.issue, 'review'));
+      const lane = setStage(ledger, flags.id, flags.stage);
+      saveLedger(ledgerPath, ledger);
+      return { exitCode: 0, output: { ...lane, issue_sync: issueSync } };
     }
     const lane = setStage(ledger, flags.id, flags.stage);
     saveLedger(ledgerPath, ledger);
@@ -494,7 +554,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
 // watch 对账本只读且会长期阻塞等待 Herdr 状态变化，不持账本锁以避免死锁。
 function lockedCli(argv) {
   const { command, flags } = parseArgs(argv);
-  if (!command || ['--help', '-h', 'list', 'watch'].includes(command)) return runCli(argv);
+  if (!command || ['--help', '-h', 'list', 'watch', 'sync-issue'].includes(command)) return runCli(argv);
   const ledger = flags.ledger || defaultLedgerPath(validateSession(flags.session || DEFAULT_SESSION));
   fs.mkdirSync(path.dirname(ledger), { recursive: true });
   const mac = process.platform === 'darwin';

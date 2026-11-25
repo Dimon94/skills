@@ -17,6 +17,7 @@
 - 阶段切换直接发对应斜杠命令与精确坐标（例：`/to-spec MMF-2，范围见 Epic #123`）。
 - 回答技术二选一时，要求子 Agent 以运行证据定夺，不替它拍脑袋猜结论。
 - 遇到可逆的 review finding 修复，明确要求按原入口先复现失败再修绿，不放宽验收标准。
+- 在 `pipeline` 阶段读到子票开始实施或已通过验收并合入集成分支时，顺手调用 `node scripts/autopilot.js sync-issue --issue <ticket> --target <started|review|done>` 同步子票状态并回读，再汇报进展。
 
 ## 标准阶段流转
 

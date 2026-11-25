@@ -12,9 +12,22 @@ disable-model-invocation: true
 
 - **默认主窗口合一**：默认使用 `default` Herdr session（所有 `herdr` 命令直接执行，无需额外适配远程连接）；除非用户显式指定其他 `--session`，否则不为任务拆独立 session。
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
-- **零抢焦点**：严禁使用 `--current` 或依赖 focused pane；新建 workspace / worktree / tab / pane 一律带 `--no-focus`，并用语义化名称区分各任务（如 `ads-triage`、`ads-ready`）。
+- **零抢焦点**：所有 workspace / tab / pane 操作携带 `--no-focus`，不依赖 `--current` 或 focused pane。
+- **2×2 四格与可视化命名**：每张 worker tab 最多 4 个 pane，按左上 → 右上 → 左下 → 右下均分，满 4 自动开 `-2`；workspace、tab、pane 统一采用 `<Issue号> <中文简写>[ <英文>]` 短命名，由脚本校验汉字与显示宽度上限。
 - **不可逆硬拦截**：合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息只升级给用户，绝不代输确认口令。
 - **Issue 状态强同步**：`register`、`set-stage --stage awaiting_merge`、`set-stage --stage done` 由脚本自动调用 tracker 同步状态并回读校验，回读不符即 fail-close；严禁口头汇报进展而把 Issue 留在 `Backlog`。
+
+## 布局与可视化命名
+
+统一格式：**`<Issue号> <中文简写>[ <英文>]`**（Issue 号置前防截断，中文 2–6 字提炼核心动作/对象，必要时附极短英文如 `M3`、`API`、`Job`）。汉字计 2 列、ASCII 计 1 列：
+
+| 对象 | 宽度上限 | 命名示例 | 说明 |
+| --- | --- | --- | --- |
+| Workspace（左侧 space） | 20 列 | `JB-512 零停机 M3` | 主任务/Epic 简称，经 `--workspace-label` 同步 `herdr workspace rename` |
+| Tab（顶部标签） | 20 列（前缀 ≤ 18） | `JB-512 实施` / `JB-512 实施-2` | 协调 tab 单独占 1 格；worker tab 每张最多 4 格，满 4 顺延 `-2` |
+| Pane（单格标题） | 24 列 | `JB-548 扩表Job`、`JB-546 双向门禁` | 每格对应具体票/角色，由脚本自动调用 `herdr pane rename` |
+
+多票并行落位统一调用 `place`（脚本按 2×2 四格自动 split 与命名，并发走账本锁防竞态）；`pipeline` 阶段调用 `/delivery-pipeline-herdr` 时，给其 `--tab-prefix` 与 `--title` 传入同一套短命名。
 
 ## 主循环
 
@@ -44,16 +57,23 @@ node scripts/autopilot.js poll
 
 入队动作：
 
-1. 在目标仓库为任务创建隔离 worktree（或 `herdr worktree create ... --no-focus` / `herdr workspace create ... --no-focus`），获取 `workspace` 与 `pane_id`。
-2. 在该 pane 启动目标交互式 Agent（默认 `pi`，名称遵循 `[a-z][a-z0-9_-]{0,31}`）：
+1. 在目标仓库为任务创建隔离 worktree，并通过 `place` 在目标 workspace 落位（每 tab 最多 4 pane、2×2 均分，自动完成 workspace / tab / pane 可视化命名）：
+   ```bash
+   node scripts/autopilot.js place \
+     --workspace <ws_id> --cwd <任务工作树根目录> --issue <issue key 或 URL> \
+     --tab-prefix "<中文简写[ 英文]>" --pane-label "<中文简写[ 英文]>" \
+     [--workspace-label "<中文简写[ 英文]>"] [--exclude-tab <coord_tab_id>]
+   ```
+2. 在返回的 `pane_id` 启动目标交互式 Agent（默认 `pi`，名称遵循 `[a-z][a-z0-9_-]{0,31}`）：
    ```bash
    herdr agent start <agent_name> --kind pi --pane <pane_id>
    ```
-3. 登记时用 lane ID 命名该 pane 所在的标签页。需要自定义标题时给 register 加 `--label "任务简称"`。登记成功后再投递首条命令：
+3. 登记 lane（`--pane` 必带可视化 `--label`，脚本自动补齐 `<Issue号>` 并校验宽度；落入共享四格 worker tab 时加 `--keep-tab-label` 保留 tab 名），登记成功后再投递首条命令并挂事件 watcher：
    ```bash
    node scripts/autopilot.js register \
      --id <lane_id> --issue <issue key 或 URL> --repo <repo_path> --stage <stage> \
      --agent <agent_name> --pane <pane_id> --workspace <ws_id> \
+     --label "<中文简写[ 英文]>" [--keep-tab-label] [--workspace-label "<中文简写[ 英文]>"] \
      --worktree <任务工作树根目录> --base <实际合入的本地分支名>
    herdr agent prompt <agent_name> "<首条命令>"
    node scripts/autopilot.js watch --id <lane_id> --thread <当前 T3 线程 ID> --daemon --after-prompt

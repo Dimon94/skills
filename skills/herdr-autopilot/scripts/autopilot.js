@@ -4,7 +4,8 @@
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll, watch.
-// - register --pane names the containing tab using --label or the lane id.
+// - register --pane 强制可视化命名（"<Issue号> <中文简写>[ <英文>]"，拒绝裸 ASCII slug），同步命名 pane / tab（--keep-tab-label 保留共享四格 tab 名）/ 可选 workspace。
+// - place 按 2x2 四格容量（每 tab 最多 4 pane：1->右、2->左下、3->右下、满 4 新开 -2）无抢焦点落位并命名。
 // - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
 // - watch 以 herdr agent wait 阻塞等终态/阻断态并主动唤醒 T3 主会话，不持账本锁。
 // - set-stage --stage awaiting_merge 推进 issue 至 In Review（或保持进行中）并回读校验。
@@ -16,6 +17,7 @@
 
 const { ownedTree, closeout } = require('./closeout.js');
 const { syncIssueState } = require('./issue-sync.js');
+const { formatVisualLabel, placePane, MAX_WORKSPACE_COLS, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
 const { watchLane, spawnDaemonWatcher, stopWatcher } = require('./watch.js');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -378,7 +380,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     return {
       exitCode: 0,
       output: {
-        commands: ['init', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
+        commands: ['init', 'place', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
         default_session: DEFAULT_SESSION,
       },
     };
@@ -406,6 +408,25 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     return { exitCode: 0, output: { session, ledger: ledgerPath, lanes: Object.values(ledger.lanes) } };
   }
 
+  if (command === 'place') {
+    const issue = String(flags.issue || '').trim();
+    if (!ISSUE_RE.test(issue)) {
+      throw new Error(`place requires --issue <issue key 或 URL>; got "${issue}"`);
+    }
+    const output = placePane({
+      session,
+      workspace: flags.workspace,
+      cwd: flags.cwd,
+      issue,
+      tabPrefix: flags['tab-prefix'],
+      paneLabel: flags['pane-label'] || flags.label,
+      workspaceLabel: flags['workspace-label'],
+      excludeTab: flags['exclude-tab'],
+      runner,
+    });
+    return { exitCode: 0, output };
+  }
+
   if (command === 'register') {
     const lane = registerLane(ledger, {
       id: flags.id,
@@ -418,8 +439,35 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
       stage: flags.stage,
       maxReplies: flags['max-replies'],
     });
-    if (flags.label !== undefined && (!lane.pane || typeof flags.label !== 'string' || !flags.label.trim())) {
-      throw new Error('--label requires --pane and a nonempty title');
+    if ((flags.label !== undefined || flags['pane-label'] !== undefined) && !lane.pane) {
+      throw new Error('--label / --pane-label requires --pane');
+    }
+    let paneLabel = null;
+    let tabLabel = null;
+    let workspaceLabel = null;
+    if (lane.pane) {
+      paneLabel = formatVisualLabel({
+        issue: lane.issue,
+        label: flags['pane-label'] || flags.label,
+        maxCols: MAX_PANE_COLS,
+        kind: 'pane',
+      });
+      if (flags['tab-label'] || (!flags['keep-tab-label'] && flags.label)) {
+        tabLabel = formatVisualLabel({
+          issue: lane.issue,
+          label: flags['tab-label'] || flags.label,
+          maxCols: MAX_TAB_COLS,
+          kind: 'tab',
+        });
+      }
+      if (flags['workspace-label']) {
+        workspaceLabel = formatVisualLabel({
+          issue: lane.issue,
+          label: flags['workspace-label'],
+          maxCols: MAX_WORKSPACE_COLS,
+          kind: 'workspace',
+        });
+      }
     }
     if (flags.worktree || flags.base || flags['pane-only']) {
       if (!lane.pane || (flags['pane-only'] && (flags.worktree || flags.base))) {
@@ -441,8 +489,15 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
         throw new Error('pane 启动目录与任务工作树不符');
       }
       lane.terminal_id = pane.terminal_id;
+      lane.pane_label = paneLabel;
       const syncRes = recordIssueSync(lane, issueSyncFn(lane.issue, 'started'));
-      runner(session, ['tab', 'rename', pane.tab_id, flags.label || lane.id]);
+      if (workspaceLabel && pane.workspace_id) {
+        runner(session, ['workspace', 'rename', pane.workspace_id, workspaceLabel]);
+      }
+      if (tabLabel) {
+        runner(session, ['tab', 'rename', pane.tab_id, tabLabel]);
+      }
+      runner(session, ['pane', 'rename', lane.pane, paneLabel]);
       saveLedger(ledgerPath, ledger);
       return { exitCode: 0, output: { ...lane, issue_sync: syncRes } };
     }

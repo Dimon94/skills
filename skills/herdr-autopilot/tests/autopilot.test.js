@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const { validateSession, runCli: rawRunCli } = require('../scripts/autopilot.js');
 const { syncIssueState, parseIssueRef } = require('../scripts/issue-sync.js');
+const { displayWidth, formatVisualLabel } = require('../scripts/layout.js');
 
 function stubIssueSync(issue, target) {
   const map = {
@@ -233,24 +234,37 @@ test('poll reads real Herdr agent_status field for working and idle lanes', () =
   assert.equal(res.output.needs_attention[0].tail, 'Triage complete.');
 });
 
-test('register names the tab containing the enrolled pane', () => {
-  for (const label of [undefined, '核对链接']) {
-    let title = '1';
-    const runner = (session, args) => {
-      assert.equal(session, 'default');
-      if (args[0] === 'pane') {
-        assert.deepEqual(args, ['pane', 'get', 'wA1:p1']);
-        return JSON.stringify({ result: { pane: { workspace_id: 'wA1', pane_id: 'wA1:p1', tab_id: 'wA1:t1' } } });
-      }
-      assert.deepEqual(args.slice(0, 3), ['tab', 'rename', 'wA1:t1']);
-      title = args[3];
-    };
-    const args = ['register', '--issue', 'DD-1', '--ledger', makeTempLedger(), '--id', 'ads-links',
-      '--stage', 'spec', '--agent', 'ads-links', '--workspace', 'wA1', '--pane', 'wA1:p1'];
-    if (label) args.push('--label', label);
-    runCli(args, runner);
-    assert.equal(title, label || 'ads-links');
-  }
+test('register enforces compact visual naming on workspace, tab, and pane', () => {
+  const calls = [];
+  const runner = (session, args) => {
+    assert.equal(session, 'default');
+    calls.push(args);
+    if (args[0] === 'pane' && args[1] === 'get') {
+      return JSON.stringify({ result: { pane: { workspace_id: 'wA1', pane_id: 'wA1:p1', tab_id: 'wA1:t1' } } });
+    }
+    return '';
+  };
+  const ledger = makeTempLedger();
+  // Reject missing label or bare ASCII slug without Chinese short name.
+  assert.throws(
+    () => runCli(['register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec', '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1'], runner),
+    /缺少可视化命名/
+  );
+  assert.throws(
+    () => runCli(['register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec', '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1', '--label', 'jb548-worker'], runner),
+    /缺少中文简写/
+  );
+  // Valid compact visual label auto-prepends issue key and renames workspace, tab, and pane.
+  runCli([
+    'register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec',
+    '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1',
+    '--label', '扩表Job', '--workspace-label', 'JB-512 零停机 M3',
+  ], runner);
+  assert.deepEqual(calls.slice(-3), [
+    ['workspace', 'rename', 'wA1', 'JB-512 零停机 M3'],
+    ['tab', 'rename', 'wA1:t1', 'JB-548 扩表Job'],
+    ['pane', 'rename', 'wA1:p1', 'JB-548 扩表Job'],
+  ]);
 });
 
 test('done keeps unmerged and dirty trees, then retires Git before closing the pane', () => {
@@ -270,6 +284,7 @@ test('done keeps unmerged and dirty trees, then retires Git before closing the p
     switch (args.slice(0, 2).join(' ')) {
       case 'pane get': return JSON.stringify({ result: { pane } });
       case 'tab rename': return '';
+      case 'pane rename': return '';
       case 'pane list': return JSON.stringify({ result: { panes: [pane] } });
       case 'agent list': return JSON.stringify({ result: { agents: [{ name: 'fix', pane_id: 'p1' }] } });
       case 'pane close':
@@ -282,7 +297,7 @@ test('done keeps unmerged and dirty trees, then retires Git before closing the p
   }
   const cli = (cmd, ...args) => runCli([cmd, '--ledger', ledger, '--id', 'fix', ...args], runner);
   cli('register', '--issue', 'DD-1', '--agent', 'fix', '--stage', 'bugfix', '--repo', repo, '--worktree', tree,
-    '--base', 'main', '--pane', 'p1');
+    '--base', 'main', '--pane', 'p1', '--label', '修复回归');
   const done = () => cli('set-stage', '--stage', 'done');
   assert.throws(done, /merge-base/);
   git(repo, 'merge', '--ff-only', 'feature');
@@ -308,7 +323,7 @@ test('pane-only closeout checks terminal identity and keeps legacy lanes intact'
   const cli = (cmd, id, ...args) => runCli([cmd, '--ledger', ledger, '--id', id, ...args], runner);
   cli('register', 'old', '--issue', 'DD-1', '--agent', 'legacy', '--stage', 'spec');
   assert.throws(() => cli('set-stage', 'old', '--stage', 'done'), /缺少登记/);
-  cli('register', 'read', '--issue', 'DD-1', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only');
+  cli('register', 'read', '--issue', 'DD-1', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only', '--label', '只读核对');
   pane.terminal_id = 'two';
   assert.throws(() => cli('set-stage', 'read', '--stage', 'done'), /身份/);
   assert.equal(calls.includes('pane close p1'), false);
@@ -586,14 +601,14 @@ test('register and set-stage done fail-close when issue readback remains Backlog
   const runner = (_session, args) => {
     const key = args.slice(0, 2).join(' ');
     if (key === 'pane get') return JSON.stringify({ result: { pane } });
-    if (key === 'tab rename') return '';
+    if (key === 'tab rename' || key === 'pane rename') return '';
     if (key === 'pane list') return JSON.stringify({ result: { panes: closeCalls ? [] : [pane] } });
     if (key === 'agent list') return JSON.stringify({ result: { agents: [{ name: 'jb548', pane_id: 'p1' }] } });
     if (key === 'pane close') { closeCalls += 1; return ''; }
     throw new Error(`unexpected ${key}`);
   };
   rawRunCli(
-    ['register', '--ledger', ledger, '--id', 'jb548', '--issue', 'JB-548', '--agent', 'jb548', '--stage', 'pipeline', '--repo', repo, '--worktree', tree, '--base', 'main', '--pane', 'p1'],
+    ['register', '--ledger', ledger, '--id', 'jb548', '--issue', 'JB-548', '--agent', 'jb548', '--stage', 'pipeline', '--repo', repo, '--worktree', tree, '--base', 'main', '--pane', 'p1', '--label', '扩表Job'],
     runner,
     { issueSync: realSync }
   );
@@ -653,11 +668,11 @@ test('keep-issue-open requires reason, pane-only skips auto-close, terminal issu
     targets.push([issue, target]);
     return stubIssueSync(issue, target);
   };
-  rawRunCli(['register', '--ledger', ledger, '--id', 'ro', '--issue', 'JB-512', '--agent', 'r1', '--stage', 'spec', '--pane', 'p1', '--pane-only'], runner, { issueSync: spySync });
+  rawRunCli(['register', '--ledger', ledger, '--id', 'ro', '--issue', 'JB-512', '--agent', 'r1', '--stage', 'spec', '--pane', 'p1', '--pane-only', '--label', '巡检只读'], runner, { issueSync: spySync });
   rawRunCli(['set-stage', '--ledger', ledger, '--id', 'ro', '--stage', 'done'], runner, { issueSync: spySync });
   assert.deepEqual(targets, [['JB-512', 'started']]);
 
-  rawRunCli(['register', '--ledger', ledger, '--id', 'w1', '--issue', 'JB-513', '--agent', 'r2', '--stage', 'spec', '--pane', 'p2', '--pane-only'], runner, { issueSync: spySync });
+  rawRunCli(['register', '--ledger', ledger, '--id', 'w1', '--issue', 'JB-513', '--agent', 'r2', '--stage', 'spec', '--pane', 'p2', '--pane-only', '--label', '留门验收'], runner, { issueSync: spySync });
   assert.throws(
     () => rawRunCli(['set-stage', '--ledger', ledger, '--id', 'w1', '--stage', 'done', '--keep-issue-open'], runner, { issueSync: spySync }),
     /--reason/
@@ -682,4 +697,80 @@ test('keep-issue-open requires reason, pane-only skips auto-close, terminal issu
   });
   assert.equal(ghRes.state, 'CLOSED');
   assert.equal(ghRes.changed, true);
+});
+
+// 期望值来源：用户纠正 Herdr 调度未按 2x2 四格落位、未按“中文简写+英文+issue号”命名 workspace/tab/pane。
+test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, and validates CJK display width', () => {
+  assert.equal(displayWidth('JB-512 零停机 M3'), 16);
+  assert.throws(
+    () => formatVisualLabel({ issue: 'JB-512', label: '生产分层零停机发布体系全量方案', maxCols: 20, kind: 'workspace' }),
+    /显示宽度.*超过上限 20/
+  );
+
+  const tabs = [{ tab_id: 'w1:t0', label: 'JB-512 零停机 M3', pane_count: 1 }];
+  const panes = [{ pane_id: 'w1:p0', tab_id: 'w1:t0', workspace_id: 'w1' }];
+  const calls = [];
+  let nextTab = 1;
+  let nextPane = 1;
+
+  const runner = (_session, args) => {
+    calls.push(args);
+    const cmd = args.slice(0, 2).join(' ');
+    if (cmd === 'workspace rename' || cmd === 'pane rename') return '';
+    if (cmd === 'tab list') return JSON.stringify({ result: { tabs } });
+    if (cmd === 'pane list') return JSON.stringify({ result: { panes } });
+    if (cmd === 'tab create') {
+      const label = args[args.indexOf('--label') + 1];
+      const tabId = `w1:t${nextTab++}`;
+      const paneId = `w1:p${nextPane++}`;
+      tabs.push({ tab_id: tabId, label, pane_count: 1 });
+      panes.push({ pane_id: paneId, tab_id: tabId, workspace_id: 'w1' });
+      return JSON.stringify({ result: { pane_id: paneId, tab_id: tabId, workspace_id: 'w1' } });
+    }
+    if (cmd === 'pane split') {
+      const anchorId = args[args.indexOf('--pane') + 1];
+      const anchor = panes.find((p) => p.pane_id === anchorId);
+      const paneId = `w1:p${nextPane++}`;
+      panes.push({ pane_id: paneId, tab_id: anchor.tab_id, workspace_id: 'w1' });
+      tabs.find((t) => t.tab_id === anchor.tab_id).pane_count += 1;
+      return JSON.stringify({ result: { pane_id: paneId, tab_id: anchor.tab_id, workspace_id: 'w1' } });
+    }
+    if (cmd === 'pane get') {
+      const p = panes.find((item) => item.pane_id === args[2]);
+      return JSON.stringify({ result: { pane: p } });
+    }
+    throw new Error(`unexpected herdr ${args.join(' ')}`);
+  };
+
+  const placeOne = (issue, paneLabel, extra = []) => runCli([
+    'place', '--workspace', 'w1', '--cwd', '/tmp/wt', '--issue', issue,
+    '--tab-prefix', 'JB-512 实施', '--pane-label', paneLabel, '--exclude-tab', 'w1:t0', ...extra,
+  ], runner).output;
+
+  const r1 = placeOne('JB-546', '双向门禁', ['--workspace-label', 'JB-512 零停机 M3']);
+  const r2 = placeOne('JB-547', 'PG连接池');
+  const r3 = placeOne('JB-548', '扩表Job');
+  const r4 = placeOne('JB-549', '滚动引擎');
+  const r5 = placeOne('JB-550', 'API切流');
+
+  assert.equal(r1.tab_label, 'JB-512 实施');
+  assert.equal(r1.workspace_label, 'JB-512 零停机 M3');
+  assert.equal(r1.pane_label, 'JB-546 双向门禁');
+  assert.equal(r2.tab_id, r1.tab_id);
+  assert.equal(r3.tab_id, r1.tab_id);
+  assert.equal(r4.tab_id, r1.tab_id);
+  assert.equal(r4.pane_count, 4);
+  assert.equal(r5.tab_label, 'JB-512 实施-2');
+  assert.equal(r5.pane_count, 1);
+
+  // Verify exact 2x2 split geometry: 2nd -> right(p1), 3rd -> down(p1), 4th -> down(p2).
+  const splits = calls.filter((c) => c[0] === 'pane' && c[1] === 'split').map((c) => [
+    c[c.indexOf('--pane') + 1],
+    c[c.indexOf('--direction') + 1],
+  ]);
+  assert.deepEqual(splits, [
+    ['w1:p1', 'right'],
+    ['w1:p1', 'down'],
+    ['w1:p2', 'down'],
+  ]);
 });

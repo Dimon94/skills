@@ -50,13 +50,15 @@ node scripts/autopilot.js poll
 3. 登记时用 lane ID 命名该 pane 所在的标签页。需要自定义标题时给 register 加 `--label "任务简称"`。登记成功后再投递首条命令：
    ```bash
    node scripts/autopilot.js register \
-     --id <lane_id> --repo <repo_path> --stage <stage> \
+     --id <lane_id> --issue <issue key 或 URL> --repo <repo_path> --stage <stage> \
      --agent <agent_name> --pane <pane_id> --workspace <ws_id> \
      --worktree <任务工作树根目录> --base <实际合入的本地分支名>
    herdr agent prompt <agent_name> "<首条命令>"
    ```
 
 只读任务使用 `--pane-only` 代替 `--worktree` 和 `--base`。写任务在新建的任务工作树根目录启动 pane。
+
+`--issue` 写本 lane 服务的 Epic、Spec 或 ticket，缺了 register 直接失败。Bug 没有 issue 时，先按目标项目的调试闭环建单再登记；没有建单授权就 escalate。首条命令带上同一坐标，Epic 下的 MMF 写成 `/to-spec <Epic URL> <MMF 标识>`。lane 新建的 Spec 和 ticket 必须是该 issue 的原生子项：Spec 由 to-spec 读回 `--parent` 核对，ticket 由 to-tickets 读回父子关系。正文链接只算 related，不算挂上。
 
 ### 3. 暂停分诊（仅当 `needs_attention` 非空时）
 
@@ -100,7 +102,7 @@ node scripts/autopilot.js set-stage --id <lane_id> --stage done
 
 只输出有变化的项与当前需人类处理的队列：
 
-- 本轮自动推进的 lane（`lane_id`、动作、当前 stage）。
+- 本轮自动推进的 lane（`lane_id`、`issue`、动作、当前 stage）。
 - `escalated` 队列：每条给「卡点 + 推荐选项 + 理由」，方便用户一句话批复。
 - `awaiting_merge` 队列：PR/MR 坐标与验收状态。
 - 用户在任意终端直接运行 `herdr` 即可查看并随时接管所有会话。

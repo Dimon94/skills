@@ -24,6 +24,7 @@ test('poll defaults to default session, ignores unmanaged agents, and only reads
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--ledger', ledgerPath,
     '--id', 'feat-a',
     '--agent', 'auto-feat-a',
@@ -32,6 +33,7 @@ test('poll defaults to default session, ignores unmanaged agents, and only reads
   ]);
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--ledger', ledgerPath,
     '--id', 'feat-b',
     '--agent', 'auto-feat-b',
@@ -77,6 +79,7 @@ test('poll returns quiet when all managed lanes are working', () => {
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'feat-a',
@@ -102,6 +105,7 @@ test('circuit breaker trips after max consecutive replies and escalates lane', (
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'bug-1',
@@ -145,6 +149,7 @@ test('set-stage advances stage and resets reply counter', () => {
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'feat-c',
@@ -169,6 +174,7 @@ test('poll reads real Herdr agent_status field for working and idle lanes', () =
   const ledgerPath = makeTempLedger();
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'triage',
@@ -177,6 +183,7 @@ test('poll reads real Herdr agent_status field for working and idle lanes', () =
   ]);
   runCli([
     'register',
+    '--issue', 'DD-1',
     '--session', 'autopilot',
     '--ledger', ledgerPath,
     '--id', 'ready',
@@ -224,7 +231,7 @@ test('register names the tab containing the enrolled pane', () => {
       assert.deepEqual(args.slice(0, 3), ['tab', 'rename', 'wA1:t1']);
       title = args[3];
     };
-    const args = ['register', '--ledger', makeTempLedger(), '--id', 'ads-links',
+    const args = ['register', '--issue', 'DD-1', '--ledger', makeTempLedger(), '--id', 'ads-links',
       '--stage', 'spec', '--agent', 'ads-links', '--workspace', 'wA1', '--pane', 'wA1:p1'];
     if (label) args.push('--label', label);
     runCli(args, runner);
@@ -260,7 +267,7 @@ test('done keeps unmerged and dirty trees, then retires Git before closing the p
     }
   }
   const cli = (cmd, ...args) => runCli([cmd, '--ledger', ledger, '--id', 'fix', ...args], runner);
-  cli('register', '--agent', 'fix', '--stage', 'bugfix', '--repo', repo, '--worktree', tree,
+  cli('register', '--issue', 'DD-1', '--agent', 'fix', '--stage', 'bugfix', '--repo', repo, '--worktree', tree,
     '--base', 'main', '--pane', 'p1');
   const done = () => cli('set-stage', '--stage', 'done');
   assert.throws(done, /merge-base/);
@@ -285,13 +292,28 @@ test('pane-only closeout checks terminal identity and keeps legacy lanes intact'
     return JSON.stringify({ result: { pane, panes: [pane], agents: [{ name: 'reader', pane_id: 'p1' }] } });
   }
   const cli = (cmd, id, ...args) => runCli([cmd, '--ledger', ledger, '--id', id, ...args], runner);
-  cli('register', 'old', '--agent', 'legacy', '--stage', 'spec');
+  cli('register', 'old', '--issue', 'DD-1', '--agent', 'legacy', '--stage', 'spec');
   assert.throws(() => cli('set-stage', 'old', '--stage', 'done'), /缺少登记/);
-  cli('register', 'read', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only');
+  cli('register', 'read', '--issue', 'DD-1', '--agent', 'reader', '--stage', 'spec', '--pane', 'p1', '--pane-only');
   pane.terminal_id = 'two';
   assert.throws(() => cli('set-stage', 'read', '--stage', 'done'), /身份/);
   assert.equal(calls.includes('pane close p1'), false);
   pane.terminal_id = 'one';
   cli('set-stage', 'read', '--stage', 'done');
   assert.equal(calls.at(-1), 'pane close p1');
+});
+
+// 期望值来源：用户纠正“调度完找不到智能体工作的痕迹”；lane 必须能按所服务的 issue 找回。
+test('register 必须登记所服务的 issue；poll 各栏带出 issue', () => {
+  const ledgerPath = makeTempLedger();
+  const register = (...extra) => runCli(['register', '--ledger', ledgerPath, '--stage', 'spec', ...extra]);
+  assert.throws(() => register('--id', 'orphan', '--agent', 'orphan'), /--issue/);
+  assert.throws(() => register('--id', 'orphan', '--agent', 'orphan', '--issue', 'JB 512'), /--issue/);
+  register('--id', 'm3', '--agent', 'm3', '--issue', 'JB-512');
+  register('--id', 'm4', '--agent', 'm4', '--issue', 'https://linear.app/erplus/issue/JB-515/spec');
+  runCli(['escalate', '--ledger', ledgerPath, '--id', 'm4', '--reason', '缺权限']);
+  const agents = [{ name: 'm3', pane_id: 'p1', agent_status: 'working' }];
+  const res = runCli(['poll', '--ledger', ledgerPath], () => JSON.stringify({ result: { agents } }));
+  assert.deepEqual(res.output.working.map((lane) => lane.issue), ['JB-512']);
+  assert.deepEqual(res.output.escalated.map((lane) => lane.issue), ['https://linear.app/erplus/issue/JB-515/spec']);
 });

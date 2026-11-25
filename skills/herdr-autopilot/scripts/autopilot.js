@@ -5,6 +5,7 @@
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll.
 // - register --pane names the containing tab using --label or the lane id.
+// - register 必须带 --issue（issue key 或 URL）；poll 每一栏都带出 issue，lane 可按 issue 找回。
 // - done 在登记的工作树和本地分支回收、pane 关闭后写入。
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
@@ -31,6 +32,7 @@ const VALID_STAGES = new Set([
 const ATTENTION_STATES = new Set(['idle', 'done', 'blocked']);
 const AGENT_NAME_RE = /^[a-z][a-z0-9_-]{0,31}$/;
 const SESSION_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
+const ISSUE_RE = /^(?:[A-Z][A-Z0-9]*-\d+|https?:\/\/\S+)$/;
 
 function validateSession(session) {
   const value = String(session || '').trim();
@@ -129,6 +131,10 @@ function registerLane(ledger, opts) {
   if (!AGENT_NAME_RE.test(agent)) {
     throw new Error(`invalid agent name "${agent}"; must match ${AGENT_NAME_RE}`);
   }
+  const issue = String(opts.issue || '').trim();
+  if (!ISSUE_RE.test(issue)) {
+    throw new Error(`register requires --issue <issue key 或 URL>，记录本 lane 服务的 Epic/Spec/ticket；got "${issue}"`);
+  }
   const maxReplies = opts.maxReplies !== undefined ? Number(opts.maxReplies) : DEFAULT_MAX_REPLIES;
   if (!Number.isInteger(maxReplies) || maxReplies < 1) {
     throw new Error(`invalid --max-replies "${opts.maxReplies}"; must be integer >= 1`);
@@ -136,6 +142,7 @@ function registerLane(ledger, opts) {
   const now = new Date().toISOString();
   const lane = {
     id,
+    issue,
     repo: opts.repo || null,
     worktree: opts.worktree || null,
     workspace: opts.workspace || null,
@@ -255,25 +262,26 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
   const awaitingMerge = [];
   const missing = [];
 
+  // 每一栏都带 lane 身份：lane id、所服务的 issue、agent、阶段。
+  const view = (lane, extra) => ({ id: lane.id, issue: lane.issue || null, agent: lane.agent, stage: lane.stage, ...extra });
+  const readTail = (lane) => extractReadText(runner(session, [
+    'agent', 'read', lane.agent, '--source', 'recent-unwrapped', '--lines', String(lines),
+  ]));
+
   for (const lane of Object.values(ledger.lanes)) {
     if (lane.status === 'done') continue;
     if (lane.status === 'awaiting_merge') {
-      awaitingMerge.push({ id: lane.id, agent: lane.agent, stage: lane.stage, repo: lane.repo });
+      awaitingMerge.push(view(lane, { repo: lane.repo }));
       continue;
     }
     if (lane.status === 'escalated') {
-      escalated.push({
-        id: lane.id,
-        agent: lane.agent,
-        stage: lane.stage,
-        reason: lane.escalated_reason,
-      });
+      escalated.push(view(lane, { reason: lane.escalated_reason }));
       continue;
     }
 
     const live = byName.get(lane.agent) || (lane.pane ? byPane.get(lane.pane) : null);
     if (!live) {
-      missing.push({ id: lane.id, agent: lane.agent, pane: lane.pane, stage: lane.stage });
+      missing.push(view(lane, { pane: lane.pane }));
       continue;
     }
 
@@ -283,43 +291,17 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
 
     if (state === 'working') {
       lane.consecutive_replies = 0;
-      working.push({ id: lane.id, agent: lane.agent, stage: lane.stage, state });
+      working.push(view(lane, { state }));
       continue;
     }
 
-    if (ATTENTION_STATES.has(state)) {
-      const tailRaw = runner(session, [
-        'agent',
-        'read',
-        lane.agent,
-        '--source',
-        'recent-unwrapped',
-        '--lines',
-        String(lines),
-      ]);
-      needsAttention.push({
-        id: lane.id,
-        agent: lane.agent,
-        pane: lane.pane,
-        stage: lane.stage,
-        state,
-        consecutive_replies: lane.consecutive_replies,
-        max_consecutive_replies: lane.max_consecutive_replies,
-        tail: extractReadText(tailRaw),
-      });
-      continue;
-    }
-
-    needsAttention.push({
-      id: lane.id,
-      agent: lane.agent,
+    needsAttention.push(view(lane, {
       pane: lane.pane,
-      stage: lane.stage,
       state,
       consecutive_replies: lane.consecutive_replies,
       max_consecutive_replies: lane.max_consecutive_replies,
-      tail: '',
-    });
+      tail: ATTENTION_STATES.has(state) ? readTail(lane) : '',
+    }));
   }
 
   const hasActionable =
@@ -389,6 +371,7 @@ function runCli(argv, runner = defaultHerdrRunner) {
       workspace: flags.workspace,
       pane: flags.pane,
       agent: flags.agent,
+      issue: flags.issue,
       stage: flags.stage,
       maxReplies: flags['max-replies'],
     });

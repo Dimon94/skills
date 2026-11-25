@@ -54,3 +54,15 @@ test("快照里登记过的断链只报告；新断链失败；登记过期也�
   assert.equal(r.status, 1);
   assert.match(r.stdout, /knownBrokenLinks 已过期/);
 });
+
+// 期望值来源：retro 重放旧错误——herdr-autopilot SKILL.md 曾写死 `herdr agent start <name> --kind pi`，绕过模型配置。
+test("Skill 文档手写 herdr agent start --kind 让检查失败", () => {
+  const root = suite({
+    bad: skill("bad", "```bash\nherdr agent start w --kind pi --pane p1\n```"),
+    ok: skill("ok", "不手写 `herdr agent start`，改用 `autopilot.js launch`"),
+  });
+  const r = check(root);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /error\tskills\/bad\/SKILL\.md\t手写 herdr agent start --kind/);
+  assert.doesNotMatch(r.stdout, /skills\/ok\//);
+});

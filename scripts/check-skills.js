@@ -10,6 +10,7 @@
 //   PARAM: 链接 = 代码块外、非 URL、非锚点、含 . 或 / 的 ](目标)
 //   FAIL: name 不等于目录名、缺 description、相对链接指向的文件不存在 → error
 //   FAIL: 来源清单 knownBrokenLinks 里登记的链接已能解析 → error（登记过期）
+//   FAIL: .md 里手写 `herdr agent start … --kind` → error（harness 与模型只由配置解析）
 // L6
 //   CHAIN: 上游快照的正文由来源清单哈希锁定，本仓不改；它的断链登记在
 //          该 Skill 条目的 knownBrokenLinks 里，只报告为 known，新断链照样失败
@@ -49,6 +50,9 @@ function relativeLinks(text) {
     .map((t) => t.split("#")[0]).filter(Boolean);
 }
 
+// lane 启动参数只由 model_config.py 生成；文档里照抄的启动命令会绕过模型配置
+const HAND_START = /herdr agent start\b[^\n]*--kind/;
+
 function checkSkill(name, known, report) {
   const dir = path.join(skillsDir, name);
   const fm = frontmatter(fs.readFileSync(path.join(dir, "SKILL.md"), "utf8"));
@@ -57,7 +61,11 @@ function checkSkill(name, known, report) {
   if (!fm.description) report("error", rel, "缺 description");
   const seen = new Set();
   for (const file of mdFiles(dir)) {
-    for (const link of relativeLinks(fs.readFileSync(file, "utf8"))) {
+    const text = fs.readFileSync(file, "utf8");
+    if (HAND_START.test(text)) {
+      report("error", path.relative(root, file), "手写 herdr agent start --kind；改用 herdr-autopilot 的 launch 或 delivery-pipeline-herdr 的 dispatch");
+    }
+    for (const link of relativeLinks(text)) {
       if (fs.existsSync(path.resolve(path.dirname(file), link))) continue;
       seen.add(link);
       report(known.has(link) ? "known" : "error", path.relative(root, file), `断链 ${link}`);

@@ -7,6 +7,7 @@
 //   POS: to-spec 第 6 步发布前的确定性核对；只读，不改文件、不访问 tracker
 //   EXPORT: checkSpec、splitSections、ids、readScenarios；to-tickets 复用后三者读取同一份 Spec
 //   INPUT: 新建 Spec 用 --require-scenarios；缺省仍可读历史正文
+//   INPUT: 发布后读回用 --parent <读回的原生父项>，父项为空传 ''；缺省不查父项
 //   TEST: node --test skills/to-spec/tests/check-spec.test.js
 // L5
 //   PARAM: 章节 = 模板的九个 "## " 标题，按模板顺序
@@ -24,6 +25,8 @@
 //   FAIL: 其他节引用了 Business Flow 未定义的 T/R → undefined
 //   FAIL: 场景表缺列、缺值、标识重复、covers 缺失或引用未定义 T/R → scenario
 //   FAIL: 正文含仓库文件路径（src/… 或带源码扩展名的相对路径）→ path
+//   PARAM: Epic 行 = Dependencies 节以 Epic 加冒号开头的行；父项与 Epic 都按 issue key（如 JB-512）比较，无 key 时比原值
+//   FAIL: 给了 --parent，正文有 Epic 行，读回父项为空或不是该 Epic → parent（正文链接只生成 related，不是父子关系）
 // ==========================================================================
 const fs = require("node:fs");
 
@@ -193,17 +196,32 @@ function checkPaths(text) {
   ]);
 }
 
-function checkSpec(text, requireScenarios = false) {
+// ---- 读回父项 -------------------------------------------------------------
+// parent 为 undefined 表示草稿核对，不查；空串表示读回到的父项为空。
+const EPIC_LINE = /^[\s>*-]*`?\**Epic\**`?\s*[:：]\s*(\S+)/;
+const issueKey = (value) => /\b[A-Z][A-Z0-9]*-\d+\b/.exec(value)?.[0] || value.trim();
+
+function checkParent(sections, parent) {
+  if (parent === undefined) return [];
+  const lines = (sections.get("Dependencies") || "").split("\n");
+  const epic = lines.map((line) => EPIC_LINE.exec(line)?.[1]).find(Boolean);
+  if (!epic || issueKey(parent) === issueKey(epic)) return [];
+  return [["parent", `Epic 下的 Spec 必须以 Epic 为原生父项：正文 Epic: ${epic}，读回父项${parent ? ` ${parent}` : "为空"}`]];
+}
+
+function checkSpec(text, requireScenarios = false, parent) {
   const sections = splitSections(text);
-  return [...checkSections(sections), ...checkDependencies(sections), ...checkTraceability(sections), ...readScenarios(sections, requireScenarios).errors, ...checkPaths(text)];
+  return [...checkSections(sections), ...checkDependencies(sections), ...checkTraceability(sections), ...readScenarios(sections, requireScenarios).errors, ...checkPaths(text), ...checkParent(sections, parent)];
 }
 
 // ---- 入口 ---------------------------------------------------------------
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const at = args.indexOf('--parent');
+  const parent = at < 0 ? undefined : args.splice(at, 2)[1] ?? '';
   const required = args[0] === '--require-scenarios';
   const source = fs.readFileSync(args[required ? 1 : 0] || 0, 'utf8');
-  const errors = checkSpec(source, required);
+  const errors = checkSpec(source, required, parent);
   for (const [rule, message] of errors) console.log(`error\t${rule}\t${message}`);
   if (errors.length === 0) console.log("ok");
   process.exitCode = errors.length ? 1 : 0;

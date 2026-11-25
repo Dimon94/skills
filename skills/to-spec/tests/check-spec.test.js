@@ -96,3 +96,29 @@ test('正文出现仓库文件路径失败，URL 不算', () => {
   const text = spec({ flow: 'N/A：无状态', decisions: '改 src/main/lib/tool-model.ts', testing: '见 scripts/e2e/cases.mjs', extra: 'https://linear.app/x/issue/DD-1/a.ts' });
   assert.deepEqual(checkSpec(text).map(([, m]) => m), ['Spec 不写文件路径：src/main/lib/tool-model.ts', 'Spec 不写文件路径：scripts/e2e/cases.mjs']);
 });
+
+// ---- 读回父项 --------------------------------------------------------------
+// 期望值来源：to-spec 第 6 步“来自 Epic 的 Spec 在创建时以 Epic 为原生父项”。
+// 反例取自 JB-513 读回：正文 Dependencies 写了 Epic 链接，tracker 只生成 related，parentId 为空。
+const { spawnSync } = require('node:child_process');
+const EPIC = 'https://linear.app/erplus/issue/JB-512/tk-ada-zero-downtime';
+const fromEpic = spec({ flow: 'N/A：无状态', decisions: '- 复用现有入口', testing: '- 公开入口检查', deps: `${DEPS}\n- Epic: ${EPIC}\n- MMF: M2` });
+
+test('来自 Epic 的 Spec 读回父项为空或不是该 Epic 时报 parent；草稿与独立 Spec 不查父项', () => {
+  const parentRules = (text, parent) => checkSpec(text, false, parent).map(([rule]) => rule);
+  assert.deepEqual(parentRules(fromEpic, ''), ['parent']);
+  assert.deepEqual(parentRules(fromEpic, 'JB-511'), ['parent']);
+  assert.deepEqual(parentRules(fromEpic, 'JB-512'), []);
+  assert.deepEqual(parentRules(fromEpic, EPIC), []);
+  assert.deepEqual(parentRules(fromEpic), []);
+  assert.deepEqual(parentRules(spec({ flow: 'N/A：无状态', decisions: '- 复用', testing: '- 检查' }), ''), []);
+});
+
+test('CLI --parent 读回为空时退出 1 并输出 parent 行', () => {
+  const script = require.resolve('../scripts/check-spec.js');
+  const run = (parent) => spawnSync(process.execPath, [script, '--parent', parent], { input: fromEpic, encoding: 'utf8' });
+  const orphan = run('');
+  assert.equal(orphan.status, 1);
+  assert.match(orphan.stdout, /^error\tparent\t/m);
+  assert.equal(run('JB-512').stdout.trim(), 'ok');
+});

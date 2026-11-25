@@ -25,8 +25,9 @@ disable-model-invocation: true
 node scripts/autopilot.js poll
 ```
 
-- 返回 `status: "quiet"` 且本次没有新需求入队时，本轮直接结束，只回复一行当前活跃 lane 计数。
+- 返回 `status: "quiet"` 且本次没有新需求入队时，本轮直接结束，只回复一行当前活跃 lane 计数（若为兜底定时巡检且无变化，静默收口）。
 - 脚本只对 `idle` / `done` / `blocked` 的已登记 lane 抓尾部输出，保持主上下文精简。
+- 收到 `[herdr-autopilot WAKE]` 事件唤醒时，立刻走本步骤并进入第 3 步分诊回应。
 
 ### 2. 新需求或 Bug 入队（仅当用户给出新任务时）
 
@@ -54,6 +55,7 @@ node scripts/autopilot.js poll
      --agent <agent_name> --pane <pane_id> --workspace <ws_id> \
      --worktree <任务工作树根目录> --base <实际合入的本地分支名>
    herdr agent prompt <agent_name> "<首条命令>"
+   node scripts/autopilot.js watch --id <lane_id> --thread <当前 T3 线程 ID> --daemon --after-prompt
    ```
 
 只读任务使用 `--pane-only` 代替 `--worktree` 和 `--base`。写任务在新建的任务工作树根目录启动 pane。
@@ -69,9 +71,10 @@ node scripts/autopilot.js poll
      ```bash
      node scripts/autopilot.js record-reply --id <lane_id> --note "<回复摘要>"
      ```
-  2. 退出码 `0` 且 `allowed: true` 时，才发送回复：
+  2. 退出码 `0` 且 `allowed: true` 时，才发送回复并重挂事件 watcher：
      ```bash
      herdr agent prompt <agent_name> "<回复正文>"
+     node scripts/autopilot.js watch --id <lane_id> --thread <当前 T3 线程 ID> --daemon --after-prompt
      ```
      若阶段已切换（例如 `to-epic` 完成转 `/to-spec`），同步调用 `node scripts/autopilot.js set-stage --id <lane_id> --stage <next_stage>`。
   3. 退出码 `2` 表示触发连续自动回复熔断（已自动标为 `escalated`），停止自动回复并列入本轮上报。
@@ -107,6 +110,7 @@ node scripts/autopilot.js set-stage --id <lane_id> --stage done
 - `awaiting_merge` 队列：PR/MR 坐标与验收状态。
 - 用户在任意终端直接运行 `herdr` 即可查看并随时接管所有会话。
 
-## 定时巡检
+## 事件唤醒与兜底巡检
 
-在 T3 Code 中配合 `schedule_task`（建议每 3–5 分钟）调用本 Skill 执行一轮巡检：全绿运行中时静默结束，仅在出现待拍板项或阶段收口时汇报。
+- **主通道（事件唤醒）**：每次入队或自动回复后调用 `node scripts/autopilot.js watch --id <lane_id> --thread <当前 T3 线程 ID> --daemon --after-prompt`。脚本用 `herdr agent wait` 阻塞等待目标进入 `idle` / `done` / `blocked`，命中后立刻经 T3 `t3_thread_send` 激活主会话，按 PID 文件去重，并在 lane 非 `active` 时抑制陈旧唤醒。
+- **兜底通道（低频定时巡检）**：在 T3 Code 中配合 `schedule_task` 设为 15–30 分钟低频兜底（防 watcher 进程异常退出或凭证失效），全绿运行中静默结束，不再用 3–5 分钟高频轮询充当主通道。

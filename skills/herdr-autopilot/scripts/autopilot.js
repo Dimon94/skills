@@ -3,15 +3,17 @@
 
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
-// - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll.
+// - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll, watch.
 // - register --pane names the containing tab using --label or the lane id.
 // - register 必须带 --issue（issue key 或 URL）；poll 每一栏都带出 issue，lane 可按 issue 找回。
-// - done 在登记的工作树和本地分支回收、pane 关闭后写入。
+// - watch 以 herdr agent wait 阻塞等终态/阻断态并主动唤醒 T3 主会话，不持账本锁。
+// - done 在登记的工作树和本地分支回收、pane 关闭后写入，并清理对应 watcher。
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
 // ============================================================================
 
 const { ownedTree, closeout } = require('./closeout.js');
+const { watchLane, spawnDaemonWatcher, stopWatcher } = require('./watch.js');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -338,13 +340,13 @@ function parseArgs(argv) {
   return { command, flags };
 }
 
-function runCli(argv, runner = defaultHerdrRunner) {
+function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   const { command, flags } = parseArgs(argv);
   if (!command || command === '--help' || command === '-h') {
     return {
       exitCode: 0,
       output: {
-        commands: ['init', 'register', 'poll', 'record-reply', 'set-stage', 'escalate', 'resolve', 'list'],
+        commands: ['init', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'escalate', 'resolve', 'list'],
         default_session: DEFAULT_SESSION,
       },
     };
@@ -410,6 +412,44 @@ function runCli(argv, runner = defaultHerdrRunner) {
     return { exitCode: 0, output: snapshot };
   }
 
+  if (command === 'watch') {
+    const lane = requireLane(ledger, flags.id);
+    const threadId = String(flags.thread || '').trim();
+    if (!threadId) throw new Error('watch requires --thread <t3_thread_id>');
+    if (lane.status !== 'active') {
+      throw new Error(`lane "${lane.id}" is not active (status: ${lane.status})`);
+    }
+    const timeoutMs = flags.timeout !== undefined ? Number(flags.timeout) : undefined;
+    if (timeoutMs !== undefined && (!Number.isInteger(timeoutMs) || timeoutMs < 1)) {
+      throw new Error(`invalid --timeout "${flags.timeout}"; must be integer >= 1`);
+    }
+    if (flags.daemon) {
+      const output = spawnDaemonWatcher({
+        ledgerPath,
+        session,
+        laneId: lane.id,
+        threadId,
+        timeoutMs,
+        afterPrompt: Boolean(flags['after-prompt']),
+        scriptPath: __filename,
+        spawner: deps.spawner,
+      });
+      return { exitCode: 0, output };
+    }
+    const output = watchLane({
+      ledgerPath,
+      session,
+      lane,
+      threadId,
+      timeoutMs,
+      afterPrompt: Boolean(flags['after-prompt']),
+      runner,
+      waker: deps.waker,
+      reloadLane: () => loadLedger(ledgerPath, session).lanes[lane.id] || null,
+    });
+    return { exitCode: 0, output };
+  }
+
   if (command === 'record-reply') {
     const res = recordReply(ledger, flags.id, flags.note);
     saveLedger(ledgerPath, ledger);
@@ -428,6 +468,7 @@ function runCli(argv, runner = defaultHerdrRunner) {
         throw error;
       }
       current.escalated_reason = null;
+      stopWatcher(ledgerPath, session, flags.id);
     }
     const lane = setStage(ledger, flags.id, flags.stage);
     saveLedger(ledgerPath, ledger);
@@ -450,9 +491,10 @@ function runCli(argv, runner = defaultHerdrRunner) {
 }
 
 // 进程锁覆盖账本的读取、外部动作和落盘；内核在进程退出时释放锁。
+// watch 对账本只读且会长期阻塞等待 Herdr 状态变化，不持账本锁以避免死锁。
 function lockedCli(argv) {
   const { command, flags } = parseArgs(argv);
-  if (!command || ['--help', '-h', 'list'].includes(command)) return runCli(argv);
+  if (!command || ['--help', '-h', 'list', 'watch'].includes(command)) return runCli(argv);
   const ledger = flags.ledger || defaultLedgerPath(validateSession(flags.session || DEFAULT_SESSION));
   fs.mkdirSync(path.dirname(ledger), { recursive: true });
   const mac = process.platform === 'darwin';

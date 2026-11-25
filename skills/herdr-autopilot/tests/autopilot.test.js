@@ -317,3 +317,131 @@ test('register 必须登记所服务的 issue；poll 各栏带出 issue', () => 
   assert.deepEqual(res.output.working.map((lane) => lane.issue), ['JB-512']);
   assert.deepEqual(res.output.escalated.map((lane) => lane.issue), ['https://linear.app/erplus/issue/JB-515/spec']);
 });
+
+// 期望值来源：用户纠正“只靠 4–5 分钟定时巡检导致等回复延迟与空转”；
+// watch 必须用 herdr agent wait 阻塞等终态/阻断态并立刻唤醒主会话，且支持去重与防陈旧唤醒。
+test('watch blocks on herdr agent wait and immediately wakes target thread on settled state', () => {
+  const ledgerPath = makeTempLedger();
+  runCli([
+    'register',
+    '--issue', 'JB-512',
+    '--ledger', ledgerPath,
+    '--id', 'jb512-m3',
+    '--agent', 'jb512-m3',
+    '--stage', 'pipeline',
+  ]);
+
+  const herdrCalls = [];
+  const wakeCalls = [];
+  const fakeRunner = (session, args) => {
+    herdrCalls.push([session, ...args]);
+    if (args[0] === 'agent' && args[1] === 'wait') return '';
+    if (args[0] === 'agent' && args[1] === 'list') {
+      return JSON.stringify({
+        result: { agents: [{ name: 'jb512-m3', pane_id: 'wA5:p1', agent_status: 'blocked' }] },
+      });
+    }
+    throw new Error(`unexpected call: ${args.join(' ')}`);
+  };
+  const fakeWaker = (payload) => {
+    wakeCalls.push(payload);
+    return { ok: true };
+  };
+
+  const res = runCli(
+    ['watch', '--ledger', ledgerPath, '--id', 'jb512-m3', '--thread', 'thread-123', '--after-prompt'],
+    fakeRunner,
+    { waker: fakeWaker }
+  );
+  assert.equal(res.exitCode, 0);
+  assert.equal(res.output.woke, true);
+  assert.equal(res.output.state, 'blocked');
+  assert.equal(res.output.thread_id, 'thread-123');
+  assert.deepEqual(herdrCalls[0], ['default', 'agent', 'wait', 'jb512-m3', '--until', 'working', '--timeout', '5000']);
+  assert.deepEqual(herdrCalls[1], ['default', 'agent', 'wait', 'jb512-m3']);
+  assert.equal(wakeCalls.length, 1);
+  assert.equal(wakeCalls[0].threadId, 'thread-123');
+  assert.match(wakeCalls[0].message, /jb512-m3/);
+  assert.match(wakeCalls[0].message, /JB-512/);
+  assert.match(wakeCalls[0].message, /blocked/);
+});
+
+test('watch rejects missing thread or non-active lane, and suppresses stale wake if lane closes mid-wait', () => {
+  const ledgerPath = makeTempLedger();
+  runCli([
+    'register',
+    '--issue', 'JB-512',
+    '--ledger', ledgerPath,
+    '--id', 'm3',
+    '--agent', 'm3',
+    '--stage', 'spec',
+  ]);
+  assert.throws(() => runCli(['watch', '--ledger', ledgerPath, '--id', 'm3']), /--thread/);
+
+  const wakeCalls = [];
+  const fakeRunner = (_session, args) => {
+    if (args[0] === 'agent' && args[1] === 'wait') {
+      // Simulate another turn escalating the lane while watch is blocked.
+      runCli(['escalate', '--ledger', ledgerPath, '--id', 'm3', '--reason', 'manual stop']);
+      return '';
+    }
+    throw new Error(`unexpected call: ${args.join(' ')}`);
+  };
+
+  const res = runCli(
+    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123'],
+    fakeRunner,
+    { waker: (p) => wakeCalls.push(p) }
+  );
+  assert.equal(res.exitCode, 0);
+  assert.equal(res.output.woke, false);
+  assert.equal(res.output.reason, 'lane_no_longer_active');
+  assert.equal(wakeCalls.length, 0);
+
+  // Calling watch on an already escalated lane fails closed.
+  assert.throws(
+    () => runCli(['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123'], fakeRunner),
+    /not active/
+  );
+});
+
+test('watch --daemon deduplicates live watcher by pidfile and reports already_running', () => {
+  const ledgerPath = makeTempLedger();
+  runCli([
+    'register',
+    '--issue', 'JB-512',
+    '--ledger', ledgerPath,
+    '--id', 'm3',
+    '--agent', 'm3',
+    '--stage', 'pipeline',
+  ]);
+
+  let spawns = 0;
+  const fakeSpawner = () => {
+    spawns += 1;
+    // Return current process.pid so liveness probe (kill(pid, 0)) sees a live watcher.
+    return { pid: process.pid };
+  };
+
+  const first = runCli(
+    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123', '--daemon'],
+    undefined,
+    { spawner: fakeSpawner }
+  );
+  assert.equal(first.exitCode, 0);
+  assert.equal(first.output.watching, true);
+  assert.equal(first.output.already_running, false);
+  assert.equal(first.output.pid, process.pid);
+  assert.equal(spawns, 1);
+
+  const second = runCli(
+    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123', '--daemon'],
+    undefined,
+    { spawner: fakeSpawner }
+  );
+  assert.equal(second.exitCode, 0);
+  assert.equal(second.output.watching, true);
+  assert.equal(second.output.already_running, true);
+  assert.equal(second.output.pid, process.pid);
+  assert.equal(spawns, 1);
+});

@@ -912,3 +912,34 @@ test('launch requires an explicit task type for bugfix and rejects non-start pla
   assert.throws(() => rawRunCli(['launch', '--ledger', ledger, '--pane', 'p1', '--agent', 'fix', '--stage', 'spec'],
     () => '', { planner: () => ({ argv: ['herdr', 'pane', 'close', 'p1'] }) }), /不是 herdr agent start/);
 });
+
+// 期望值来源：setup 合同（delivery-pipeline-setup SKILL.md 第 2 步）——probe 的 stdin 必须是网关清单原始来源。
+// 旧错误：launch 传 '{}'，pi 经网关的模型全被丢弃，backend/testing lane 报 "pi model is absent from capability evidence"。
+test('default planner hands the gateway catalog to probe, or status unknown when unreachable', () => {
+  const { defaultPlanner } = require('../scripts/launch.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-probe-'));
+  const seen = path.join(dir, 'stdin.json');
+  const script = path.join(dir, 'model_config.py');
+  fs.writeFileSync(script, [
+    'import json, sys',
+    `if sys.argv[1] == 'probe': open(${JSON.stringify(seen)}, 'w').write(sys.stdin.read()); print('{"capabilities": {}}')`,
+    `elif sys.argv[1] == 'resolve': print('{"agent": "pi", "model": "m", "effort": "high"}')`,
+    `else: print('["herdr", "agent", "start"]')`,
+  ].join('\n'));
+  const catalog = path.join(dir, 'models.json');
+  fs.writeFileSync(catalog, JSON.stringify({ data: [{ id: 'auto/gpt-6.2-sol' }] }));
+  const saved = { ...process.env };
+  try {
+    process.env.HERDR_AUTOPILOT_MODEL_CONFIG = script;
+    process.env.HERDR_AUTOPILOT_GATEWAY_MODELS = `file://${catalog}`;
+    defaultPlanner({ task: 'backend', workerName: 'w', paneId: 'p1' });
+    assert.deepEqual(JSON.parse(fs.readFileSync(seen, 'utf8')),
+      { gateway: { status: 'ok', data: [{ id: 'auto/gpt-6.2-sol' }] } });
+    process.env.HERDR_AUTOPILOT_GATEWAY_MODELS = `file://${path.join(dir, 'missing.json')}`;
+    defaultPlanner({ task: 'backend', workerName: 'w', paneId: 'p1' });
+    assert.deepEqual(JSON.parse(fs.readFileSync(seen, 'utf8')), { gateway: { status: 'unknown' } });
+  } finally {
+    process.env = saved;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

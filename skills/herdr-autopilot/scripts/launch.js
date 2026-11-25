@@ -7,6 +7,8 @@
 //   本模块不拼 --kind / --model，也不提供默认 agent。
 // - epic / spec / tickets / pipeline 默认任务类型为 planning；bugfix 必须显式 --task。
 // - register --pane 只接受经 launch 启动的 pane，且 agent 名一致；否则 fail-close。
+// - probe 的 stdin 是本机网关模型清单（GET 127.0.0.1:3425/v1/models，可用
+//   HERDR_AUTOPILOT_GATEWAY_MODELS 覆盖）；读取失败传 status unknown，经网关的 pi lane 随之 fail-close。
 // - Depends on: model_config.py（默认 ~/.claude/skills/delivery-pipeline-setup，
 //   可用 HERDR_AUTOPILOT_MODEL_CONFIG 覆盖）、python3、herdr CLI。
 // ============================================================================
@@ -45,9 +47,20 @@ function runModelConfig(args, input) {
   return JSON.parse(res.stdout);
 }
 
+// setup 合同：probe 只信调用方交来的网关清单；不给清单，经网关的 harness（pi）能力为空。
+function gatewaySource(env = process.env) {
+  const url = env.HERDR_AUTOPILOT_GATEWAY_MODELS || 'http://127.0.0.1:3425/v1/models';
+  const res = spawnSync('curl', ['-sf', '-m', '5', url], { encoding: 'utf8' });
+  try {
+    const data = res.status === 0 ? JSON.parse(res.stdout).data : null;
+    if (Array.isArray(data)) return { gateway: { status: 'ok', data } };
+  } catch { /* 非 JSON 视同不可达 */ }
+  return { gateway: { status: 'unknown' } };
+}
+
 // 默认 planner：实时探测能力 → 解析 work 项 → 生成 Herdr 原生启动请求。
 function defaultPlanner({ task, workerName, paneId }) {
-  const probe = runModelConfig(['probe'], '{}');
+  const probe = runModelConfig(['probe'], JSON.stringify(gatewaySource()));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'herdr-autopilot-cap-'));
   const evidence = path.join(dir, 'capabilities.json');
   fs.writeFileSync(evidence, JSON.stringify(probe.capabilities));

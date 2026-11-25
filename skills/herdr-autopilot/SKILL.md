@@ -40,7 +40,9 @@ node scripts/autopilot.js poll
 ```
 
 - 返回 `status: "quiet"` 且本次没有新需求入队时，本轮直接结束，只回复一行当前活跃 lane 计数（若为兜底定时巡检且无变化，静默收口）。
-- 脚本只对 `idle` / `done` / `blocked` 的已登记 lane 抓尾部输出，保持主上下文精简。
+- 每条 lane 的每个状态只报一次。状态没变的 lane 进 `unchanged`，只带身份，不带尾部；全部没变就是 `quiet`。`unchanged` 里的 lane 不重新分诊。
+- 用户发话的回合、新会话或上下文接力后的第一次巡检用 `poll --full`，重报全量。
+- 脚本只对 `idle` / `done` / `blocked` 且状态有变的已登记 lane 抓尾部输出，保持主上下文精简。
 - 收到 `[herdr-autopilot WAKE]` 事件唤醒时，立刻走本步骤并进入第 3 步分诊回应。
 
 ### 2. 新需求或 Bug 入队（仅当用户给出新任务时）
@@ -129,7 +131,7 @@ node scripts/autopilot.js set-stage --id <lane_id> --stage done
 
 ### 5. 汇报收口
 
-只输出有变化的项与当前需人类处理的队列：
+只输出本轮 `poll` 报出的项；`unchanged` 里等人的 lane 只在 `poll --full` 的回合重列：
 
 - 本轮自动推进的 lane（`lane_id`、`issue`、动作、当前 stage）。
 - `escalated` 队列：每条给「卡点 + 推荐选项 + 理由」，方便用户一句话批复。

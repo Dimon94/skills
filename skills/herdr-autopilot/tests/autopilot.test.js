@@ -116,6 +116,75 @@ test('poll returns quiet when all managed lanes are working', () => {
   assert.equal(res.output.needs_attention.length, 0);
 });
 
+// 重放 2026-11-24/25 的真实现场：ads-links 停在 idle、另一条 lane 已升级等人，
+// 164 次定时巡检没有一次 quiet，每次都重发整段尾部。
+test('poll goes quiet on the second look at unchanged lanes and reports them once', () => {
+  const ledgerPath = makeTempLedger();
+  const base = ['--session', 'autopilot', '--ledger', ledgerPath];
+  runCli(['register', '--issue', 'DD-1', ...base, '--id', 'ads-links', '--agent', 'auto-links', '--stage', 'pipeline']);
+  runCli(['register', '--issue', 'DD-2', ...base, '--id', 'ads-triage', '--agent', 'auto-triage', '--stage', 'bugfix']);
+  runCli(['escalate', ...base, '--id', 'ads-triage', '--reason', 'write EPIPE twice']);
+
+  let tail = 'Waiting for merge.';
+  let seq = 7;
+  const reads = [];
+  const fakeRunner = (_session, args) => {
+    if (args[1] === 'list') {
+      const agent = { name: 'auto-links', pane_id: 'w1:p1', agent_status: 'idle', state_change_seq: seq };
+      return JSON.stringify({ result: { agents: [agent] } });
+    }
+    if (args[1] === 'read') {
+      reads.push(args[2]);
+      return JSON.stringify({ result: { text: tail } });
+    }
+    throw new Error(`unexpected call: ${args.join(' ')}`);
+  };
+  const poll = (...extra) => runCli(['poll', ...base, ...extra], fakeRunner).output;
+
+  const first = poll();
+  assert.equal(first.status, 'attention');
+  assert.deepEqual(first.needs_attention.map((l) => l.id), ['ads-links']);
+  assert.deepEqual(first.escalated.map((l) => l.id), ['ads-triage']);
+
+  const second = poll();
+  assert.equal(second.status, 'quiet');
+  assert.deepEqual(second.needs_attention, []);
+  assert.deepEqual(second.escalated, []);
+  assert.deepEqual(second.unchanged.map((l) => l.id).sort(), ['ads-links', 'ads-triage']);
+  assert.equal(reads.length, 1, 'unchanged lanes must not be read again');
+
+  // 屏幕在动但状态没变（后台子代理的进度条），仍然不报。
+  tail = 'worker running 43%';
+  assert.equal(poll().status, 'quiet');
+
+  // 状态序号一变就重新上报；--full 给换了上下文的总控补全量。
+  tail = 'Merged. What next?';
+  seq = 9;
+  const third = poll();
+  assert.equal(third.status, 'attention');
+  assert.match(third.needs_attention[0].tail, /What next/);
+
+  const full = poll('--full');
+  assert.equal(full.status, 'attention');
+  assert.deepEqual(full.unchanged, []);
+  assert.equal(full.needs_attention.length, 1);
+  assert.equal(full.escalated.length, 1);
+});
+
+test('poll keeps reporting a lane when Herdr gives no state_change_seq', () => {
+  const ledgerPath = makeTempLedger();
+  const base = ['--session', 'autopilot', '--ledger', ledgerPath];
+  runCli(['register', '--issue', 'DD-1', ...base, '--id', 'feat-a', '--agent', 'auto-feat-a', '--stage', 'pipeline']);
+  const fakeRunner = (_session, args) => (args[1] === 'list'
+    ? JSON.stringify({ result: { agents: [{ name: 'auto-feat-a', pane_id: 'w1:p1', agent_status: 'idle' }] } })
+    : JSON.stringify({ result: { text: 'Need input.' } }));
+
+  runCli(['poll', ...base], fakeRunner);
+  const second = runCli(['poll', ...base], fakeRunner).output;
+  assert.equal(second.status, 'attention');
+  assert.match(second.needs_attention[0].tail, /Need input/);
+});
+
 test('circuit breaker trips after max consecutive replies and escalates lane', () => {
   const ledgerPath = makeTempLedger();
   runCli([

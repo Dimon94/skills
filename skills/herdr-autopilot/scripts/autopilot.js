@@ -7,6 +7,7 @@
 // - register --pane 强制可视化命名（"<Issue号> <中文简写>[ <英文>]"，拒绝裸 ASCII slug），同步命名 pane / tab（--keep-tab-label 保留共享四格 tab 名）/ 可选 workspace。
 // - place 按 2x2 四格容量（每 tab 最多 4 pane：1->右、2->左下、3->右下、满 4 新开 -2）无抢焦点落位并命名。
 // - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
+// - poll 同一签名（等人栏的状态与原因，或待处理栏的 state@state_change_seq）只报一次，没变的进 unchanged 且不读尾部；全部没变即 quiet；--full 重报全量。
 // - watch 以 herdr agent wait 阻塞等终态/阻断态并主动唤醒 T3 主会话，不持账本锁。
 // - set-stage --stage awaiting_merge 推进 issue 至 In Review（或保持进行中）并回读校验。
 // - set-stage --stage done 在登记的工作树和本地分支回收、pane 关闭后，同步关闭直接 issue 至 Done 并回读校验（写任务除非显式 --keep-issue-open --reason），再写入 done 并清理 watcher。
@@ -257,17 +258,41 @@ function indexLiveAgents(agents) {
   return { byName, byPane };
 }
 
+// 把一条 lane 归栏，并给出「这个状态报过没有」的签名。
+// working 和读不到 state_change_seq 的 lane 不签名：每次照报，不静默吞变化。
+// detail 是惰性的：只有真要上报时才读尾部。
+function classifyLane(lane, live, readTail) {
+  if (lane.status === 'awaiting_merge') {
+    return { bucket: 'awaiting_merge', sig: 'awaiting_merge', detail: () => ({ repo: lane.repo }) };
+  }
+  if (lane.status === 'escalated') {
+    const reason = lane.escalated_reason;
+    return { bucket: 'escalated', sig: `escalated:${reason}`, detail: () => ({ reason }) };
+  }
+  if (!live) return { bucket: 'missing', sig: 'missing', detail: () => ({ pane: lane.pane }) };
+
+  const state = live.agent_status || live.status || live.state || 'unknown';
+  if (state === 'working') return { bucket: 'working', sig: null, state, detail: () => ({ state }) };
+  const seq = live.state_change_seq;
+  return {
+    bucket: 'needs_attention',
+    sig: seq === undefined ? null : `${state}@${seq}`,
+    state,
+    detail: () => ({
+      pane: lane.pane,
+      state,
+      consecutive_replies: lane.consecutive_replies,
+      max_consecutive_replies: lane.max_consecutive_replies,
+      tail: ATTENTION_STATES.has(state) ? readTail(lane) : '',
+    }),
+  };
+}
+
 function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
   const lines = opts.lines !== undefined ? Number(opts.lines) : DEFAULT_READ_LINES;
   const rawList = runner(session, ['agent', 'list']);
-  const liveAgents = extractAgentList(rawList);
-  const { byName, byPane } = indexLiveAgents(liveAgents);
-
-  const working = [];
-  const needsAttention = [];
-  const escalated = [];
-  const awaitingMerge = [];
-  const missing = [];
+  const { byName, byPane } = indexLiveAgents(extractAgentList(rawList));
+  const buckets = { working: [], needs_attention: [], escalated: [], awaiting_merge: [], missing: [], unchanged: [] };
 
   // 每一栏都带 lane 身份：lane id、所服务的 issue 与最近同步状态、agent、阶段。
   const view = (lane, extra) => ({
@@ -284,52 +309,22 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
 
   for (const lane of Object.values(ledger.lanes)) {
     if (lane.status === 'done') continue;
-    if (lane.status === 'awaiting_merge') {
-      awaitingMerge.push(view(lane, { repo: lane.repo }));
-      continue;
-    }
-    if (lane.status === 'escalated') {
-      escalated.push(view(lane, { reason: lane.escalated_reason }));
-      continue;
-    }
-
     const live = byName.get(lane.agent) || (lane.pane ? byPane.get(lane.pane) : null);
-    if (!live) {
-      missing.push(view(lane, { pane: lane.pane }));
-      continue;
-    }
+    if (live && !lane.pane && live.pane_id) lane.pane = live.pane_id;
+    const { bucket, sig, state, detail } = classifyLane(lane, live, readTail);
+    if (state) lane.last_observed_state = state;
+    if (bucket === 'working') lane.consecutive_replies = 0;
 
-    const state = live.agent_status || live.status || live.state || 'unknown';
-    lane.last_observed_state = state;
-    if (!lane.pane && live.pane_id) lane.pane = live.pane_id;
-
-    if (state === 'working') {
-      lane.consecutive_replies = 0;
-      working.push(view(lane, { state }));
-      continue;
-    }
-
-    needsAttention.push(view(lane, {
-      pane: lane.pane,
-      state,
-      consecutive_replies: lane.consecutive_replies,
-      max_consecutive_replies: lane.max_consecutive_replies,
-      tail: ATTENTION_STATES.has(state) ? readTail(lane) : '',
-    }));
+    // 同一签名只报一次：没变的 lane 只留身份，不读尾部，不占总控上下文。
+    const reported = !opts.full && sig !== null && lane.reported_sig === sig;
+    lane.reported_sig = sig;
+    if (reported) buckets.unchanged.push(view(lane, { was: bucket }));
+    else buckets[bucket].push(view(lane, detail()));
   }
 
-  const hasActionable =
-    needsAttention.length > 0 || escalated.length > 0 || awaitingMerge.length > 0 || missing.length > 0;
-
-  return {
-    session,
-    status: hasActionable ? 'attention' : 'quiet',
-    working,
-    needs_attention: needsAttention,
-    escalated,
-    awaiting_merge: awaitingMerge,
-    missing,
-  };
+  const hasActionable = ['needs_attention', 'escalated', 'awaiting_merge', 'missing']
+    .some((key) => buckets[key].length > 0);
+  return { session, status: hasActionable ? 'attention' : 'quiet', ...buckets };
 }
 
 function parseArgs(argv) {
@@ -507,7 +502,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   }
 
   if (command === 'poll') {
-    const snapshot = pollLanes(ledger, session, { lines: flags.lines }, runner);
+    const snapshot = pollLanes(ledger, session, { lines: flags.lines, full: flags.full === true }, runner);
     saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output: snapshot };
   }

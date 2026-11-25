@@ -5,7 +5,7 @@
 // - Owns: single-instance PID dedup per (session, lane_id), blocking herdr agent wait,
 //   stale-lane suppression on re-read, and T3 acp-mcp-call t3_thread_send wakeup.
 // - Never holds the ledger file lock while waiting; never mutates the ledger.
-// - Fail-close on missing --thread, non-active lane, or failed wake delivery.
+// - Fail-close on missing --thread, non-active lane, missing T3 wake environment (checked before waiting), or failed wake delivery.
 // ============================================================================
 
 const fs = require('node:fs');
@@ -69,16 +69,21 @@ function stopWatcher(ledgerPath, session, laneId) {
   try { fs.unlinkSync(file); } catch { /* ignore */ }
 }
 
-function defaultT3Waker({ threadId, message }) {
-  const nodeBin = process.env.T3_ACP_MCP_NODE;
-  const entrypoint = process.env.T3_ACP_MCP_ENTRYPOINT;
-  const endpoint = process.env.T3_ACP_MCP_ENDPOINT;
-  const auth = process.env.T3_ACP_MCP_AUTHORIZATION;
+// 唤醒通道的全部前提。watch 启动前和真正唤醒时读同一份，缺一项就在启动时失败。
+function t3WakeEnv(env = process.env) {
+  const nodeBin = env.T3_ACP_MCP_NODE;
+  const endpoint = env.T3_ACP_MCP_ENDPOINT;
+  const auth = env.T3_ACP_MCP_AUTHORIZATION;
   if (!nodeBin || !endpoint || !auth) {
     throw new Error(
       'missing T3 ACP MCP environment (T3_ACP_MCP_NODE/ENDPOINT/AUTHORIZATION); run watch from a T3 Code thread'
     );
   }
+  return { nodeBin, entrypoint: env.T3_ACP_MCP_ENTRYPOINT };
+}
+
+function defaultT3Waker({ threadId, message }) {
+  const { nodeBin, entrypoint } = t3WakeEnv();
   const args = [
     ...(entrypoint ? [entrypoint] : []),
     'acp-mcp-call',
@@ -251,6 +256,7 @@ module.exports = {
   spawnDaemonWatcher,
   stopWatcher,
   defaultT3Waker,
+  t3WakeEnv,
   pidPath,
   logPath,
 };

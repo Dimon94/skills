@@ -19,8 +19,10 @@ function stubIssueSync(issue, target) {
   return { tracker: 'linear', issue, previous_state: 'Backlog', changed: true, parents_synced: [], ...map[target] };
 }
 
+const T3_ENV = { T3_ACP_MCP_NODE: 'node', T3_ACP_MCP_ENDPOINT: 'http://t3', T3_ACP_MCP_AUTHORIZATION: 'token' };
+
 function runCli(argv, runner, deps = {}) {
-  return rawRunCli(argv, runner, { issueSync: stubIssueSync, ...deps });
+  return rawRunCli(argv, runner, { issueSync: stubIssueSync, env: T3_ENV, ...deps });
 }
 
 function makeTempLedger() {
@@ -501,6 +503,22 @@ test('watch rejects missing thread or non-active lane, and suppresses stale wake
     () => runCli(['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123'], fakeRunner),
     /not active/
   );
+});
+
+// 现场：default.watch.jb348-carousel.log 第一行。watcher 等到终态才发现缺 T3 环境，那次唤醒丢了。
+test('watch refuses to start when it could never wake the T3 thread', () => {
+  const ledgerPath = makeTempLedger();
+  runCli(['register', '--issue', 'JB-348', '--ledger', ledgerPath, '--id', 'carousel', '--agent', 'carousel', '--stage', 'pipeline']);
+  let spawns = 0;
+  let waits = 0;
+  const deps = { env: {}, spawner: () => { spawns += 1; return { pid: process.pid }; } };
+  const fakeRunner = () => { waits += 1; return '{}'; };
+  const argv = ['watch', '--ledger', ledgerPath, '--id', 'carousel', '--thread', 'thread-123'];
+
+  assert.throws(() => runCli([...argv, '--daemon'], fakeRunner, deps), /missing T3 ACP MCP environment/);
+  assert.throws(() => runCli(argv, fakeRunner, deps), /missing T3 ACP MCP environment/);
+  assert.equal(spawns, 0, 'no daemon may be left waiting without a wake channel');
+  assert.equal(waits, 0, 'the check runs before blocking on herdr agent wait');
 });
 
 test('watch --daemon deduplicates live watcher by pidfile and reports already_running', () => {

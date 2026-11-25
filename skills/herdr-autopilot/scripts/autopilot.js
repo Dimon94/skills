@@ -19,7 +19,7 @@
 const { ownedTree, closeout } = require('./closeout.js');
 const { syncIssueState } = require('./issue-sync.js');
 const { formatVisualLabel, placePane, MAX_WORKSPACE_COLS, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
-const { watchLane, spawnDaemonWatcher, stopWatcher } = require('./watch.js');
+const { watchLane, spawnDaemonWatcher, stopWatcher, t3WakeEnv } = require('./watch.js');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -518,6 +518,8 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     if (timeoutMs !== undefined && (!Number.isInteger(timeoutMs) || timeoutMs < 1)) {
       throw new Error(`invalid --timeout "${flags.timeout}"; must be integer >= 1`);
     }
+    // 注入了 waker 的调用方自带通道；默认通道缺环境时不许开始等。
+    if (!deps.waker) t3WakeEnv(deps.env);
     if (flags.daemon) {
       const output = spawnDaemonWatcher({
         ledgerPath,

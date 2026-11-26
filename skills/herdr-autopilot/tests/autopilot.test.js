@@ -1021,7 +1021,9 @@ test('launch starts planning lanes from model config and register rejects panes 
 
   // tickets 属 planning：按配置启动 claude / Opus 5.5，不落到默认 pi。
   const res = launched(ledger, 'p1', 'jb574', ['--stage', 'tickets']);
-  assert.deepEqual(res.calls, [['agent', 'start', 'jb574', '--kind', 'claude', '--pane', 'p1', '--', '--model', 'claude-opus-5-5']]);
+  assert.deepEqual(res.calls.filter((c) => c[0] === 'agent'), [
+    ['agent', 'start', 'jb574', '--kind', 'claude', '--pane', 'p1', '--', '--model', 'claude-opus-5-5'],
+  ]);
   assert.equal(res.output.task, 'planning');
 
   assert.throws(() => register('other'), /与 --agent "other" 不符/);
@@ -1045,12 +1047,13 @@ test('default planner hands the gateway catalog to probe, or status unknown when
   const { defaultPlanner } = require('../scripts/launch.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-probe-'));
   const seen = path.join(dir, 'stdin.json');
+  const startArgv = path.join(dir, 'start-argv.json');
   const script = path.join(dir, 'model_config.py');
   fs.writeFileSync(script, [
     'import json, sys',
     `if sys.argv[1] == 'probe': open(${JSON.stringify(seen)}, 'w').write(sys.stdin.read()); print('{"capabilities": {}}')`,
     `elif sys.argv[1] == 'resolve': print('{"agent": "pi", "model": "m", "effort": "high"}')`,
-    `else: print('["herdr", "agent", "start"]')`,
+    `else: open(${JSON.stringify(startArgv)}, 'w').write(json.dumps(sys.argv[1:])); print('["herdr", "agent", "start"]')`,
   ].join('\n'));
   const catalog = path.join(dir, 'models.json');
   fs.writeFileSync(catalog, JSON.stringify({ data: [{ id: 'auto/gpt-6.2-sol' }] }));
@@ -1058,9 +1061,12 @@ test('default planner hands the gateway catalog to probe, or status unknown when
   try {
     process.env.HERDR_AUTOPILOT_MODEL_CONFIG = script;
     process.env.HERDR_AUTOPILOT_GATEWAY_MODELS = `file://${catalog}`;
-    defaultPlanner({ task: 'backend', workerName: 'w', paneId: 'p1' });
+    defaultPlanner({ task: 'backend', workerName: 'w', paneId: 'p1', cwd: '/repo/.wt/07' });
     assert.deepEqual(JSON.parse(fs.readFileSync(seen, 'utf8')),
       { gateway: { status: 'ok', data: [{ id: 'auto/gpt-6.2-sol' }] } });
+    const passed = JSON.parse(fs.readFileSync(startArgv, 'utf8'));
+    assert.ok(passed.includes('--cwd') && passed[passed.indexOf('--cwd') + 1] === '/repo/.wt/07');
+    assert.ok(passed.includes('--pretrust'));
     process.env.HERDR_AUTOPILOT_GATEWAY_MODELS = `file://${path.join(dir, 'missing.json')}`;
     defaultPlanner({ task: 'backend', workerName: 'w', paneId: 'p1' });
     assert.deepEqual(JSON.parse(fs.readFileSync(seen, 'utf8')), { gateway: { status: 'unknown' } });
@@ -1068,6 +1074,24 @@ test('default planner hands the gateway catalog to probe, or status unknown when
     process.env = saved;
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('launch reads pane cwd via herdr pane get and forwards it to planner for workspace pretrust', () => {
+  const ledger = makeTempLedger();
+  let seenCwd = null;
+  const runner = (_s, args) => {
+    if (args[0] === 'pane' && args[1] === 'get') {
+      return JSON.stringify({ result: { pane: { pane_id: 'w1:p2', foreground_cwd: '/repo/.wt/07', cwd: '/repo' } } });
+    }
+    return '';
+  };
+  rawRunCli(['launch', '--ledger', ledger, '--pane', 'w1:p2', '--agent', 'jb575', '--stage', 'spec'], runner, {
+    planner: (req) => {
+      seenCwd = req.cwd;
+      return fakePlanner(req);
+    },
+  });
+  assert.equal(seenCwd, '/repo/.wt/07');
 });
 
 // 期望值来源：用户要求 /herdr-autopilot 一个 Epic 独占一个 workspace，两个 Epic 不共用同一 space。

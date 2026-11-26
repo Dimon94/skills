@@ -5,6 +5,8 @@
 // - Owns: stage → 任务类型映射、启动计划获取、launch 记录（ledger.launches[pane]）。
 // - 启动参数只由 delivery-pipeline-setup 的 model_config.py（probe + resolve + start）生成；
 //   本模块不拼 --kind / --model，也不提供默认 agent。
+// - launch 从 herdr pane get 读取目标 pane 当前 cwd，经 model_config.py start --cwd <cwd> --pretrust
+//   统一注入目录信任（agy --settings、codex -c、claude 原子预写 ~/.claude.json、pi --approve）。
 // - epic / spec / tickets / pipeline 默认任务类型为 planning；bugfix 必须显式 --task。
 // - register --pane 只接受经 launch 启动的 pane，且 agent 名一致；否则 fail-close。
 // - probe 的 stdin 是本机网关模型清单（GET 127.0.0.1:3425/v1/models，可用
@@ -58,8 +60,27 @@ function gatewaySource(env = process.env) {
   return { gateway: { status: 'unknown' } };
 }
 
-// 默认 planner：实时探测能力 → 解析 work 项 → 生成 Herdr 原生启动请求。
-function defaultPlanner({ task, workerName, paneId }) {
+// 从 Herdr 读取目标 pane 的当前工作目录（foreground_cwd 优先，其次 cwd），用于注入目录信任。
+function readPaneCwd(session, paneId, runner) {
+  let raw;
+  try {
+    raw = runner(session, ['pane', 'get', paneId]);
+  } catch {
+    return null;
+  }
+  if (!raw || !String(raw).trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    const pane = parsed?.result?.pane || parsed?.pane || parsed;
+    const cwd = pane?.foreground_cwd || pane?.cwd;
+    return typeof cwd === 'string' && cwd.trim() ? cwd.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+// 默认 planner：实时探测能力 → 解析 work 项 → 生成 Herdr 原生启动请求（附带目录信任）。
+function defaultPlanner({ task, workerName, paneId, cwd }) {
   const probe = runModelConfig(['probe'], JSON.stringify(gatewaySource()));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'herdr-autopilot-cap-'));
   const evidence = path.join(dir, 'capabilities.json');
@@ -67,18 +88,20 @@ function defaultPlanner({ task, workerName, paneId }) {
   try {
     const common = [modelRolesPath(), task, '--evidence', evidence];
     const plan = runModelConfig(['resolve', ...common]);
-    const argv = runModelConfig(['start', ...common,
-      '--worker-name', workerName, '--pane-id', paneId]);
+    const startArgs = ['start', ...common, '--worker-name', workerName, '--pane-id', paneId];
+    if (cwd) startArgs.push('--cwd', cwd, '--pretrust');
+    const argv = runModelConfig(startArgs);
     return { agent: plan.agent, model: plan.model, effort: plan.effort, argv };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function launchAgent(ledger, { stage, task, agent, pane }, { session, runner, planner = defaultPlanner }) {
+function launchAgent(ledger, { stage, task, agent, pane, cwd }, { session, runner, planner = defaultPlanner }) {
   if (!pane || !agent) throw new Error('launch 需要 --pane 与 --agent');
   const resolved = resolveTask(stage, task);
-  const plan = planner({ task: resolved, workerName: agent, paneId: pane });
+  const resolvedCwd = cwd || readPaneCwd(session, pane, runner);
+  const plan = planner({ task: resolved, workerName: agent, paneId: pane, cwd: resolvedCwd });
   if (!Array.isArray(plan.argv) || plan.argv.slice(0, 3).join(' ') !== 'herdr agent start') {
     throw new Error('启动计划不是 herdr agent start 请求');
   }

@@ -46,6 +46,8 @@ description: 将已完成的任务分支合回本地 main，并关闭对应 Issu
 
 ## 5. 快进 main
 
+快进前执行[预览门](references/closeout.md#预览门)，满足当前分支的确认条件后再合入。
+
 - `main` 已在工作树检出：在该树执行 `git merge --ff-only <source-head>`，使用已验证的固定 SHA。
 - `main` 未在任何树检出：核对旧 `main` 是源 HEAD 的祖先，再用
   `git update-ref refs/heads/main <source-head> <old-main-head>` 推进；回到主工作区检出 `main`。

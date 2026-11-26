@@ -1,0 +1,16 @@
+[
+  {
+    "id": "save-button",
+    "kind": "page",
+    "change": "modified",
+    "before": { "screenshot": "截图/提交.png" },
+    "after": { "screenshot": "截图/保存.png" }
+  },
+  {
+    "id": "note-field",
+    "kind": "backend",
+    "change": "added",
+    "before": { "code": ["src/task.mjs:12"] },
+    "after": { "code": ["src/task.mjs:18"] }
+  }
+]

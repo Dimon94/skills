@@ -21,7 +21,6 @@ test('未实现的子命令接收冻结的位置参数并报错，预览目录�
   const argumentsByCommand = {
     changes: [...ref, ...lock],
     compare: [...ref, ...lock, 'as-built.json', '[]'],
-    delta: [...ref, '[]'],
     restore: [...ref, '["spec.json"]'],
   };
   const env = { ...process.env, HOME: directory, XDG_CACHE_HOME: directory, SMYW_DIR: join(directory, 'smyw') };

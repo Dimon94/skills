@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const cli = fileURLToPath(new URL('../spec-preview.mjs', import.meta.url));
 const fixture = readFileSync(new URL('fixtures/spec.json', import.meta.url));
+const deltaFixture = readFileSync(new URL('fixtures/delta-items.json', import.meta.url), 'utf8');
 const smywFixture = fileURLToPath(new URL('fixtures/smyw/', import.meta.url));
 const ref = ['my-skills', 'DD-654'];
 const feedback = name => fileURLToPath(new URL(`fixtures/feedback-${name}.md`, import.meta.url));
@@ -179,7 +180,63 @@ test('S11 预览文案不合规时报告位置', (t) => {
   assert.equal(stdoutOf(run('build')), html);
   assert.ok(readFileSync(html).includes('确认 Spec 预览'));
 });
-test('S12 小需求预览在用户确认后才合入', () => assert.fail('待验证变更预览确认'));
-test('S13 bug 变更预览要求改前和改后检查输出', () => assert.fail('待验证 bug 变更证据'));
+test('S12 小需求生成带双侧证据的变更预览', (t) => {
+  const { directory, run } = previewSession(t);
+  const gitStatus = () => execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' });
+  const before = gitStatus();
+  const html = join(directory, 'preview.html');
+  const archive = join(directory, 'spec-v1.json');
+  assert.equal(stdoutOf(run('delta', {}, deltaFixture)), html);
+  assert.ok(existsSync(html));
+  const spec = JSON.parse(readFileSync(archive, 'utf8'));
+  assert.equal(spec.stage, 'done');
+  assert.equal(spec.version, 1);
+
+  const page = spec.pages.find(page => page.id === 'save-button');
+  assert.equal(page.change, 'modified');
+  const image = page.root.children.find(node => node.type === 'image');
+  assert.equal(image.before.label, '截图/提交.png');
+  assert.equal(image.label, '截图/保存.png');
+  const field = spec.backend[0].items.find(item => item.id === 'note-field');
+  assert.equal(field.change, 'added');
+  assert.equal(field.before.note, 'src/task.mjs:12');
+  assert.equal(field.note, 'src/task.mjs:18');
+  assert.equal(stdoutOf(run('delta', {}, deltaFixture)), html);
+
+  const repoCache = join(repo, 'dd-659-test-cache');
+  const inside = run('delta', { XDG_CACHE_HOME: repoCache }, deltaFixture);
+  assert.ifError(inside.error);
+  assert.equal(inside.status, 1);
+  assert.match(inside.stderr, /^InsideRepo\t/);
+  assert.equal(existsSync(repoCache), false);
+  assert.equal(gitStatus(), before);
+
+  writeFileSync(join(directory, 'spec-v2.json'), JSON.stringify({ version: 2, stage: 'done' }));
+  const locked = run('delta', {}, deltaFixture);
+  assert.ifError(locked.error);
+  assert.equal(locked.status, 1);
+  assert.match(locked.stderr, /^BLOCKED\t.*对比页/);
+  assert.deepEqual(JSON.parse(readFileSync(archive, 'utf8')), spec);
+});
+
+test('S13 bug 变更预览要求改前和改后检查输出', (t) => {
+  const { directory, run } = previewSession(t);
+  const item = {
+    id: 'refresh-list', kind: 'step', change: 'modified',
+    before: { code: ['src/task.mjs:24'], check: 'FAIL: list is stale' },
+    after: { code: ['src/task.mjs:27'] },
+  };
+  const missing = run('delta', {}, JSON.stringify([item]));
+  assert.ifError(missing.error);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /^MissingEvidence\t[^\n]*\nrefresh-list\.after\.check\s*$/);
+  assert.equal(existsSync(directory), false);
+
+  item.after.check = 'PASS: list refreshed';
+  const html = stdoutOf(run('delta', {}, JSON.stringify([item])));
+  const output = readFileSync(html, 'utf8');
+  assert.match(output, /FAIL: list is stale/);
+  assert.match(output, /PASS: list refreshed/);
+});
 test('S14 任务按固定顺序判定规模并读回标签', () => assert.fail('待验证规模分流'));
 test('S15 小需求出现跨 Module 接口时停止并升级', () => assert.fail('待验证任务升级'));

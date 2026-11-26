@@ -6,7 +6,13 @@
 ## 预览门
 
 - 关联 Spec 有 `Preview:` 锁定行时走对比页。接入占位见 [DD-661](https://linear.app/erplus/issue/DD-661)。
-- 无 `Preview:` 锁定行时走变更预览。接入占位见 [DD-659](https://linear.app/erplus/issue/DD-659)。
+- 无 `Preview:` 锁定行时，在合入前调用 [`spec-preview`](../../spec-preview/SKILL.md)
+  的 `delta <repo> <issue> <items-json>`。页面和节点附改前、改后截图。流程和后端附
+  两侧的代码坐标。bug 修复另附改前失败、改后通过的检查输出。
+  收到 `MissingEvidence` 时补齐证据，暂停合入。生成后把 `preview.html` 的路径交给用户。
+  等用户明确确认当前预览后再合入。用户退回时继续实现，更新预览并重新提交确认。
+  合入后在第 2 步关闭直接 Issue 前，把 `spec-v1.json` 附到该 Issue，下载附件并核对
+  字节一致，再删除本地预览目录。附件上传或读回失败时记 `BLOCKED`，保留本地预览目录。
 
 ## 1. 固定收尾范围
 

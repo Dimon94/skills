@@ -10,7 +10,7 @@ assert.equal(skeleton.status, 0, skeleton.stdout + skeleton.stderr);
 
 const failedIds = [];
 const expectedIds = Array.from({ length: 15 }, (_, index) => `S${index + 1}`)
-  .filter(id => !['S1', 'S2', 'S3', 'S10', 'S11'].includes(id));
+  .filter(id => !['S1', 'S2', 'S3', 'S10', 'S11', 'S12', 'S13'].includes(id));
 const scenarios = run({
   files: [testFile('scenarios.test.mjs')],
   testNamePatterns: [new RegExp(`^(${expectedIds.join('|')}) `)],

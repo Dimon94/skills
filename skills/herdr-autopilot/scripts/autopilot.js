@@ -10,7 +10,9 @@
 // - place 按 2x2 四格容量（每 tab 最多 4 pane：1->右、2->左下、3->右下、满 4 新开 -2）无抢焦点落位并命名。
 // - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
 // - poll 同一签名（等人栏的状态与原因，或待处理栏的 state@state_change_seq）只报一次，没变的进 unchanged 且不读尾部；全部没变即 quiet；--full 重报全量。
-// - watch 以 herdr agent wait 阻塞等终态/阻断态并主动唤醒 T3 主会话，不持账本锁。
+// - watch 把 lane 订阅给一个 T3 线程：当前状态记成基线，确保该线程的哨兵在跑（见 watch.js）。
+// - poll --thread 是哨兵的一拍：只看该线程订阅的 active lane，只报订阅后新出现的状态；读不到 state_change_seq 即失败。
+// - poll 把订阅了但哨兵已死的 lane 报进 unwatched。
 // - set-stage --stage awaiting_merge 推进 issue 至 In Review（或保持进行中）并回读校验。
 // - set-stage --stage done 在登记的工作树和本地分支回收、pane 关闭后，同步关闭直接 issue 至 Done 并回读校验（写任务除非显式 --keep-issue-open --reason），再写入 done 并清理 watcher。
 // - sync-issue 供协调方同步子票状态（started | review | done）并回读校验，不持账本锁。
@@ -21,7 +23,7 @@
 const { ownedTree, closeout } = require('./closeout.js');
 const { syncIssueState } = require('./issue-sync.js');
 const { extractIssueKey, findEpicWorkspace, formatVisualLabel, placePane, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
-const { watchLane, spawnDaemonWatcher, stopWatcher, t3WakeEnv } = require('./watch.js');
+const { ensureSentinel, sentinelAlive, runSentinel, lockedPoll, t3WakeEnv } = require('./watch.js');
 const { launchAgent, claimLaunch } = require('./launch.js');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -315,32 +317,72 @@ function classifyLane(lane, live, readTail) {
   };
 }
 
-function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
-  const lines = opts.lines !== undefined ? Number(opts.lines) : DEFAULT_READ_LINES;
-  const rawList = runner(session, ['agent', 'list']);
-  const { byName, byPane } = indexLiveAgents(extractAgentList(rawList));
-  const buckets = { working: [], needs_attention: [], escalated: [], awaiting_merge: [], missing: [], unchanged: [] };
-
-  // 每一栏都带 lane 身份：lane id、所服务的 issue 与最近同步状态、agent、阶段。
-  const view = (lane, extra) => ({
+// 每一栏都带 lane 身份：lane id、所服务的 issue 与最近同步状态、agent、阶段。
+function view(lane, extra) {
+  return {
     id: lane.id,
     issue: lane.issue || null,
     issue_state: lane.issue_state || null,
     agent: lane.agent,
     stage: lane.stage,
     ...extra,
-  });
+  };
+}
+
+// 读一次 Herdr 现场，把 lane 归栏并记下观察到的状态。两种巡检共用。
+function observer(session, opts, runner) {
+  const lines = opts.lines !== undefined ? Number(opts.lines) : DEFAULT_READ_LINES;
+  const { byName, byPane } = indexLiveAgents(extractAgentList(runner(session, ['agent', 'list'])));
   const readTail = (lane) => extractReadText(runner(session, [
     'agent', 'read', lane.agent, '--source', 'recent-unwrapped', '--lines', String(lines),
   ]));
+  return (lane) => {
+    const live = byName.get(lane.agent) || (lane.pane ? byPane.get(lane.pane) : null);
+    if (live && !lane.pane && live.pane_id) lane.pane = live.pane_id;
+    const seen = classifyLane(lane, live, readTail);
+    if (seen.state) lane.last_observed_state = seen.state;
+    if (seen.bucket === 'working') lane.consecutive_replies = 0;
+    return seen;
+  };
+}
+
+function noSeqError(lane) {
+  return new Error(`lane "${lane.id}" 的 agent 没有 state_change_seq，哨兵分不清状态变没变；这条 lane 只能手动 poll`);
+}
+
+// 哨兵的一拍。记忆用 woken_sig，不和手动 poll 的 reported_sig 共用：
+// 多个总控共用账本时，别人的 poll 不能吃掉这条 lane 的变化。
+// 等人的 lane（escalated、awaiting_merge）只由总控自己的命令产生，不归哨兵报，但算在 watching 里等它恢复。
+function sentinelPoll(ledger, session, threadId, opts, runner = defaultHerdrRunner) {
+  const mine = Object.values(ledger.lanes).filter((lane) => lane.wake_thread === threadId && lane.status !== 'done');
+  const out = { session, thread: threadId, status: 'quiet', watching: mine.length, needs_attention: [], missing: [] };
+  const active = mine.filter((lane) => lane.status === 'active');
+  if (active.length === 0) return out;
+
+  const observe = observer(session, opts, runner);
+  for (const lane of active) {
+    const { bucket, sig, detail } = observe(lane);
+    if (bucket !== 'working' && sig === null) throw noSeqError(lane);
+    if (lane.woken_sig === sig) continue;
+    lane.woken_sig = sig;
+    if (bucket === 'working') continue;
+    lane.reported_sig = sig;
+    out[bucket].push(view(lane, detail()));
+  }
+  if (out.needs_attention.length + out.missing.length > 0) out.status = 'attention';
+  return out;
+}
+
+function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
+  const observe = observer(session, opts, runner);
+  const alive = opts.alive || (() => true);
+  const buckets = { working: [], needs_attention: [], escalated: [], awaiting_merge: [], missing: [], unchanged: [], unwatched: [] };
 
   for (const lane of Object.values(ledger.lanes)) {
     if (lane.status === 'done') continue;
-    const live = byName.get(lane.agent) || (lane.pane ? byPane.get(lane.pane) : null);
-    if (live && !lane.pane && live.pane_id) lane.pane = live.pane_id;
-    const { bucket, sig, state, detail } = classifyLane(lane, live, readTail);
-    if (state) lane.last_observed_state = state;
-    if (bucket === 'working') lane.consecutive_replies = 0;
+    const { bucket, sig, detail } = observe(lane);
+    // 订阅了却没有哨兵在看：这条 lane 的变化没人会来叫，每次都报，直到重新 watch。
+    if (lane.wake_thread && !alive(lane.wake_thread)) buckets.unwatched.push(view(lane, { thread: lane.wake_thread }));
 
     // 同一签名只报一次：没变的 lane 只留身份，不读尾部，不占总控上下文。
     const reported = !opts.full && sig !== null && lane.reported_sig === sig;
@@ -349,7 +391,7 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
     else buckets[bucket].push(view(lane, detail()));
   }
 
-  const hasActionable = ['needs_attention', 'escalated', 'awaiting_merge', 'missing']
+  const hasActionable = ['needs_attention', 'escalated', 'awaiting_merge', 'missing', 'unwatched']
     .some((key) => buckets[key].length > 0);
   return { session, status: hasActionable ? 'attention' : 'quiet', ...buckets };
 }
@@ -402,7 +444,7 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     return {
       exitCode: 0,
       output: {
-        commands: ['init', 'place', 'launch', 'register', 'poll', 'watch', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
+        commands: ['init', 'place', 'launch', 'register', 'poll', 'watch', 'sentinel', 'record-reply', 'set-stage', 'sync-issue', 'escalate', 'resolve', 'list'],
         default_session: DEFAULT_SESSION,
       },
     };
@@ -539,7 +581,11 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   }
 
   if (command === 'poll') {
-    const snapshot = pollLanes(ledger, session, { lines: flags.lines, full: flags.full === true }, runner);
+    const opts = { lines: flags.lines, full: flags.full === true };
+    opts.alive = deps.sentinelAlive || ((threadId) => sentinelAlive(ledgerPath, session, threadId));
+    const snapshot = flags.thread
+      ? sentinelPoll(ledger, session, String(flags.thread), opts, runner)
+      : pollLanes(ledger, session, opts, runner);
     saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output: snapshot };
   }
@@ -551,37 +597,25 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     if (lane.status !== 'active') {
       throw new Error(`lane "${lane.id}" is not active (status: ${lane.status})`);
     }
-    const timeoutMs = flags.timeout !== undefined ? Number(flags.timeout) : undefined;
-    if (timeoutMs !== undefined && (!Number.isInteger(timeoutMs) || timeoutMs < 1)) {
-      throw new Error(`invalid --timeout "${flags.timeout}"; must be integer >= 1`);
-    }
-    // 注入了 waker 的调用方自带通道；默认通道缺环境时不许开始等。
+    // 注入了 waker 的调用方自带通道；默认通道缺环境时不许订阅。
     if (!deps.waker) t3WakeEnv(deps.env);
-    if (flags.daemon) {
-      const output = spawnDaemonWatcher({
-        ledgerPath,
-        session,
-        laneId: lane.id,
-        threadId,
-        timeoutMs,
-        afterPrompt: Boolean(flags['after-prompt']),
-        scriptPath: __filename,
-        spawner: deps.spawner,
-      });
-      return { exitCode: 0, output };
-    }
-    const output = watchLane({
-      ledgerPath,
-      session,
-      lane,
-      threadId,
-      timeoutMs,
-      afterPrompt: Boolean(flags['after-prompt']),
-      runner,
-      waker: deps.waker,
-      reloadLane: () => loadLedger(ledgerPath, session).lanes[lane.id] || null,
-    });
-    return { exitCode: 0, output };
+    // 订阅这一刻的状态总控已经知道，记成基线：哨兵只报之后的变化。
+    const { bucket, sig } = observer(session, {}, runner)(lane);
+    if (bucket === 'missing') throw new Error(`lane "${lane.id}" 的 agent 不在 Herdr 里；先 launch 再 watch`);
+    if (bucket !== 'working' && sig === null) throw noSeqError(lane);
+    lane.wake_thread = threadId;
+    lane.woken_sig = sig;
+    saveLedger(ledgerPath, ledger);
+    const sentinel = ensureSentinel({ ledgerPath, session, threadId, scriptPath: __filename, spawner: deps.spawner });
+    return { exitCode: 0, output: { watching: true, lane_id: lane.id, thread_id: threadId, baseline: sig, sentinel } };
+  }
+
+  if (command === 'sentinel') {
+    const threadId = String(flags.thread || '').trim();
+    if (!threadId) throw new Error('sentinel requires --thread <t3_thread_id>');
+    const poll = () => lockedPoll({ ledgerPath, session, threadId, scriptPath: __filename });
+    const result = runSentinel({ threadId, poll });
+    return { exitCode: result.exit, output: result };
   }
 
   if (command === 'record-reply') {
@@ -607,7 +641,6 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
         throw error;
       }
       current.escalated_reason = null;
-      stopWatcher(ledgerPath, session, flags.id);
       const lane = setStage(ledger, flags.id, flags.stage);
       saveLedger(ledgerPath, ledger);
       return { exitCode: 0, output: issueSync ? { ...lane, issue_sync: issueSync } : lane };
@@ -640,10 +673,10 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
 }
 
 // 进程锁覆盖账本的读取、外部动作和落盘；内核在进程退出时释放锁。
-// watch 对账本只读且会长期阻塞等待 Herdr 状态变化，不持账本锁以避免死锁。
+// sentinel 常驻不持锁，每拍另起一个持锁的 poll --thread。
 function lockedCli(argv) {
   const { command, flags } = parseArgs(argv);
-  if (!command || ['--help', '-h', 'list', 'watch', 'sync-issue'].includes(command)) return runCli(argv);
+  if (!command || ['--help', '-h', 'list', 'sentinel', 'sync-issue'].includes(command)) return runCli(argv);
   const ledger = flags.ledger || defaultLedgerPath(validateSession(flags.session || DEFAULT_SESSION));
   fs.mkdirSync(path.dirname(ledger), { recursive: true });
   const mac = process.platform === 'darwin';

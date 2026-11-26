@@ -1,75 +1,48 @@
 'use strict';
 
 // ============================================================================
-// L3-L6 Contract: herdr-autopilot event-driven watcher & T3 thread waker
-// - Owns: single-instance PID dedup per (session, lane_id), blocking herdr agent wait,
-//   stale-lane suppression on re-read, and T3 acp-mcp-call t3_thread_send wakeup.
-// - Never holds the ledger file lock while waiting; never mutates the ledger.
-// - Fail-close on missing --thread, non-active lane, missing T3 wake environment (checked before waiting), or failed wake delivery.
+// L3-L6 Contract: herdr-autopilot 哨兵（代码巡检，有变化才唤醒 T3 总控线程）
+// - Owns: 每个 (session, T3 线程) 一个常驻进程的 pid 去重、定时巡检循环、
+//   t3_thread_send 唤醒、叫不醒时的系统通知。
+// - 不读写账本：每拍经 autopilot.js `poll --thread` 拿结果，那条命令持账本锁。
+// - 没有变化不发任何消息；该线程没有未完成的订阅 lane 即退出 0。
+// - 唤醒消息是纯文本，自带巡检结果，不带 skill 调用。
+// - Fail-close: 缺 T3 唤醒环境在订阅时失败；巡检连续失败 3 次通知人并退出 1；唤醒失败通知人并写日志。
 // ============================================================================
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync, spawn } = require('node:child_process');
 
-const AFTER_PROMPT_WAIT_MS = 5000;
+const TICK_MS = 15000;
+const MAX_POLL_FAILURES = 3;
 
 function sanitizeToken(value) {
   return String(value || '').replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-function pidPath(ledgerPath, session, laneId) {
-  const dir = path.dirname(ledgerPath);
-  return path.join(dir, `${sanitizeToken(session)}.watch.${sanitizeToken(laneId)}.pid`);
-}
-
-function logPath(ledgerPath, session, laneId) {
-  const dir = path.dirname(ledgerPath);
-  return path.join(dir, `${sanitizeToken(session)}.watch.${sanitizeToken(laneId)}.log`);
-}
-
-function isPidAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+function sentinelFile(ledgerPath, session, threadId, ext) {
+  const name = `${sanitizeToken(session)}.sentinel.${sanitizeToken(threadId)}.${ext}`;
+  return path.join(path.dirname(ledgerPath), name);
 }
 
 function readLivePid(file) {
   if (!fs.existsSync(file)) return null;
-  const raw = fs.readFileSync(file, 'utf8').trim();
-  const pid = Number(raw);
-  if (isPidAlive(pid)) return pid;
-  try { fs.unlinkSync(file); } catch { /* ignore */ }
-  return null;
-}
-
-function writePidFile(file, pid) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${pid}\n`, 'utf8');
-}
-
-function releaseOwnPid(file, pid = process.pid) {
+  const pid = Number(fs.readFileSync(file, 'utf8').trim());
+  if (!Number.isInteger(pid) || pid <= 0) return null;
   try {
-    if (fs.existsSync(file) && Number(fs.readFileSync(file, 'utf8').trim()) === pid) {
-      fs.unlinkSync(file);
-    }
-  } catch { /* ignore */ }
-}
-
-function stopWatcher(ledgerPath, session, laneId) {
-  const file = pidPath(ledgerPath, session, laneId);
-  const pid = readLivePid(file);
-  if (pid && pid !== process.pid) {
-    try { process.kill(pid, 'SIGTERM'); } catch { /* ignore */ }
+    process.kill(pid, 0);
+    return pid;
+  } catch {
+    return null;
   }
-  try { fs.unlinkSync(file); } catch { /* ignore */ }
 }
 
-// 唤醒通道的全部前提。watch 启动前和真正唤醒时读同一份，缺一项就在启动时失败。
+function sentinelAlive(ledgerPath, session, threadId) {
+  return readLivePid(sentinelFile(ledgerPath, session, threadId, 'pid')) !== null;
+}
+
+// 唤醒通道的全部前提。订阅时和真正唤醒时读同一份，缺一项就在订阅时失败。
 function t3WakeEnv(env = process.env) {
   const nodeBin = env.T3_ACP_MCP_NODE;
   const endpoint = env.T3_ACP_MCP_ENDPOINT;
@@ -103,7 +76,6 @@ function defaultT3Waker({ threadId, message }) {
 }
 
 function defaultDaemonSpawner(scriptPath, cliArgs, logFile) {
-  fs.mkdirSync(path.dirname(logFile), { recursive: true });
   const fd = fs.openSync(logFile, 'a');
   try {
     const child = spawn(process.execPath, [scriptPath, ...cliArgs], {
@@ -118,145 +90,80 @@ function defaultDaemonSpawner(scriptPath, cliArgs, logFile) {
   }
 }
 
-function spawnDaemonWatcher({
-  ledgerPath,
-  session,
-  laneId,
-  threadId,
-  timeoutMs,
-  afterPrompt,
-  scriptPath,
-  spawner = defaultDaemonSpawner,
-}) {
-  const pFile = pidPath(ledgerPath, session, laneId);
-  const existing = readLivePid(pFile);
-  if (existing) {
-    return {
-      watching: true,
-      already_running: true,
-      pid: existing,
-      lane_id: laneId,
-      thread_id: threadId,
-    };
-  }
-  const lFile = logPath(ledgerPath, session, laneId);
-  const cliArgs = [
-    'watch',
-    '--session', session,
-    '--ledger', ledgerPath,
-    '--id', laneId,
-    '--thread', threadId,
-    ...(timeoutMs ? ['--timeout', String(timeoutMs)] : []),
-    ...(afterPrompt ? ['--after-prompt'] : []),
-  ];
-  const spawned = spawner(scriptPath, cliArgs, lFile);
+// 调用方持账本锁，所以同一线程不会并发起两个哨兵。
+function ensureSentinel({ ledgerPath, session, threadId, scriptPath, spawner = defaultDaemonSpawner }) {
+  const pidFile = sentinelFile(ledgerPath, session, threadId, 'pid');
+  const log = sentinelFile(ledgerPath, session, threadId, 'log');
+  const existing = readLivePid(pidFile);
+  if (existing) return { already_running: true, pid: existing, log };
+
+  fs.mkdirSync(path.dirname(pidFile), { recursive: true });
+  const cliArgs = ['sentinel', '--session', session, '--ledger', ledgerPath, '--thread', threadId];
+  const spawned = spawner(scriptPath, cliArgs, log);
   if (!spawned || !Number.isInteger(spawned.pid) || spawned.pid <= 0) {
-    throw new Error('failed to spawn background watcher process');
+    throw new Error('failed to spawn sentinel process');
   }
-  writePidFile(pFile, spawned.pid);
-  return {
-    watching: true,
-    already_running: false,
-    pid: spawned.pid,
-    lane_id: laneId,
-    thread_id: threadId,
-    log: lFile,
-  };
+  fs.writeFileSync(pidFile, `${spawned.pid}\n`, 'utf8');
+  return { already_running: false, pid: spawned.pid, log };
 }
 
-function parseLiveState(rawList, agentName, paneId) {
-  const parsed = JSON.parse(rawList);
-  const list = Array.isArray(parsed)
-    ? parsed
-    : (parsed?.result?.agents || parsed?.agents || []);
-  const live = list.find((a) => a && (a.name === agentName || (paneId && a.pane_id === paneId)));
-  if (!live) return 'missing';
-  return live.agent_status || live.status || live.state || 'unknown';
-}
-
-function buildWakeMessage(lane, state, waitError) {
-  const detail = waitError ? `${state} (${waitError})` : state;
-  return [
-    `[herdr-autopilot WAKE] lane ${lane.id} (${lane.issue || 'no-issue'}, agent=${lane.agent}, stage=${lane.stage}) 状态变为 ${detail}。`,
-    '请立即运行 `node skills/herdr-autopilot/scripts/autopilot.js poll`，按 pause-triage 分诊回应；若自动回复后继续运行，重新挂 `watch --daemon --after-prompt`。',
-  ].join(' ');
-}
-
-function watchLane({
-  ledgerPath,
-  session,
-  lane,
-  threadId,
-  timeoutMs,
-  afterPrompt,
-  runner,
-  waker = defaultT3Waker,
-  reloadLane,
-}) {
-  const tid = String(threadId || '').trim();
-  if (!tid) throw new Error('watch requires --thread <t3_thread_id>');
-  if (lane.status !== 'active') {
-    throw new Error(`lane "${lane.id}" is not active (status: ${lane.status})`);
-  }
-
-  const pFile = pidPath(ledgerPath, session, lane.id);
-  const existing = readLivePid(pFile);
-  if (existing && existing !== process.pid) {
-    return { woke: false, reason: 'already_running', pid: existing, lane_id: lane.id, thread_id: tid };
-  }
-  writePidFile(pFile, process.pid);
-
+function lockedPoll({ ledgerPath, session, threadId, scriptPath }) {
+  const argv = [scriptPath, 'poll', '--session', session, '--ledger', ledgerPath, '--thread', threadId];
   try {
-    if (afterPrompt) {
-      try {
-        runner(session, ['agent', 'wait', lane.agent, '--until', 'working', '--timeout', String(AFTER_PROMPT_WAIT_MS)]);
-      } catch {
-        // Fast-finishing or immediately-blocked turns may skip observable working state.
-      }
-    }
+    return JSON.parse(execFileSync(process.execPath, argv, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  } catch (err) {
+    throw new Error(String(err.stderr || err.message).trim());
+  }
+}
 
-    let waitError = null;
-    const waitArgs = ['agent', 'wait', lane.agent, ...(timeoutMs ? ['--timeout', String(timeoutMs)] : [])];
+function notifyHuman(text) {
+  process.stderr.write(`${JSON.stringify({ at: new Date().toISOString(), notify: text })}\n`);
+  try {
+    const script = `display notification ${JSON.stringify(text)} with title "herdr-autopilot"`;
+    execFileSync('osascript', ['-e', script], { stdio: 'ignore' });
+  } catch { /* 没有 osascript 的机器只留日志 */ }
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function wakeMessage(snapshot) {
+  const changed = { needs_attention: snapshot.needs_attention, missing: snapshot.missing };
+  const count = changed.needs_attention.length + changed.missing.length;
+  return [
+    `[herdr-autopilot WAKE] ${count} 条 lane 状态变了。下面就是这次巡检结果，不用再跑 poll；按暂停分诊处理。`,
+    JSON.stringify(changed, null, 1),
+  ].join('\n');
+}
+
+// 一拍 = 一次持锁巡检。只有巡检报出变化才碰模型。
+function runSentinel({ threadId, poll, wake = defaultT3Waker, notify = notifyHuman, sleep = () => sleepSync(TICK_MS) }) {
+  for (let failures = 0; ; sleep()) {
+    let snapshot;
     try {
-      runner(session, waitArgs);
+      snapshot = poll();
+      failures = 0;
     } catch (err) {
-      waitError = err.message || 'wait_failed';
+      failures += 1;
+      if (failures < MAX_POLL_FAILURES) continue;
+      notify(`哨兵连续 ${failures} 次巡检失败，已退出（线程 ${threadId}）：${err.message}`);
+      return { exit: 1, reason: 'poll_failed' };
     }
-
-    const latest = reloadLane();
-    if (!latest || latest.status !== 'active') {
-      return { woke: false, reason: 'lane_no_longer_active', lane_id: lane.id, thread_id: tid };
-    }
-
-    let state = 'unknown';
+    if (snapshot.watching === 0) return { exit: 0, reason: 'nothing_watched' };
+    if (snapshot.status !== 'attention') continue;
     try {
-      state = parseLiveState(runner(session, ['agent', 'list']), latest.agent, latest.pane);
-    } catch {
-      state = waitError ? 'wait_error' : 'unknown';
+      wake({ threadId, message: wakeMessage(snapshot) });
+    } catch (err) {
+      notify(`lane 状态变了但叫不醒线程 ${threadId}：${err.message}。回到总控线程跑 poll --full。`);
     }
-
-    const message = buildWakeMessage(latest, state, waitError);
-    waker({ threadId: tid, message, lane: latest, state });
-    return {
-      woke: true,
-      lane_id: latest.id,
-      issue: latest.issue || null,
-      agent: latest.agent,
-      stage: latest.stage,
-      state,
-      thread_id: tid,
-    };
-  } finally {
-    releaseOwnPid(pFile, process.pid);
   }
 }
 
 module.exports = {
-  watchLane,
-  spawnDaemonWatcher,
-  stopWatcher,
-  defaultT3Waker,
+  ensureSentinel,
+  sentinelAlive,
+  runSentinel,
+  lockedPoll,
   t3WakeEnv,
-  pidPath,
-  logPath,
 };

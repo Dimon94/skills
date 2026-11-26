@@ -9,6 +9,7 @@ const path = require('node:path');
 const { validateSession, runCli: rawRunCli } = require('../scripts/autopilot.js');
 const { syncIssueState, parseIssueRef } = require('../scripts/issue-sync.js');
 const { displayWidth, formatVisualLabel } = require('../scripts/layout.js');
+const { runSentinel } = require('../scripts/watch.js');
 
 function stubIssueSync(issue, target) {
   const map = {
@@ -440,147 +441,215 @@ test('register 必须登记所服务的 issue；poll 各栏带出 issue', () => 
 });
 
 // 期望值来源：用户纠正“只靠 4–5 分钟定时巡检导致等回复延迟与空转”；
-// watch 必须用 herdr agent wait 阻塞等终态/阻断态并立刻唤醒主会话，且支持去重与防陈旧唤醒。
-test('watch blocks on herdr agent wait and immediately wakes target thread on settled state', () => {
-  const ledgerPath = makeTempLedger();
-  runCli([
-    'register',
-    '--issue', 'JB-512',
-    '--ledger', ledgerPath,
-    '--id', 'jb512-m3',
-    '--agent', 'jb512-m3',
-    '--stage', 'pipeline',
-  ]);
+// ─── 哨兵：代码巡检，变化才唤醒 ───────────────────────────────────────────────
+// 现场：2026-11-24/25 四个总控会话被定时任务唤醒 178 次，每次约 57 万输入 token，
+// 其中 70 次总控什么都没说。没有变化的巡检不该进模型。
 
-  const herdrCalls = [];
-  const wakeCalls = [];
-  const fakeRunner = (session, args) => {
-    herdrCalls.push([session, ...args]);
-    if (args[0] === 'agent' && args[1] === 'wait') return '';
-    if (args[0] === 'agent' && args[1] === 'list') {
-      return JSON.stringify({
-        result: { agents: [{ name: 'jb512-m3', pane_id: 'wA5:p1', agent_status: 'blocked' }] },
-      });
-    }
+function liveAgents(agents) {
+  return (_session, args) => {
+    if (args[1] === 'list') return JSON.stringify({ result: { agents: agents() } });
+    if (args[1] === 'read') return JSON.stringify({ result: { text: `tail of ${args[2]}` } });
     throw new Error(`unexpected call: ${args.join(' ')}`);
   };
-  const fakeWaker = (payload) => {
-    wakeCalls.push(payload);
-    return { ok: true };
-  };
+}
 
-  const res = runCli(
-    ['watch', '--ledger', ledgerPath, '--id', 'jb512-m3', '--thread', 'thread-123', '--after-prompt'],
-    fakeRunner,
-    { waker: fakeWaker }
-  );
-  assert.equal(res.exitCode, 0);
-  assert.equal(res.output.woke, true);
-  assert.equal(res.output.state, 'blocked');
-  assert.equal(res.output.thread_id, 'thread-123');
-  assert.deepEqual(herdrCalls[0], ['default', 'agent', 'wait', 'jb512-m3', '--until', 'working', '--timeout', '5000']);
-  assert.deepEqual(herdrCalls[1], ['default', 'agent', 'wait', 'jb512-m3']);
-  assert.equal(wakeCalls.length, 1);
-  assert.equal(wakeCalls[0].threadId, 'thread-123');
-  assert.match(wakeCalls[0].message, /jb512-m3/);
-  assert.match(wakeCalls[0].message, /JB-512/);
-  assert.match(wakeCalls[0].message, /blocked/);
-});
+function editLedger(ledgerPath, edit) {
+  const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+  edit(ledger.lanes);
+  fs.writeFileSync(ledgerPath, JSON.stringify(ledger));
+}
 
-test('watch rejects missing thread or non-active lane, and suppresses stale wake if lane closes mid-wait', () => {
+test('watch subscribes a lane with its current state as baseline and keeps one sentinel per thread', () => {
   const ledgerPath = makeTempLedger();
-  runCli([
-    'register',
-    '--issue', 'JB-512',
-    '--ledger', ledgerPath,
-    '--id', 'm3',
-    '--agent', 'm3',
-    '--stage', 'spec',
+  const base = ['--ledger', ledgerPath];
+  runCli(['register', '--issue', 'JB-1', ...base, '--id', 'a', '--agent', 'auto-a', '--stage', 'pipeline']);
+  runCli(['register', '--issue', 'JB-2', ...base, '--id', 'b', '--agent', 'auto-b', '--stage', 'pipeline']);
+  const runner = liveAgents(() => [
+    { name: 'auto-a', agent_status: 'idle', state_change_seq: 5 },
+    { name: 'auto-b', agent_status: 'working', state_change_seq: 8 },
   ]);
-  assert.throws(() => runCli(['watch', '--ledger', ledgerPath, '--id', 'm3']), /--thread/);
+  const spawned = [];
+  const spawner = (_script, cliArgs) => { spawned.push(cliArgs); return { pid: process.pid }; };
+  const watch = (id, thread) => runCli(['watch', ...base, '--id', id, '--thread', thread], runner, { spawner }).output;
 
-  const wakeCalls = [];
-  const fakeRunner = (_session, args) => {
-    if (args[0] === 'agent' && args[1] === 'wait') {
-      // Simulate another turn escalating the lane while watch is blocked.
-      runCli(['escalate', '--ledger', ledgerPath, '--id', 'm3', '--reason', 'manual stop']);
-      return '';
-    }
-    throw new Error(`unexpected call: ${args.join(' ')}`);
-  };
+  const first = watch('a', 'thread-1');
+  assert.equal(first.watching, true);
+  assert.equal(first.baseline, 'idle@5');
+  assert.equal(first.sentinel.already_running, false);
+  assert.deepEqual(spawned[0].slice(0, 1), ['sentinel']);
+  assert.ok(spawned[0].includes('thread-1'));
 
-  const res = runCli(
-    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123'],
-    fakeRunner,
-    { waker: (p) => wakeCalls.push(p) }
-  );
-  assert.equal(res.exitCode, 0);
-  assert.equal(res.output.woke, false);
-  assert.equal(res.output.reason, 'lane_no_longer_active');
-  assert.equal(wakeCalls.length, 0);
+  const second = watch('b', 'thread-1');
+  assert.equal(second.baseline, null, 'a working lane has nothing to remember yet');
+  assert.equal(second.sentinel.already_running, true);
+  assert.equal(spawned.length, 1, 'one sentinel per thread, not one per lane');
 
-  // Calling watch on an already escalated lane fails closed.
-  assert.throws(
-    () => runCli(['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123'], fakeRunner),
-    /not active/
-  );
+  const lanes = JSON.parse(fs.readFileSync(ledgerPath, 'utf8')).lanes;
+  assert.equal(lanes.a.wake_thread, 'thread-1');
+  assert.equal(lanes.a.woken_sig, 'idle@5');
 });
 
 // 现场：default.watch.jb348-carousel.log 第一行。watcher 等到终态才发现缺 T3 环境，那次唤醒丢了。
-test('watch refuses to start when it could never wake the T3 thread', () => {
+test('watch refuses to subscribe when it could never wake the thread or tell a change', () => {
   const ledgerPath = makeTempLedger();
-  runCli(['register', '--issue', 'JB-348', '--ledger', ledgerPath, '--id', 'carousel', '--agent', 'carousel', '--stage', 'pipeline']);
+  const base = ['--ledger', ledgerPath];
+  runCli(['register', '--issue', 'JB-348', ...base, '--id', 'carousel', '--agent', 'carousel', '--stage', 'pipeline']);
   let spawns = 0;
-  let waits = 0;
-  const deps = { env: {}, spawner: () => { spawns += 1; return { pid: process.pid }; } };
-  const fakeRunner = () => { waits += 1; return '{}'; };
-  const argv = ['watch', '--ledger', ledgerPath, '--id', 'carousel', '--thread', 'thread-123'];
+  const spawner = () => { spawns += 1; return { pid: process.pid }; };
+  const idle = liveAgents(() => [{ name: 'carousel', agent_status: 'idle', state_change_seq: 1 }]);
+  const argv = ['watch', ...base, '--id', 'carousel', '--thread', 'thread-123'];
 
-  assert.throws(() => runCli([...argv, '--daemon'], fakeRunner, deps), /missing T3 ACP MCP environment/);
-  assert.throws(() => runCli(argv, fakeRunner, deps), /missing T3 ACP MCP environment/);
-  assert.equal(spawns, 0, 'no daemon may be left waiting without a wake channel');
-  assert.equal(waits, 0, 'the check runs before blocking on herdr agent wait');
+  assert.throws(() => runCli(argv, idle, { env: {}, spawner }), /missing T3 ACP MCP environment/);
+  assert.throws(() => runCli(['watch', ...base, '--id', 'carousel'], idle, { spawner }), /requires --thread/);
+  assert.throws(() => runCli(argv, liveAgents(() => []), { spawner }), /不在 Herdr/);
+  const noSeq = liveAgents(() => [{ name: 'carousel', agent_status: 'idle' }]);
+  assert.throws(() => runCli(argv, noSeq, { spawner }), /state_change_seq/);
+  runCli(['escalate', ...base, '--id', 'carousel', '--reason', 'needs human']);
+  assert.throws(() => runCli(argv, idle, { spawner }), /not active/);
+
+  assert.equal(spawns, 0, 'no sentinel may be left running for a subscription that failed');
+  assert.equal(JSON.parse(fs.readFileSync(ledgerPath, 'utf8')).lanes.carousel.wake_thread, undefined);
 });
 
-test('watch --daemon deduplicates live watcher by pidfile and reports already_running', () => {
+test('sentinel poll reports only changes after subscription, only for its thread, and another poll cannot eat them', () => {
   const ledgerPath = makeTempLedger();
-  runCli([
-    'register',
-    '--issue', 'JB-512',
-    '--ledger', ledgerPath,
-    '--id', 'm3',
-    '--agent', 'm3',
-    '--stage', 'pipeline',
+  const base = ['--ledger', ledgerPath];
+  runCli(['register', '--issue', 'JB-1', ...base, '--id', 'a', '--agent', 'auto-a', '--stage', 'pipeline']);
+  runCli(['register', '--issue', 'JB-2', ...base, '--id', 'b', '--agent', 'auto-b', '--stage', 'pipeline']);
+  const seq = { a: 5, b: 3 };
+  let agents = () => [
+    { name: 'auto-a', agent_status: 'idle', state_change_seq: seq.a },
+    { name: 'auto-b', agent_status: 'idle', state_change_seq: seq.b },
+  ];
+  const runner = (...args) => liveAgents(agents)(...args);
+  const spawner = () => ({ pid: process.pid });
+  runCli(['watch', ...base, '--id', 'a', '--thread', 't1'], runner, { spawner });
+  runCli(['watch', ...base, '--id', 'b', '--thread', 't2'], runner, { spawner });
+  const tick = (thread) => runCli(['poll', ...base, '--thread', thread], runner).output;
+  const manual = () => runCli(['poll', ...base], runner, { sentinelAlive: () => true }).output;
+
+  // 订阅时的状态总控已经知道：不唤醒。
+  const quiet = tick('t1');
+  assert.equal(quiet.status, 'quiet');
+  assert.equal(quiet.watching, 1);
+
+  // 共用账本的另一个总控先 poll 到了变化，t1 的哨兵照样要报。
+  seq.a = 7;
+  assert.deepEqual(manual().needs_attention.map((l) => l.id).sort(), ['a', 'b']);
+  const changed = tick('t1');
+  assert.equal(changed.status, 'attention');
+  assert.deepEqual(changed.needs_attention.map((l) => l.id), ['a'], 'lane b belongs to another thread');
+  assert.match(changed.needs_attention[0].tail, /tail of auto-a/);
+  assert.equal(tick('t1').status, 'quiet', 'the same state wakes once');
+
+  // 哨兵报过的，总控手动 poll 不再重报。
+  seq.a = 9;
+  assert.equal(tick('t1').status, 'attention');
+  assert.deepEqual(manual().unchanged.map((l) => l.id).sort(), ['a', 'b']);
+
+  // agent 消失也是变化；回到 working 后再消失要再报。
+  const all = agents;
+  agents = () => [];
+  assert.deepEqual(tick('t1').missing.map((l) => l.id), ['a']);
+  assert.equal(tick('t1').status, 'quiet');
+  agents = () => all().map((agent) => ({ ...agent, agent_status: 'working' }));
+  assert.equal(tick('t1').status, 'quiet');
+  agents = () => [];
+  assert.deepEqual(tick('t1').missing.map((l) => l.id), ['a']);
+
+  // 等人的 lane 不归哨兵报，但哨兵要留着等它恢复；全部 done 才没有可看的。
+  runCli(['escalate', ...base, '--id', 'a', '--reason', 'needs human']);
+  const parked = tick('t1');
+  assert.equal(parked.status, 'quiet');
+  assert.equal(parked.watching, 1);
+  editLedger(ledgerPath, (lanes) => { lanes.a.status = 'done'; lanes.a.stage = 'done'; });
+  assert.equal(tick('t1').watching, 0);
+
+  // 读不到状态序号就分不清变没变：失败，不能每拍都唤醒。
+  agents = () => [{ name: 'auto-b', agent_status: 'idle' }];
+  assert.throws(() => tick('t2'), /state_change_seq/);
+});
+
+test('sentinel loop stays silent on unchanged ticks, wakes with the poll result inline, and exits when nothing is watched', () => {
+  const lane = { id: 'a', issue: 'JB-1', agent: 'auto-a', stage: 'pipeline', state: 'idle', tail: 'Merged. What next?' };
+  const ticks = [
+    { status: 'quiet', watching: 1, needs_attention: [], missing: [] },
+    { status: 'quiet', watching: 1, needs_attention: [], missing: [] },
+    { status: 'attention', watching: 1, needs_attention: [lane], missing: [] },
+    { status: 'quiet', watching: 0, needs_attention: [], missing: [] },
+  ];
+  const wakes = [];
+  let sleeps = 0;
+  const result = runSentinel({
+    threadId: 't1',
+    poll: () => ticks.shift(),
+    wake: (payload) => wakes.push(payload),
+    notify: () => assert.fail('nothing went wrong'),
+    sleep: () => { sleeps += 1; },
+  });
+
+  assert.deepEqual(result, { exit: 0, reason: 'nothing_watched' });
+  assert.equal(sleeps, 3);
+  assert.equal(wakes.length, 1, 'two unchanged ticks reach no model');
+  assert.equal(wakes[0].threadId, 't1');
+  assert.ok(wakes[0].message.startsWith('[herdr-autopilot WAKE]'), 'orchestration_metrics 靠这个前缀认事件唤醒');
+  assert.match(wakes[0].message, /Merged\. What next\?/);
+  assert.match(wakes[0].message, /不用再跑 poll/);
+  assert.doesNotMatch(wakes[0].message, /\$herdr-autopilot|\/herdr-autopilot/, 'a wake must not re-inject the skill body');
+});
+
+test('sentinel tells the human when it cannot wake the thread, and gives up after three failed polls', () => {
+  const attention = { status: 'attention', watching: 1, needs_attention: [{ id: 'a' }], missing: [] };
+  const notes = [];
+  const ticks = [attention, { status: 'quiet', watching: 0 }];
+  const lost = runSentinel({
+    threadId: 't1',
+    poll: () => ticks.shift(),
+    wake: () => { throw new Error('401 unauthorized'); },
+    notify: (text) => notes.push(text),
+    sleep: () => {},
+  });
+  assert.equal(lost.exit, 0, 'a failed wake does not stop the sentinel');
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /401 unauthorized/);
+
+  notes.length = 0;
+  const flaky = [new Error('lock busy'), new Error('lock busy'), { status: 'quiet', watching: 1 },
+    new Error('herdr down'), new Error('herdr down'), new Error('herdr down')];
+  const dead = runSentinel({
+    threadId: 't1',
+    poll: () => { const next = flaky.shift(); if (next instanceof Error) throw next; return next; },
+    wake: () => assert.fail('nothing to wake for'),
+    notify: (text) => notes.push(text),
+    sleep: () => {},
+  });
+  assert.equal(dead.exit, 1);
+  assert.equal(flaky.length, 0, 'two failures followed by a good poll do not count toward the limit');
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /herdr down/);
+});
+
+test('poll flags subscribed lanes whose sentinel died as unwatched', () => {
+  const ledgerPath = makeTempLedger();
+  const base = ['--ledger', ledgerPath];
+  runCli(['register', '--issue', 'JB-1', ...base, '--id', 'a', '--agent', 'auto-a', '--stage', 'pipeline']);
+  runCli(['register', '--issue', 'JB-2', ...base, '--id', 'b', '--agent', 'auto-b', '--stage', 'pipeline']);
+  const runner = liveAgents(() => [
+    { name: 'auto-a', agent_status: 'working', state_change_seq: 5 },
+    { name: 'auto-b', agent_status: 'working', state_change_seq: 6 },
   ]);
+  runCli(['watch', ...base, '--id', 'a', '--thread', 't1'], runner, { spawner: () => ({ pid: process.pid }) });
+  const asked = [];
+  const poll = (alive) => runCli(['poll', ...base], runner, { sentinelAlive: (t) => { asked.push(t); return alive; } }).output;
 
-  let spawns = 0;
-  const fakeSpawner = () => {
-    spawns += 1;
-    // Return current process.pid so liveness probe (kill(pid, 0)) sees a live watcher.
-    return { pid: process.pid };
-  };
+  const healthy = poll(true);
+  assert.equal(healthy.status, 'quiet');
+  assert.deepEqual(healthy.unwatched, []);
 
-  const first = runCli(
-    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123', '--daemon'],
-    undefined,
-    { spawner: fakeSpawner }
-  );
-  assert.equal(first.exitCode, 0);
-  assert.equal(first.output.watching, true);
-  assert.equal(first.output.already_running, false);
-  assert.equal(first.output.pid, process.pid);
-  assert.equal(spawns, 1);
-
-  const second = runCli(
-    ['watch', '--ledger', ledgerPath, '--id', 'm3', '--thread', 'thread-123', '--daemon'],
-    undefined,
-    { spawner: fakeSpawner }
-  );
-  assert.equal(second.exitCode, 0);
-  assert.equal(second.output.watching, true);
-  assert.equal(second.output.already_running, true);
-  assert.equal(second.output.pid, process.pid);
-  assert.equal(spawns, 1);
+  const orphaned = poll(false);
+  assert.equal(orphaned.status, 'attention');
+  assert.deepEqual(orphaned.unwatched.map((l) => [l.id, l.thread]), [['a', 't1']]);
+  assert.deepEqual([...new Set(asked)], ['t1'], 'lanes nobody subscribed to are not flagged');
 });
 
 // 期望值来源：用户纠正 e9bf46be-d564-4ec6-b871-31f573a5970a 调度期间 JB-512/JB-542/JB-548 全程留在 Backlog；

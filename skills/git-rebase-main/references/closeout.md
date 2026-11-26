@@ -5,7 +5,14 @@
 
 ## 预览门
 
-- 关联 Spec 有 `Preview:` 锁定行时走对比页。接入占位见 [DD-661](https://linear.app/erplus/issue/DD-661)。
+- 关联 Spec 有 `Preview:` 锁定行时，在推送 PR 分支或快进本地 `main` 前调用
+  [`spec-preview`](../../spec-preview/SKILL.md) 的
+  `compare <repo> <issue> <version> <sha256> <as-built-file> <verdicts-json>`。
+  版本与 SHA-256 取自锁定行，逐项结论取自 code-review 的 Spec 轴。
+  收到 `MissingEvidence` 时补齐证据。收到 `PreviewLockMismatch` 时重新核对锁定行。
+  两种情况均暂停推进。生成后把 `compare/preview.html` 的路径交给需求作者，
+  由需求作者在页面上明确接受偏差、缺失或计划外改动，或退回。等用户明确确认当前对比页后再推送或合入。
+  用户退回时继续实现，重新生成对比页并交回确认。
 - 无 `Preview:` 锁定行时，在合入前调用 [`spec-preview`](../../spec-preview/SKILL.md)
   的 `delta <repo> <issue> <items-json>`。页面和节点附改前、改后截图。流程和后端附
   两侧的代码坐标。bug 修复另附改前失败、改后通过的检查输出。

@@ -1,0 +1,29 @@
+{
+  "title": "保存备注的真实交付",
+  "versionNote": "实现版",
+  "stage": "implementing",
+  "version": 1,
+  "pages": [
+    {
+      "id": "task-note",
+      "name": "任务备注",
+      "root": {
+        "id": "note-page",
+        "type": "page",
+        "children": [
+          { "id": "save-note", "type": "button", "label": "保存并关闭" }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "compare-verdicts",
+      "name": "保存备注",
+      "steps": [
+        { "id": "submit-note", "actor": "user", "text": "点击「保存并关闭」" }
+      ]
+    }
+  ],
+  "backend": []
+}

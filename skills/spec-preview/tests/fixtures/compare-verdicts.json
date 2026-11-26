@@ -1,0 +1,23 @@
+[
+  {
+    "id": "task-note",
+    "verdict": "deviation",
+    "evidence": { "screenshot": "截图/保存并关闭.png" },
+    "accepted": "可以在保存后关闭弹层。"
+  },
+  {
+    "id": "submit-note",
+    "verdict": "match",
+    "evidence": { "code": ["src/note.mjs:42", "src/note.test.mjs:26"] }
+  },
+  {
+    "id": "persist-note",
+    "verdict": "missing",
+    "evidence": { "code": ["src/notes-api.mjs:12"] }
+  },
+  {
+    "id": "extra:close-note",
+    "verdict": "extra",
+    "evidence": { "code": ["src/note.mjs:48"] }
+  }
+]

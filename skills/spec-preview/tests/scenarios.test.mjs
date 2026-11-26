@@ -184,7 +184,56 @@ test('S5 已确认预览变更后旧锁失效', (t) => {
   assert.match(errors[0], /^error\tpreview-lock\t/);
 });
 test('S6 Spec 轴逐项判定并阻塞未接受的偏差', () => assert.fail('待验证审查结论'));
-test('S7 对比页使用锁定版并要求逐项证据', () => assert.fail('待验证对比页'));
+test('S7 对比页使用锁定版并要求逐项证据', (t) => {
+  const { directory, run } = previewSession(t);
+  stdoutOf(run('init'));
+  const locked = join(directory, 'spec-v2.json');
+  const frozen = JSON.stringify({ ...JSON.parse(fixture), version: 2, versionNote: '确认版' });
+  const sha256 = createHash('sha256').update(frozen).digest('hex');
+  writeFileSync(locked, frozen);
+  const draft = JSON.stringify({ ...JSON.parse(fixture), version: 3, title: '未确认草稿' });
+  for (const file of ['spec-v3.json', 'spec.json']) writeFileSync(join(directory, file), draft);
+  const originals = readdirSync(directory).sort();
+  const asBuilt = fileURLToPath(new URL('fixtures/compare-as-built.json', import.meta.url));
+  const verdicts = JSON.parse(readFileSync(new URL('fixtures/compare-verdicts.json', import.meta.url)));
+  const compare = (items = verdicts, overrides = {}, hash = sha256) =>
+    run('compare', overrides, '2', hash, asBuilt, JSON.stringify(items));
+  const output = join(directory, 'compare');
+  const html = join(output, 'preview.html');
+
+  assert.equal(stdoutOf(compare()), html);
+  const page = readFileSync(html, 'utf8');
+  for (const evidence of [
+    '保存备注的真实交付', '对比结论', 'task-note', '偏差', '截图/保存并关闭.png', '已接受',
+    '可以在保存后关闭弹层。', 'submit-note', '一致', 'src/note.mjs:42', 'src/note.test.mjs:26',
+    'persist-note', '缺失', 'src/notes-api.mjs:12', 'extra:close-note', '计划外', 'src/note.mjs:48',
+  ]) assert.ok(page.includes(evidence), `对比页缺少 ${evidence}`);
+  assert.doesNotMatch(page, /未确认草稿/);
+  const built = JSON.parse(readFileSync(join(output, 'spec.json'), 'utf8'));
+  assert.equal(built.stage, 'done');
+  assert.equal(built.version, 3);
+  assert.equal(readFileSync(join(output, 'spec-v2.json'), 'utf8'), frozen);
+  assert.equal(createHash('sha256').update(readFileSync(locked)).digest('hex'), sha256);
+  assert.equal(readFileSync(join(directory, 'spec-v3.json'), 'utf8'), draft);
+  assert.equal(readFileSync(join(directory, 'spec.json'), 'utf8'), draft);
+  assert.deepEqual(readdirSync(directory).sort(), ['compare', ...originals]);
+  assert.equal(stdoutOf(compare()), html);
+
+  rmSync(output, { recursive: true });
+  delete verdicts[0].evidence.screenshot;
+  const missing = compare();
+  rejectsWith(missing, 'MissingEvidence');
+  assert.match(missing.stderr, /^task-note\.screenshot$/m);
+  rejectsWith(compare(verdicts, {}, '0'.repeat(64)), 'PreviewLockMismatch');
+  assert.deepEqual(readdirSync(directory).sort(), originals);
+
+  const status = () => execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' });
+  const before = status();
+  const repoCache = join(repo, 'dd-661-test-cache');
+  rejectsWith(compare(verdicts, { XDG_CACHE_HOME: repoCache }), 'InsideRepo');
+  assert.equal(existsSync(repoCache), false);
+  assert.equal(status(), before);
+});
 test('S8 附件读回后才删除本地预览', () => assert.fail('待验证合入归档'));
 test('S9 归档附件重建相同的预览', () => assert.fail('待验证恢复预览'));
 test('S10 构建产物与 smyw 一致且保留交互', (t) => {

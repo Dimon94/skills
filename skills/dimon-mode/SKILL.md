@@ -20,10 +20,20 @@ disable-model-invocation: true
 - 改动可能影响 diff 之外：用 `blast-radius`。
 - 写注释：按“注释”一节。写用户可见文案：用 `better-writing`。
 - 改任何仓库文件前：按 `git-worktree` 建任务树，在树里写；主工作树只做集成。一行文档也不例外。
-- 本地可逆交付自动收尾：在任务工作树验证通过后，若项目允许本地集成（未规定 `main` 仅经 PR/MR 前进），自动执行 `git-commit` + `git-rebase-main` 合回 `main`（含 `worktree.sh gc --apply` 回收任务树），无需人手触发；推送、建 PR、合并 PR（`git-push-pr`、`gh-merge-pr`）等远端动作仍只在用户明确要求时执行。
+- 本地可逆交付自动收尾：在任务工作树验证通过后，若项目允许本地集成（未规定 `main` 仅经 PR/MR 前进），自动执行 `git-commit` + `git-rebase-main` 合回 `main`（含 `worktree.sh gc --apply` 回收任务树），无需人手触发；推送、建 PR、合并 PR（`git-push-pr`、`gh-merge-pr`）等远端动作仍只在用户明确要求时执行；用户说“推送远程”时按[推送远程](#推送远程)选路线。
 - 调度或实施带 tracker Issue 的任务时，开工同步置为 `In Progress`（并推升未开始的父 Spec/Epic）、待合入置为 `In Review`、验收合入后关闭直接 Issue 为 `Done` 并回读确认（`herdr-autopilot` 由脚本门禁自动执行；存在外部上线验收门时显式保留并说明原因）。
 - 已确认、可复用的失败教训：用 `postmortem` 记录。要从失败链路改进 agent 环境：用 `retro`。同一类错误在仓库里被纠正第二次：建议用户运行 `/correct`。
 - 任务中途发现某个 skill 坏了：单独报告位置和原因，不悄悄绕过。
+
+## 推送远程
+
+用户说“推送远程”，即授权推送当前任务及其目标分支，并充当本次远程写的确认口令；不含合并 PR、强推和部署。按项目合回方式选一条路线，先中先停：
+
+1. 项目 AGENTS.md 写明 `main` 只经 PR/MR 前进：走 `git-push-pr`。
+2. 项目 AGENTS.md 写明本地集成（如用 `git-rebase-main` 合回 `main`）：任务未合回时走 `git-rebase-main`；随后在主工作区 `git push origin main`，读回 `git rev-parse origin/main` 等于本地 `main`。
+3. 规则没写：远端 `main` 有要求 PR 的分支保护，或近期提交经 PR 合入，按 1；否则按 2。判不出时给推荐和理由，再问。
+
+推送被拒（non-fast-forward）时停下报告，不 force push。回复写明命中第几条和推送后的 HEAD。
 
 ## 原则
 

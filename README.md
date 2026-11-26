@@ -57,6 +57,7 @@ To deliver work with several coordinated agents after installing, follow the [mu
 | [swyxio/skills](https://github.com/swyxio/skills) | Upstream source for the curated `productionize-app-with-services` snapshot | Included by this repository's installer |
 | [cursor/plugins](https://github.com/cursor/plugins) | Upstream source for the `thermo-nuclear-code-quality-review` snapshot and the adapted `how`, `why`, `blast-radius`, `investigate`, `reframe`, `sharpen`, `correct`, and verification-skill pair | Included by this repository's installer |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | Upstream source for the curated `show-me` snapshot | Included by this repository's installer |
+| [nishuzumi/show-me-you-want-skill](https://github.com/nishuzumi/show-me-you-want-skill) | Standalone `smyw` renderer and feedback tools for `spec-preview` | Linked directly by this repository's installer |
 | [Kappaemme-git/codex-complexity-optimizer](https://github.com/Kappaemme-git/codex-complexity-optimizer) | Standalone `complexity-optimizer` Skill | Linked directly by this repository's installer |
 | [Dimon94/delivery-pipeline](https://github.com/Dimon94/delivery-pipeline) | Automated dispatch, integration, testing, and review from a Map or Spec | [Install](https://github.com/Dimon94/delivery-pipeline#install) |
 | [Dimon94/brainstorming-only](https://github.com/Dimon94/brainstorming-only) | `brainstorming-only` and `office-hours-only` | [Quick Install](https://github.com/Dimon94/brainstorming-only#quick-install) |

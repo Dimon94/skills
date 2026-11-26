@@ -23,6 +23,7 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
     ]],
     "fireworks-tech-graph": ["yizhiyanhua-ai/fireworks-tech-graph", ["skills/fireworks-tech-graph"]],
     "codex-complexity-optimizer": ["Kappaemme-git/codex-complexity-optimizer", ["complexity-optimizer"]],
+    "show-me-you-want-skill": ["nishuzumi/show-me-you-want-skill", ["skills/smyw"]],
   };
   for (const [project, [remote, skills]] of Object.entries(projects)) {
     const checkout = path.join(sources, project);
@@ -39,7 +40,7 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
   const env = { ...process.env, HOME: home, WORKFLOW_SKILL_SOURCE_ROOT: sources,
     AGENTS_SKILLS_DIR: agents, CLAUDE_SKILLS_DIR: claude };
   for (const key of ["MATTPOCOCK_SKILLS_DIR", "BRAINSTORMING_SKILLS_DIR", "DELIVERY_PIPELINE_DIR",
-    "FIREWORKS_TECH_GRAPH_DIR", "COMPLEXITY_OPTIMIZER_DIR", "FORCE_COLOR", "COLORTERM"]) delete env[key];
+    "FIREWORKS_TECH_GRAPH_DIR", "COMPLEXITY_OPTIMIZER_DIR", "SMYW_REPO_DIR", "FORCE_COLOR", "COLORTERM"]) delete env[key];
   const run = (flag) => spawnSync("bash", [script, flag], { env, encoding: "utf8" });
   const root = path.resolve(__dirname, "..");
   fs.mkdirSync(agents, { recursive: true });
@@ -48,6 +49,9 @@ test("链接依赖按最终来源检查，安装保留正确中间链接并拒�
   assert.equal(result.status, 0, result.stdout + result.stderr);
   for (const destination of [agents, claude]) {
     assert.equal(fs.realpathSync(path.join(destination, "delegate-ticket")), path.join(root, "skills/delegate-ticket"));
+    const smyw = path.join(destination, "smyw");
+    assert.ok(fs.lstatSync(smyw, { throwIfNoEntry: false })?.isSymbolicLink());
+    assert.equal(fs.realpathSync(smyw), fs.realpathSync(path.join(sources, "show-me-you-want-skill/skills/smyw")));
   }
   const intermediate = path.join(home, "library-wayfinder");
   fs.symlinkSync("sources/mattpocock-skills/skills/engineering/wayfinder", intermediate);

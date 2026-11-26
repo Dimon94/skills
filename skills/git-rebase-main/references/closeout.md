@@ -3,6 +3,11 @@
 `git-rebase-main` 与 `gh-merge-pr` 绑定任务时读取第 1 节，合入及最小验证成功后执行第 2–5 节。
 本文件拥有直接 Issue、源分支和本次临时工作树的收尾规则；调用方提供落地证据。
 
+## 预览门
+
+- 关联 Spec 有 `Preview:` 锁定行时走对比页。接入占位见 [DD-661](https://linear.app/erplus/issue/DD-661)。
+- 无 `Preview:` 锁定行时走变更预览。接入占位见 [DD-659](https://linear.app/erplus/issue/DD-659)。
+
 ## 1. 固定收尾范围
 
 用户要求执行完整合入流程时，收尾属于同一次任务授权；沿用会话中已有授权，不逐步重复

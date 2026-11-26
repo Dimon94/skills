@@ -12,6 +12,7 @@ BRAINSTORMING_SKILLS_DIR="${BRAINSTORMING_SKILLS_DIR:-$SOURCE_ROOT/brainstorming
 DELIVERY_PIPELINE_DIR="${DELIVERY_PIPELINE_DIR:-$SOURCE_ROOT/delivery-pipeline}"
 FIREWORKS_TECH_GRAPH_DIR="${FIREWORKS_TECH_GRAPH_DIR:-$SOURCE_ROOT/fireworks-tech-graph}"
 COMPLEXITY_OPTIMIZER_DIR="${COMPLEXITY_OPTIMIZER_DIR:-$SOURCE_ROOT/codex-complexity-optimizer}"
+SMYW_REPO_DIR="${SMYW_REPO_DIR:-$SOURCE_ROOT/show-me-you-want-skill}"
 OFFLINE=0
 CHECK_ONLY=0
 
@@ -88,6 +89,7 @@ sync_repo 'https://github.com/Dimon94/brainstorming-only.git' "$BRAINSTORMING_SK
 sync_repo 'https://github.com/Dimon94/delivery-pipeline.git' "$DELIVERY_PIPELINE_DIR"
 sync_repo 'https://github.com/yizhiyanhua-ai/fireworks-tech-graph.git' "$FIREWORKS_TECH_GRAPH_DIR"
 sync_repo 'https://github.com/Kappaemme-git/codex-complexity-optimizer.git' "$COMPLEXITY_OPTIMIZER_DIR"
+sync_repo 'https://github.com/nishuzumi/show-me-you-want-skill.git' "$SMYW_REPO_DIR"
 
 verify_link() {
   local target="$1" source="$2"
@@ -160,6 +162,7 @@ link_named_skill fireworks-tech-graph \
 
 link_named_skill complexity-optimizer \
   "$COMPLEXITY_OPTIMIZER_DIR/complexity-optimizer"
+link_named_skill smyw "$SMYW_REPO_DIR/skills/smyw"
 
 printf 'verified %s Skills in %s and %s\n' \
   "$skill_count" "$AGENTS_SKILLS_DIR" "$CLAUDE_SKILLS_DIR"

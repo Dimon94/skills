@@ -1,0 +1,39 @@
+{
+  "title": "保存任务备注",
+  "stage": "prototype",
+  "version": 1,
+  "pages": [
+    {
+      "id": "task-note",
+      "name": "任务备注",
+      "change": "added",
+      "root": {
+        "id": "note-page",
+        "type": "page",
+        "component": "TaskNotePage",
+        "children": [
+          { "id": "save-note", "type": "button", "label": "保存备注" }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "edit-note",
+      "name": "编辑备注",
+      "steps": [
+        { "id": "submit-note", "actor": "user", "text": "点击「保存备注」", "node": "save-note", "change": "added" }
+      ]
+    }
+  ],
+  "backend": [
+    {
+      "id": "notes",
+      "name": "任务备注",
+      "kind": "service",
+      "items": [
+        { "id": "persist-note", "kind": "api", "name": "保存备注", "change": "added" }
+      ]
+    }
+  ]
+}

@@ -144,7 +144,7 @@ node scripts/autopilot.js set-stage --id <lane_id> --stage done
 
 ## 事件唤醒
 
-`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 `t3_thread_send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。订阅的 lane 全部 `done` 后哨兵自己退出。
+`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 T3 注入的 `$T3CODE_CLI_PATH thread send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。订阅的 lane 全部 `done` 后哨兵自己退出。
 
 - 不给巡检建 `schedule_task` 定时任务。
 - 哨兵叫不醒线程时发一条 macOS 系统通知，并写进 `watch` 输出里的日志路径；看到通知就回总控线程跑 `poll --full`。

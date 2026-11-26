@@ -3,7 +3,7 @@
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot 哨兵（代码巡检，有变化才唤醒 T3 总控线程）
 // - Owns: 每个 (session, T3 线程) 一个常驻进程的 pid 去重、定时巡检循环、
-//   t3_thread_send 唤醒、叫不醒时的系统通知。
+//   `t3 thread send` 唤醒、叫不醒时的系统通知。
 // - 不读写账本：每拍经 autopilot.js `poll --thread` 拿结果，那条命令持账本锁。
 // - 没有变化不发任何消息；该线程没有未完成的订阅 lane 即退出 0。
 // - 唤醒消息是纯文本，自带巡检结果，不带 skill 调用。
@@ -42,37 +42,31 @@ function sentinelAlive(ledgerPath, session, threadId) {
   return readLivePid(sentinelFile(ledgerPath, session, threadId, 'pid')) !== null;
 }
 
-// 唤醒通道的全部前提。订阅时和真正唤醒时读同一份，缺一项就在订阅时失败。
+// 唤醒通道的全部前提：T3 Code 给线程 shell 注入的 t3 CLI。订阅时和真正唤醒时读同一份，缺了就在订阅时失败。
 function t3WakeEnv(env = process.env) {
-  const nodeBin = env.T3_ACP_MCP_NODE;
-  const endpoint = env.T3_ACP_MCP_ENDPOINT;
-  const auth = env.T3_ACP_MCP_AUTHORIZATION;
-  if (!nodeBin || !endpoint || !auth) {
-    throw new Error(
-      'missing T3 ACP MCP environment (T3_ACP_MCP_NODE/ENDPOINT/AUTHORIZATION); run watch from a T3 Code thread'
-    );
+  const cli = env.T3CODE_CLI_PATH;
+  try {
+    if (!cli) throw new Error('unset');
+    fs.accessSync(cli, fs.constants.X_OK);
+  } catch {
+    throw new Error(`T3 wake channel unavailable: T3CODE_CLI_PATH (${cli || 'unset'}) is not an executable t3 CLI; run watch from a T3 Code thread`);
   }
-  return { nodeBin, entrypoint: env.T3_ACP_MCP_ENTRYPOINT };
+  return { cli };
 }
 
-function defaultT3Waker({ threadId, message }) {
-  const { nodeBin, entrypoint } = t3WakeEnv();
-  const args = [
-    ...(entrypoint ? [entrypoint] : []),
-    'acp-mcp-call',
-    't3_thread_send',
-    JSON.stringify({ threadId, message, mode: 'auto' }),
-  ];
-  const stdout = execFileSync(nodeBin, args, {
-    encoding: 'utf8',
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  const parsed = JSON.parse(stdout);
-  if (parsed && parsed.isError) {
-    throw new Error(`t3_thread_send returned error: ${stdout.trim()}`);
+// `t3 thread send`：线程忙时排成下一轮，不打断。正文走 stdin，免得长巡检结果撑爆 argv。
+function defaultT3Waker({ threadId, message }, env = process.env) {
+  const { cli } = t3WakeEnv(env);
+  try {
+    return execFileSync(cli, ['thread', 'send', threadId, '-'], {
+      encoding: 'utf8',
+      input: message,
+      env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    throw new Error(`t3 thread send failed: ${String(err.stderr || err.message).trim()}`);
   }
-  return parsed;
 }
 
 function defaultDaemonSpawner(scriptPath, cliArgs, logFile) {
@@ -166,4 +160,5 @@ module.exports = {
   runSentinel,
   lockedPoll,
   t3WakeEnv,
+  defaultT3Waker,
 };

@@ -9,7 +9,7 @@ const path = require('node:path');
 const { validateSession, runCli: rawRunCli } = require('../scripts/autopilot.js');
 const { syncIssueState, parseIssueRef } = require('../scripts/issue-sync.js');
 const { displayWidth, formatVisualLabel } = require('../scripts/layout.js');
-const { runSentinel } = require('../scripts/watch.js');
+const { runSentinel, defaultT3Waker } = require('../scripts/watch.js');
 
 function stubIssueSync(issue, target) {
   const map = {
@@ -20,7 +20,8 @@ function stubIssueSync(issue, target) {
   return { tracker: 'linear', issue, previous_state: 'Backlog', changed: true, parents_synced: [], ...map[target] };
 }
 
-const T3_ENV = { T3_ACP_MCP_NODE: 'node', T3_ACP_MCP_ENDPOINT: 'http://t3', T3_ACP_MCP_AUTHORIZATION: 'token' };
+// T3 Code 给线程的 shell 注入 T3CODE_CLI_PATH；唤醒走 `t3 thread send`。
+const T3_ENV = { T3CODE_CLI_PATH: process.execPath };
 
 function runCli(argv, runner, deps = {}) {
   return rawRunCli(argv, runner, { issueSync: stubIssueSync, env: T3_ENV, ...deps });
@@ -549,7 +550,8 @@ test('watch refuses to subscribe when it could never wake the thread or tell a c
   const idle = liveAgents(() => [{ name: 'carousel', agent_status: 'idle', state_change_seq: 1 }]);
   const argv = ['watch', ...base, '--id', 'carousel', '--thread', 'thread-123'];
 
-  assert.throws(() => runCli(argv, idle, { env: {}, spawner }), /missing T3 ACP MCP environment/);
+  assert.throws(() => runCli(argv, idle, { env: {}, spawner }), /T3CODE_CLI_PATH/);
+  assert.throws(() => runCli(argv, idle, { env: { T3CODE_CLI_PATH: '/nonexistent/t3' }, spawner }), /T3CODE_CLI_PATH/);
   assert.throws(() => runCli(['watch', ...base, '--id', 'carousel'], idle, { spawner }), /requires --thread/);
   assert.throws(() => runCli(argv, liveAgents(() => []), { spawner }), /不在 Herdr/);
   const noSeq = liveAgents(() => [{ name: 'carousel', agent_status: 'idle' }]);
@@ -1130,4 +1132,18 @@ test('place resolves the Epic workspace: reuse by ledger or label, else create o
   const second = place('JB-602');
   assert.equal(second.workspace_id, 'wNew');
   assert.equal(calls.filter((c) => c[1] === 'create' && c[0] === 'workspace').length, 1);
+});
+
+// 现场：2026-11-26 T3 不再给 shell 注入 T3_ACP_MCP_*，哨兵每次唤醒都报 missing environment。
+test('default waker sends the wake message through the t3 CLI on stdin', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't3cli-'));
+  const out = path.join(dir, 'call.json');
+  const cli = path.join(dir, 't3');
+  fs.writeFileSync(cli, `#!/bin/sh\nprintf '%s\\n' "$@" > ${JSON.stringify(out)}.args\ncat > ${JSON.stringify(out)}\n`, { mode: 0o755 });
+  defaultT3Waker({ threadId: 'thread-9', message: '[herdr-autopilot WAKE] 多行\n正文' }, { T3CODE_CLI_PATH: cli });
+  assert.deepEqual(fs.readFileSync(`${out}.args`, 'utf8').trim().split('\n'), ['thread', 'send', 'thread-9', '-']);
+  assert.equal(fs.readFileSync(out, 'utf8'), '[herdr-autopilot WAKE] 多行\n正文');
+
+  fs.writeFileSync(cli, '#!/bin/sh\necho "thread not found" >&2\nexit 1\n', { mode: 0o755 });
+  assert.throws(() => defaultT3Waker({ threadId: 'x', message: 'm' }, { T3CODE_CLI_PATH: cli }), /thread not found/);
 });

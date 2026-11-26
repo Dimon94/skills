@@ -19,12 +19,9 @@ test('未实现的子命令接收冻结的位置参数并报错，预览目录�
   const ref = ['my-skills', 'DD-654'];
   const lock = ['1', 'a'.repeat(64)];
   const argumentsByCommand = {
-    apply: [...ref, 'feedback.md'],
-    confirm: [...ref, 'feedback.md'],
     changes: [...ref, ...lock],
     compare: [...ref, ...lock, 'as-built.json', '[]'],
     delta: [...ref, '[]'],
-    rekey: [...ref, 'my-skills', 'DD-655'],
     restore: [...ref, '["spec.json"]'],
   };
   const env = { ...process.env, HOME: directory, XDG_CACHE_HOME: directory, SMYW_DIR: join(directory, 'smyw') };

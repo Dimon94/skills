@@ -7,6 +7,7 @@
 //   POS: to-spec 第 6 步发布前的确定性核对；只读，不改文件、不访问 tracker
 //   EXPORT: checkSpec、splitSections、ids、readScenarios；to-tickets 复用后三者读取同一份 Spec
 //   INPUT: 新建 Spec 用 --require-scenarios；缺省仍可读历史正文
+//   INPUT: 写入锁定行后的发布检查用 --require-preview
 //   INPUT: 发布后读回用 --parent <读回的原生父项>，父项为空传 ''；缺省不查父项
 //   TEST: node --test skills/to-spec/tests/check-spec.test.js
 // L5
@@ -18,6 +19,7 @@
 //   PARAM: 状态 id = Business Flow 里 `state "…" as <id>` 的 id 与 `a --> b` 两端，不含 [*]
 //   FAIL: 缺章节或顺序错 → sections
 //   FAIL: Dependencies 节缺 Blocked by: 或 Blocks: 行 → dependencies
+//   FAIL: 给了 --require-preview，Dependencies 缺合法的 Preview: v<N> sha256:<64 位小写十六进制> 行 → preview
 //   FAIL: Business Flow 既无 T/R 也无 N/A → business-flow
 //   FAIL: T/R 没有 owner 行或出现在多条 owner 行 → owner
 //   FAIL: 状态 id 没有 owner 行或出现在多条 owner 行 → state
@@ -42,6 +44,7 @@ const SECTIONS = [
   "Further Notes",
 ];
 const EDGE_LINE = /^[\s>*-]*`?\**(Blocked by|Blocks)\**`?\s*[:：]/;
+const PREVIEW_LINE = /^[ \t]*(?:[-*][ \t]+)?[`*]*Preview[`*]*:[`*]*[ \t]+[`*]*v([1-9]\d*)[ \t]+sha256:[a-f0-9]{64}[`*]*[ \t]*$/;
 const ID = /\b([TR])(\d+)\b/g;
 const RANGE = /\b([TR])(\d+)\s*[–-]\s*\1?(\d+)\b/g;
 const OWNER_LINE = /^[\s>*-]*\**(Owns|Owner|拥有)\**\s*[:：]\**(.*)$/;
@@ -141,6 +144,12 @@ function checkDependencies(sections) {
     .map((label) => ["dependencies", `Dependencies 缺少 ${label}: 行；没有边写“无”和依据`]);
 }
 
+function checkPreview(sections) {
+  const lines = (sections.get("Dependencies") || "").split(/\r?\n/);
+  const valid = lines.some((line) => Number.isSafeInteger(Number(PREVIEW_LINE.exec(line)?.[1])));
+  return valid ? [] : [["preview", "请在 Dependencies 节写入 confirm 输出的 Preview: v<N> sha256:<64 位小写十六进制> 行"]];
+}
+
 function states(flow) {
   const found = new Set();
   for (const line of flow.split("\n")) {
@@ -209,9 +218,10 @@ function checkParent(sections, parent) {
   return [["parent", `Epic 下的 Spec 必须以 Epic 为原生父项：正文 Epic: ${epic}，读回父项${parent ? ` ${parent}` : "为空"}`]];
 }
 
-function checkSpec(text, requireScenarios = false, parent) {
+function checkSpec(text, requireScenarios = false, parent, requirePreview = false) {
   const sections = splitSections(text);
-  return [...checkSections(sections), ...checkDependencies(sections), ...checkTraceability(sections), ...readScenarios(sections, requireScenarios).errors, ...checkPaths(text), ...checkParent(sections, parent)];
+  return [...checkSections(sections), ...checkDependencies(sections), ...checkTraceability(sections), ...readScenarios(sections, requireScenarios).errors,
+    ...checkPaths(text), ...checkParent(sections, parent), ...(requirePreview ? checkPreview(sections) : [])];
 }
 
 // ---- 入口 ---------------------------------------------------------------
@@ -219,9 +229,9 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const at = args.indexOf('--parent');
   const parent = at < 0 ? undefined : args.splice(at, 2)[1] ?? '';
-  const required = args[0] === '--require-scenarios';
-  const source = fs.readFileSync(args[required ? 1 : 0] || 0, 'utf8');
-  const errors = checkSpec(source, required, parent);
+  const flags = ['--require-scenarios', '--require-preview'];
+  const source = fs.readFileSync(args.find(arg => !flags.includes(arg)) || 0, 'utf8');
+  const errors = checkSpec(source, args.includes('--require-scenarios'), parent, args.includes('--require-preview'));
   for (const [rule, message] of errors) console.log(`error\t${rule}\t${message}`);
   if (errors.length === 0) console.log("ok");
   process.exitCode = errors.length ? 1 : 0;

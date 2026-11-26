@@ -67,6 +67,15 @@
 - Spec Issue 创建时原生父项即为该 Epic；读回正文与父项后 `check-spec.js --parent <读回父项>` 输出 `ok`。只在正文写 Epic 链接、父项为空（tracker 显示为 related）算失败。
 - 已有同 Epic／MMF 的 Spec 时复用原链接。Epic 下的 Spec 用已获认领的 lane 发布，并交回坐标及待连关系供 coordinator 汇总。直接给 Epic 和 MMF 时进入同一交付入口。缺测试 Seam 确认时等待用户。
 
+## Spec 预览的反馈、确认与发布
+
+输入取自 [DD-654 的场景夹具](../../spec-preview/tests/scenarios.test.mjs) S2、S3。用隔离缓存和假的 tracker，草稿先生成 v1。以 `planning_mode: auto` 启动，第一个停点显示预览路径并返回 `NEXT: blocked-human Spec 预览待确认`。核对 tracker 还没有 Spec。
+
+- 交入 v1 的结构修改反馈。下一次呈现的预览为 v2，保存按钮显示「保存任务备注」。只有批注时，核对批注落实后也会生成下一版。
+- 在当前版本交入同时含确认标记和「必须改」的反馈。CLI 报 `NotConfirmed`。核对 Dependencies 还没有锁定行，tracker 也没有写入。
+- 落实反馈并呈现新版本。用新版本的确认反馈继续。Dependencies 的锁定行与冻结文件的 SHA-256 一致，发布前 `check-spec.js --require-scenarios --require-preview` 输出 `ok`。
+- 读回 Spec Issue 后，确认原草稿目录已移到 Spec 标识下，预览和各版本归档都能读取。读回正文经 `--require-preview` 检查仍输出 `ok`。
+
 ## 留存证据
 
 记录输入、实际 Spec 和未通过项。未执行的案例标为未验证。

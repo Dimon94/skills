@@ -122,3 +122,23 @@ test('CLI --parent 读回为空时退出 1 并输出 parent 行', () => {
   assert.match(orphan.stdout, /^error\tparent\t/m);
   assert.equal(run('JB-512').stdout.trim(), 'ok');
 });
+
+test('CLI --require-preview 只接受 Dependencies 中有效的版本锁，并能与其他发布选项同时使用', () => {
+  const script = require.resolve('../scripts/check-spec.js');
+  const run = (input, ...args) => spawnSync(process.execPath, [script, ...args], { input, encoding: 'utf8' });
+  const hash = 'ab'.repeat(32);
+  const lock = `Preview: v2 sha256:${hash}`;
+  const addLock = (line) => STOP.replace('## Dependencies\n', `## Dependencies\n${line}\n`);
+  assert.equal(run(STOP).stdout.trim(), 'ok');
+  for (const text of [STOP, `${STOP}\n${lock}`, addLock(`Preview: v0 sha256:${hash}`),
+    addLock(`Preview: v2 sha256:${hash.toUpperCase()}`), addLock(lock.slice(0, -1))]) {
+    const result = run(text, '--require-preview');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout, /^error\tpreview\t[^\n]+\n$/);
+  }
+  for (const line of [lock, `- \`${lock}\``, `* **Preview:** v2 sha256:${hash}`]) {
+    const result = run(addLock(line), '--parent', '', '--require-preview', '--require-scenarios');
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(result.stdout.trim(), 'ok');
+  }
+});

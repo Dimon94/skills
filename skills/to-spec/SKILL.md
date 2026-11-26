@@ -27,9 +27,11 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 5. 定形状：要新建或修改 Module 时，运行 `architect`，把选定形状的签名和状态归属写进 Implementation Decisions。完成条件：Business Flow 的每个状态都能用一行答出 owner Module。
 
 6. Write the spec using the template below. 发布前逐项核对：每个 T、R 和 Business Flow 状态都有唯一 owner Module，T 和 R 也都出现在 Testing Decisions；每个新建或修改的 Module 都用代码写了 Interface，也写了 Seam，跨 Module 的 R 都列了参与方，命中分支链或同步标志位的写明数据形状决定。有缺口先补，补不上的写 Unknown 并点名影响。将草稿正文经 stdin 传给本 Skill 的 `node scripts/check-spec.js --require-scenarios`。脚本检查九个章节、Dependencies 节的 `Blocked by:` 与 `Blocks:` 行、T/R 与状态的唯一 owner 行（`Owns:` 开头）、场景表列、唯一 id、covers 对每条 T/R 的覆盖、未定义编号和正文文件路径；报错逐条改完再跑。检查输出 `ok` 后，生成 Spec 预览并取得用户确认。
-   - 从目标项目根目录用 Node.js 调用 [spec-preview 契约脚本](../spec-preview/spec-preview.mjs)的 `init <repo> <草稿 id>`。在返回目录按 smyw 的 `references/spec-format.md` 写 `spec.json`。用项目 GLOSSARY 的术语写简短、通顺的文案。有界面改动时画出页面。每份预览都呈现相关流程和后端改动。
-   - 用同一组位置参数运行 `build <repo> <草稿 id>`。构建失败时停在预览步骤，回传错误。成功时把返回的 `preview.html` 绝对路径给用户，停下等待确认。
-   - 用户确认后，将正文发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`，并在同一次创建里把 tracker 原生父项设为该 Epic；正文链接只生成 related，不算父子关系，父项不留给 coordinator 事后补。读回正文、原生父项、身份字段与已知 Map 链接，把读回正文经 stdin 传给 `node scripts/check-spec.js --parent <读回父项>`（父项为空传 `''`），输出 `ok` 才算发布完成；报 `parent` 时补父项后重新读回。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 正文与跨 Spec 关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
+   - 从目标项目根目录用 Node.js 调用 [spec-preview 契约脚本](../spec-preview/spec-preview.mjs)的 `init <repo> <草稿 id>`。在返回目录按 smyw 的 `references/spec-format.md` 写 `spec.json`，首版用 `version: 1`。用项目 GLOSSARY 的术语写简短、通顺的文案。有界面改动时画出页面。每份预览都呈现相关流程和后端改动。
+   - 运行 `build <repo> <草稿 id>`。构建失败时停在预览步骤，回传错误。成功时把返回的 `preview.html` 绝对路径给用户，请用户在页面修改或确认方案并导出反馈。调用方传入 `planning_mode: auto` 且用户尚未确认时，交回 `NEXT: blocked-human Spec 预览待确认`。
+   - 将用户导出的反馈保存到预览目录。有结构修改时运行 `apply <repo> <草稿 id> <反馈文件>`，用返回的新版本号接续。落实同一份反馈里的「必须改」。只有批注时，在当前 `spec.json` 中落实并递增版本。同步更新 Spec 草稿，重新 `build` 并呈现，直到收到用户确认。
+   - 用确认反馈运行 `confirm <repo> <草稿 id> <反馈文件>`。收到 `NotConfirmed` 时继续处理反馈。成功后将返回的 `Preview: v<N> sha256:<hex>` 原样写进 Dependencies 节。将正文经 stdin 传给 `node scripts/check-spec.js --require-scenarios --require-preview`，修正报错直到输出 `ok`。
+   - 将正文发布到 Spec Issue，应用 `ready-for-agent` 标签。来自 Epic 的 Spec 创建时就在 Dependencies 节写 `Epic: <URL>` 与 `MMF: <标识>`，并在同一次创建里把 tracker 原生父项设为该 Epic；正文链接只生成 related，不算父子关系，父项不留给 coordinator 事后补。拿到 Spec 标识后运行 `rekey <repo> <草稿 id> <repo> <Spec 标识>`。读回正文、原生父项、身份字段与已知 Map 链接，把读回正文经 stdin 传给 `node scripts/check-spec.js --require-preview --parent <读回父项>`（父项为空传 `''`），输出 `ok` 才算发布完成；报 `parent` 时补父项后重新读回。Epic 下的 Spec 由其已获认领的 lane 在重读关联后创建。把发布坐标和待连关系交回 coordinator，由它汇总写回 Epic 正文与跨 Spec 关系。未发布对方的依赖留在正文；依赖类型与解除时点按 Epic 的决定。
 
 审阅历史 Spec 时，沿用 `node scripts/check-spec.js` 读取；准备新票前，把缺少的场景或独立预期交回需求作者。
 
@@ -121,6 +123,7 @@ If a prototype produced a snippet that encodes a decision more precisely than a 
 本 MMF 与其他 MMF 或外部前提之间的阻塞边。来自 Epic 时先写 `Epic: <URL>` 和 `MMF: <标识>`，再记录 Epic 中相关的依赖与解除证据。独立 MMF 写 `无` 和一句依据。
 
 - `Repo:` 本 MMF 代码落在哪个 Git 仓库，写仓库目录名（如 `tiktok-ad-automation`）。派发方据此判断要不要跨仓路由。一个 MMF 的代码跨两个仓库时，停下，以 `NEXT: to-epic <理由>` 交回调用方按仓库拆开（独立调用时请用户运行 `/to-epic`）。
+- `Preview:` 第 6 步取得的预览锁定行，原样写入。
 - `Blocked by:` 每条写前提（MMF 或 Spec 链接、外部能力）、类型、依赖的 Interface、能力或反馈、解除证据。类型取 **开工**（前提交付前不能开工）或 **上线**（Interface 已对齐，可并发开发，验收与上线等前提就绪）。
 - `Blocks:` 依赖本 MMF 的 MMF 及其消费的 Interface。改这些 Interface 前先协调对方。
 

@@ -340,14 +340,18 @@ test('register enforces compact visual naming on workspace, tab, and pane', () =
     () => runCli(['register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec', '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1', '--label', 'jb548-worker'], runner),
     /缺少中文简写/
   );
-  // Valid compact visual label auto-prepends issue key and renames workspace, tab, and pane.
+  // workspace 命名归 place，register 拒收 --workspace-label。
+  assert.throws(
+    () => runCli(['register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec', '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1', '--label', '扩表Job', '--workspace-label', 'JB-512 零停机 M3'], runner),
+    /workspace 由 place 按 Epic 命名/
+  );
+  // Valid compact visual label auto-prepends issue key and renames tab and pane.
   runCli([
     'register', '--issue', 'JB-548', '--ledger', ledger, '--id', 'jb548', '--stage', 'spec',
-    '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1',
-    '--label', '扩表Job', '--workspace-label', 'JB-512 零停机 M3',
+    '--agent', 'jb548', '--workspace', 'wA1', '--pane', 'wA1:p1', '--epic', 'JB-512',
+    '--label', '扩表Job',
   ], runner);
-  assert.deepEqual(calls.slice(-3), [
-    ['workspace', 'rename', 'wA1', 'JB-512 零停机 M3'],
+  assert.deepEqual(calls.slice(-2), [
     ['tab', 'rename', 'wA1:t1', 'JB-548 扩表Job'],
     ['pane', 'rename', 'wA1:p1', 'JB-548 扩表Job'],
   ]);
@@ -825,6 +829,7 @@ test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, an
     const cmd = args.slice(0, 2).join(' ');
     if (cmd === 'workspace rename' || cmd === 'pane rename') return '';
     if (cmd === 'tab list') return JSON.stringify({ result: { tabs } });
+    if (cmd === 'workspace list') return JSON.stringify({ result: { workspaces: [{ workspace_id: 'w1', label: 'JB-512 零停机' }] } });
     if (cmd === 'pane list') return JSON.stringify({ result: { panes } });
     if (cmd === 'tab create') {
       const label = args[args.indexOf('--label') + 1];
@@ -850,11 +855,11 @@ test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, an
   };
 
   const placeOne = (issue, paneLabel, extra = []) => runCli([
-    'place', '--workspace', 'w1', '--cwd', '/tmp/wt', '--issue', issue,
+    'place', '--epic', 'JB-512', '--cwd', '/tmp/wt', '--issue', issue,
     '--tab-prefix', 'JB-512 实施', '--pane-label', paneLabel, '--exclude-tab', 'w1:t0', ...extra,
   ], runner).output;
 
-  const r1 = placeOne('JB-546', '双向门禁', ['--workspace-label', 'JB-512 零停机 M3']);
+  const r1 = placeOne('JB-546', '双向门禁', ['--workspace-label', '零停机 M3']);
   const r2 = placeOne('JB-547', 'PG连接池');
   const r3 = placeOne('JB-548', '扩表Job');
   const r4 = placeOne('JB-549', '滚动引擎');
@@ -942,4 +947,68 @@ test('default planner hands the gateway catalog to probe, or status unknown when
     process.env = saved;
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// 期望值来源：用户要求 /herdr-autopilot 一个 Epic 独占一个 workspace，两个 Epic 不共用同一 space。
+test('one Epic owns one workspace: place and register reject cross-Epic sharing', () => {
+  const ledger = makeTempLedger();
+  const panes = { 'wA:p1': 'wA', 'wA:p2': 'wA', 'wB:p1': 'wB' };
+  const runner = (session, args) => {
+    if (args[0] === 'pane' && args[1] === 'get') {
+      return JSON.stringify({ result: { pane: { workspace_id: panes[args[2]], pane_id: args[2], tab_id: `${panes[args[2]]}:t1` } } });
+    }
+    return '';
+  };
+  const reg = (id, pane, epic) => {
+    launched(ledger, pane, id);
+    return runCli(['register', '--ledger', ledger, '--id', id, '--issue', `JB-${id.slice(2)}`, '--epic', epic,
+      '--stage', 'spec', '--agent', id, '--pane', pane, '--label', '扩表Job'], runner, { issueSync: () => ({}) });
+  };
+  assert.equal(reg('jb601', 'wA:p1', 'JB-600').output.epic, 'JB-600');
+  // 同 Epic 同 space：允许
+  reg('jb602', 'wA:p2', 'JB-600');
+  // 另一 Epic 进同一 space：拒绝
+  assert.throws(() => reg('jb701', 'wA:p2', 'JB-700'), /已由 Epic JB-600/);
+  assert.throws(
+    () => runCli(['place', '--ledger', ledger, '--workspace', 'wA', '--cwd', '/tmp', '--issue', 'JB-701', '--epic', 'JB-700',
+      '--tab-prefix', '扩表', '--pane-label', '扩表Job'], runner),
+    /place 不接受 --workspace/
+  );
+  // 同 Epic 分到第二个 space：拒绝
+  assert.throws(() => reg('jb603', 'wB:p1', 'JB-600'), /已落在 workspace "wA"/);
+  // 另一 Epic 独占新 space：允许
+  assert.equal(reg('jb702', 'wB:p1', 'JB-700').output.workspace, 'wB');
+});
+
+// 期望值来源：同上；Epic 没有 workspace 时由 place 新建，已有时复用，agent 不选 workspace。
+test('place resolves the Epic workspace: reuse by ledger or label, else create one', () => {
+  const ledger = makeTempLedger();
+  const calls = [];
+  const workspaces = [{ workspace_id: 'wOld', label: 'JB-500 旧需求' }];
+  const runner = (_session, args) => {
+    calls.push(args);
+    const cmd = args.slice(0, 2).join(' ');
+    if (cmd === 'workspace list') return JSON.stringify({ result: { workspaces } });
+    if (cmd === 'workspace create') {
+      workspaces.push({ workspace_id: 'wNew', label: args[args.indexOf('--label') + 1] });
+      return JSON.stringify({ result: { workspace: { workspace_id: 'wNew' }, tab: { tab_id: 'wNew:t1' }, root_pane: { pane_id: 'wNew:p1' } } });
+    }
+    if (cmd === 'pane get') return JSON.stringify({ result: { pane: { pane_id: args[2], tab_id: 'wNew:t1', workspace_id: 'wNew' } } });
+    if (cmd === 'tab list') return JSON.stringify({ result: { tabs: [{ tab_id: 'wNew:t1', label: 'JB-600 实施', pane_count: 1 }] } });
+    if (cmd === 'pane list') return JSON.stringify({ result: { panes: [{ pane_id: 'wNew:p1', tab_id: 'wNew:t1', workspace_id: 'wNew' }] } });
+    if (cmd === 'pane split') return JSON.stringify({ result: { pane: { pane_id: 'wNew:p2' } } });
+    return '';
+  };
+  const place = (issue, extra = []) => runCli(['place', '--ledger', ledger, '--epic', 'JB-600', '--cwd', '/tmp', '--issue', issue,
+    '--tab-prefix', 'JB-600 实施', '--pane-label', '扩表Job', ...extra], runner).output;
+  assert.throws(() => place('JB-601'), /需要 --workspace-label 来新建/);
+  assert.throws(() => place('JB-601', ['--workspace-label', 'JB-512 零停机']), /须以所属 Epic 号 JB-600 开头/);
+  const first = place('JB-601', ['--workspace-label', '分销']);
+  assert.equal(first.workspace_id, 'wNew');
+  assert.equal(first.pane_id, 'wNew:p1');
+  assert.deepEqual(calls.find((c) => c[1] === 'create'), ['workspace', 'create', '--cwd', '/tmp', '--label', 'JB-600 分销', '--no-focus']);
+  // 第二张票：凭 Epic 号认出 wNew，不再新建。
+  const second = place('JB-602');
+  assert.equal(second.workspace_id, 'wNew');
+  assert.equal(calls.filter((c) => c[1] === 'create' && c[0] === 'workspace').length, 1);
 });

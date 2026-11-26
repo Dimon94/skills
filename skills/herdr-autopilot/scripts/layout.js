@@ -6,6 +6,8 @@
 // - Owns: 4-pane 2x2 tab layout (1->right, 2->down[0], 3->down[1], >4->new tab)
 //   and compact visual labels "<IssueKey> <中文简写>[ <英文>]" for workspace,
 //   tab, and pane with strict CJK display-width bounds.
+// - 一个 Epic 一个 workspace：workspace 名以 Epic 号开头；Epic 没有 space 时
+//   place 用 herdr workspace create 新建，根 pane 作为第一格。
 // - INVARIANT: never steals focus (--no-focus); rejects bare ASCII slugs without
 //   Chinese short name or over-wide labels that Herdr would truncate.
 // - TEST: node --test skills/herdr-autopilot/tests/autopilot.test.js
@@ -73,8 +75,41 @@ function findPaneObject(value) {
   return null;
 }
 
+// workspace 名必须以 Epic 号开头：findEpicWorkspace 靠它认出 Epic 已有的 space。
+function formatWorkspaceLabel(epic, label) {
+  const title = formatVisualLabel({ issue: epic, label, maxCols: MAX_WORKSPACE_COLS, kind: 'workspace' });
+  const key = extractIssueKey(epic);
+  if (!title.startsWith(`${key} `)) {
+    throw new Error(`workspace 命名 "${title}" 须以所属 Epic 号 ${key} 开头`);
+  }
+  return title;
+}
+
+function findEpicWorkspace(session, epic, runner) {
+  const key = extractIssueKey(epic);
+  const list = JSON.parse(runner(session, ['workspace', 'list'])).result?.workspaces || [];
+  return list.find((w) => String(w.label || '').startsWith(`${key} `))?.workspace_id || null;
+}
+
+// 新 Epic 开新 workspace，根 pane 即第一格。
+function createEpicWorkspace({ session, epic, workspaceLabel, cwd, prefix, runner }) {
+  if (!workspaceLabel) {
+    throw new Error(`Epic ${extractIssueKey(epic)} 还没有 workspace：place 需要 --workspace-label 来新建`);
+  }
+  const wsTitle = formatWorkspaceLabel(epic, workspaceLabel);
+  const created = JSON.parse(runner(session, [
+    'workspace', 'create', '--cwd', cwd, '--label', wsTitle, '--no-focus',
+  ])).result || {};
+  if (!created.workspace?.workspace_id || !created.tab?.tab_id || !created.root_pane?.pane_id) {
+    throw new Error('herdr workspace create response missing workspace/tab/root_pane');
+  }
+  runner(session, ['tab', 'rename', created.tab.tab_id, prefix]);
+  return { workspace: created.workspace.workspace_id, wsTitle, pane: created.root_pane };
+}
+
 function placePane({
   session,
+  epic,
   workspace,
   cwd,
   issue,
@@ -84,14 +119,19 @@ function placePane({
   excludeTab,
   runner,
 }) {
-  if (!workspace || !cwd) {
-    throw new Error('place requires --workspace and --cwd');
+  if (!cwd) {
+    throw new Error('place requires --cwd');
   }
   const prefix = formatVisualLabel({ issue, label: tabPrefix, maxCols: MAX_TAB_COLS - 2, kind: 'tab' });
   const paneTitle = formatVisualLabel({ issue, label: paneLabel, maxCols: MAX_PANE_COLS, kind: 'pane' });
+  if (!workspace) {
+    const fresh = createEpicWorkspace({ session, epic, workspaceLabel, cwd, prefix, runner });
+    return finishPlacement({ session, runner, workspace: fresh.workspace, wsTitle: fresh.wsTitle,
+      pane: fresh.pane, tabLabel: prefix, paneCount: 1, paneTitle });
+  }
   let wsTitle = null;
   if (workspaceLabel) {
-    wsTitle = formatVisualLabel({ issue, label: workspaceLabel, maxCols: MAX_WORKSPACE_COLS, kind: 'workspace' });
+    wsTitle = formatWorkspaceLabel(epic, workspaceLabel);
     runner(session, ['workspace', 'rename', workspace, wsTitle]);
   }
 
@@ -125,7 +165,11 @@ function placePane({
     paneCount = 1;
   }
 
-  const createdPane = findPaneObject(JSON.parse(createdRaw));
+  return finishPlacement({ session, runner, workspace, wsTitle,
+    pane: findPaneObject(JSON.parse(createdRaw)), tabLabel, paneCount, paneTitle });
+}
+
+function finishPlacement({ session, runner, workspace, wsTitle, pane: createdPane, tabLabel, paneCount, paneTitle }) {
   if (!createdPane?.pane_id) {
     throw new Error('herdr placement response missing pane_id');
   }
@@ -152,6 +196,7 @@ module.exports = {
   MAX_PANE_COLS,
   displayWidth,
   extractIssueKey,
+  findEpicWorkspace,
   formatVisualLabel,
   placePane,
 };

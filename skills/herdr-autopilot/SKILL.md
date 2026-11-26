@@ -14,6 +14,7 @@ disable-model-invocation: true
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
 - **模型按配置**：lane 的 harness、model、effort 只经 `launch` 从 delivery-pipeline 模型配置解析；`register` 拒绝未经 `launch` 启动的 pane。
 - **零抢焦点**：所有 workspace / tab / pane 操作携带 `--no-focus`，不依赖 `--current` 或 focused pane。
+- **一个 Epic 一个 workspace**：每个 Epic 独占一个 workspace，它的 Spec、ticket、bugfix lane 都落在这里；`place` 按 `--epic` 复用该 Epic 的 workspace，没有就新建；`register` 拒绝跨 Epic 共用或同 Epic 分散。
 - **2×2 四格与可视化命名**：每张 worker tab 最多 4 个 pane，按左上 → 右上 → 左下 → 右下均分，满 4 自动开 `-2`；workspace、tab、pane 统一采用 `<Issue号> <中文简写>[ <英文>]` 短命名，由脚本校验汉字与显示宽度上限。
 - **不可逆硬拦截**：合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息只升级给用户，绝不代输确认口令。
 - **Issue 状态强同步**：`register`、`set-stage --stage awaiting_merge`、`set-stage --stage done` 由脚本自动调用 tracker 同步状态并回读校验，回读不符即 fail-close；严禁口头汇报进展而把 Issue 留在 `Backlog`。
@@ -24,7 +25,7 @@ disable-model-invocation: true
 
 | 对象 | 宽度上限 | 命名示例 | 说明 |
 | --- | --- | --- | --- |
-| Workspace（左侧 space） | 20 列 | `JB-512 零停机 M3` | 主任务/Epic 简称，经 `--workspace-label` 同步 `herdr workspace rename` |
+| Workspace（左侧 space） | 20 列 | `JB-512 零停机 M3` | 所属 Epic 的简称，以 Epic 号开头；由 `place --workspace-label` 命名 |
 | Tab（顶部标签） | 20 列（前缀 ≤ 18） | `JB-512 实施` / `JB-512 实施-2` | 协调 tab 单独占 1 格；worker tab 每张最多 4 格，满 4 顺延 `-2` |
 | Pane（单格标题） | 24 列 | `JB-548 扩表Job`、`JB-546 双向门禁` | 每格对应具体票/角色，由脚本自动调用 `herdr pane rename` |
 
@@ -60,10 +61,10 @@ node scripts/autopilot.js poll
 
 入队动作：
 
-1. 在目标仓库为任务创建隔离 worktree，并通过 `place` 在目标 workspace 落位（每 tab 最多 4 pane、2×2 均分，自动完成 workspace / tab / pane 可视化命名）：
+1. 在目标仓库为任务创建隔离 worktree，并通过 `place` 在所属 Epic 的 workspace 落位。Epic 还没有 workspace 时 `place` 用 `--workspace-label` 新建；每 tab 最多 4 pane、2×2 均分，workspace / tab / pane 自动命名：
    ```bash
    node scripts/autopilot.js place \
-     --workspace <ws_id> --cwd <任务工作树根目录> --issue <issue key 或 URL> \
+     --epic <Epic key> --cwd <任务工作树根目录> --issue <issue key 或 URL> \
      --tab-prefix "<中文简写[ 英文]>" --pane-label "<中文简写[ 英文]>" \
      [--workspace-label "<中文简写[ 英文]>"] [--exclude-tab <coord_tab_id>]
    ```
@@ -76,8 +77,8 @@ node scripts/autopilot.js poll
    ```bash
    node scripts/autopilot.js register \
      --id <lane_id> --issue <issue key 或 URL> --repo <repo_path> --stage <stage> \
-     --agent <agent_name> --pane <pane_id> --workspace <ws_id> \
-     --label "<中文简写[ 英文]>" [--keep-tab-label] [--workspace-label "<中文简写[ 英文]>"] \
+     --agent <agent_name> --pane <pane_id> --workspace <ws_id> --epic <Epic key> \
+     --label "<中文简写[ 英文]>" [--keep-tab-label] \
      --worktree <任务工作树根目录> --base <实际合入的本地分支名>
    herdr agent prompt <agent_name> "<首条命令>"
    node scripts/autopilot.js watch --id <lane_id> --thread <当前 T3 线程 ID> --daemon --after-prompt
@@ -85,7 +86,7 @@ node scripts/autopilot.js poll
 
 只读任务使用 `--pane-only` 代替 `--worktree` 和 `--base`。写任务在新建的任务工作树根目录启动 pane。
 
-`--issue` 写本 lane 服务的 Epic、Spec 或 ticket，缺了 register 直接失败。`register` 通过后脚本会自动把该 issue 及尚未开始的 Linear 父链（Spec / Epic）置为 `In Progress` 并回读确认，失败或 issue 已处终态时拒绝登记。Bug 没有 issue 时，先按目标项目的调试闭环建单再登记；没有建单授权就 escalate。首条命令带上同一坐标，Epic 下的 MMF 写成 `/to-spec <Epic URL> <MMF 标识>`。lane 新建的 Spec 和 ticket 必须是该 issue 的原生子项：Spec 由 to-spec 读回 `--parent` 核对，ticket 由 to-tickets 读回父子关系。正文链接只算 related，不算挂上。
+`--issue` 写本 lane 服务的 Epic、Spec 或 ticket，缺了 register 直接失败。`--epic` 写它所属的 Epic；lane 本身就是 Epic 或无 Epic 的 Bug 时省略，脚本以 `--issue` 为 Epic，这个 lane 也就独占一个 workspace。`register` 通过后脚本会自动把该 issue 及尚未开始的 Linear 父链（Spec / Epic）置为 `In Progress` 并回读确认，失败或 issue 已处终态时拒绝登记。Bug 没有 issue 时，先按目标项目的调试闭环建单再登记；没有建单授权就 escalate。首条命令带上同一坐标，Epic 下的 MMF 写成 `/to-spec <Epic URL> <MMF 标识>`。lane 新建的 Spec 和 ticket 必须是该 issue 的原生子项：Spec 由 to-spec 读回 `--parent` 核对，ticket 由 to-tickets 读回父子关系。正文链接只算 related，不算挂上。
 
 ### 3. 暂停分诊（仅当 `needs_attention` 非空时）
 

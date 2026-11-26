@@ -4,8 +4,9 @@
 // ============================================================================
 // L3-L6 Contract: herdr-autopilot deterministic ledger & Herdr session poller
 // - Owns: session validation, managed-lane allowlist ledger, circuit breaker, poll, watch.
-// - register --pane 强制可视化命名（"<Issue号> <中文简写>[ <英文>]"，拒绝裸 ASCII slug），同步命名 pane / tab（--keep-tab-label 保留共享四格 tab 名）/ 可选 workspace。
+// - register --pane 强制可视化命名（"<Issue号> <中文简写>[ <英文>]"，拒绝裸 ASCII slug），同步命名 pane / tab（--keep-tab-label 保留共享四格 tab 名）；workspace 命名归 place。
 // - launch 按 model-roles 配置启动 pane agent（见 launch.js）；register --pane 只接受 launch 过的 pane 并冻结 lane.launch。
+// - 一个 Epic 独占一个 workspace：place 不收 --workspace，按 --epic（缺省取 --issue）复用账本或 herdr 中以 Epic 号开头的 workspace，没有就新建；register 拒绝跨 Epic 共用与同 Epic 分散，lane.epic 记入账本。
 // - place 按 2x2 四格容量（每 tab 最多 4 pane：1->右、2->左下、3->右下、满 4 新开 -2）无抢焦点落位并命名。
 // - register 必须带 --issue（issue key 或 URL），同步置为 In Progress（并推升未开始父项）且回读校验；poll 各栏带出 issue 与 issue_state。
 // - poll 同一签名（等人栏的状态与原因，或待处理栏的 state@state_change_seq）只报一次，没变的进 unchanged 且不读尾部；全部没变即 quiet；--full 重报全量。
@@ -19,7 +20,7 @@
 
 const { ownedTree, closeout } = require('./closeout.js');
 const { syncIssueState } = require('./issue-sync.js');
-const { formatVisualLabel, placePane, MAX_WORKSPACE_COLS, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
+const { extractIssueKey, findEpicWorkspace, formatVisualLabel, placePane, MAX_TAB_COLS, MAX_PANE_COLS } = require('./layout.js');
 const { watchLane, spawnDaemonWatcher, stopWatcher, t3WakeEnv } = require('./watch.js');
 const { launchAgent, claimLaunch } = require('./launch.js');
 const fs = require('node:fs');
@@ -170,6 +171,30 @@ function registerLane(ledger, opts) {
   };
   ledger.lanes[id] = lane;
   return lane;
+}
+
+// 一个 Epic 独占一个 workspace：同 space 只容一个 Epic，同 Epic 只落一个 space。
+// 缺 --epic 时以 lane 自身 issue 为 Epic；只看未回收的 lane。
+function assertEpicWorkspace(ledger, { workspace, epic, self }) {
+  const key = extractIssueKey(epic);
+  if (!key) throw new Error(`invalid --epic "${epic}"; 需要 issue key 或 URL`);
+  for (const other of Object.values(ledger.lanes)) {
+    if (other === self || other.closed_at || other.status === 'done' || !other.workspace) continue;
+    const otherKey = other.epic || extractIssueKey(other.issue);
+    if (other.workspace === workspace && otherKey !== key) {
+      throw new Error(`workspace "${workspace}" 已由 Epic ${otherKey}（lane ${other.id}）占用；Epic ${key} 须新建独立 workspace`);
+    }
+    if (other.workspace !== workspace && otherKey === key) {
+      throw new Error(`Epic ${key} 已落在 workspace "${other.workspace}"（lane ${other.id}）；同一 Epic 的 lane 放回该 workspace`);
+    }
+  }
+  return key;
+}
+
+function epicLaneWorkspace(ledger, epic) {
+  const key = extractIssueKey(epic);
+  return Object.values(ledger.lanes).find((l) => !l.closed_at && l.status !== 'done' && l.workspace &&
+    (l.epic || extractIssueKey(l.issue)) === key)?.workspace || null;
 }
 
 function requireLane(ledger, id) {
@@ -410,9 +435,16 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     if (!ISSUE_RE.test(issue)) {
       throw new Error(`place requires --issue <issue key 或 URL>; got "${issue}"`);
     }
+    if (flags.workspace) {
+      throw new Error('place 不接受 --workspace：按 --epic 自动复用或新建该 Epic 的 workspace');
+    }
+    const epic = flags.epic || issue;
+    const workspace = epicLaneWorkspace(ledger, epic) || findEpicWorkspace(session, epic, runner);
+    if (workspace) assertEpicWorkspace(ledger, { workspace, epic });
     const output = placePane({
       session,
-      workspace: flags.workspace,
+      epic,
+      workspace,
       cwd: flags.cwd,
       issue,
       tabPrefix: flags['tab-prefix'],
@@ -432,6 +464,9 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   }
 
   if (command === 'register') {
+    if (flags['workspace-label']) {
+      throw new Error('register 不接受 --workspace-label：workspace 由 place 按 Epic 命名');
+    }
     const lane = registerLane(ledger, {
       id: flags.id,
       repo: flags.repo,
@@ -448,7 +483,6 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
     }
     let paneLabel = null;
     let tabLabel = null;
-    let workspaceLabel = null;
     if (lane.pane) {
       paneLabel = formatVisualLabel({
         issue: lane.issue,
@@ -462,14 +496,6 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
           label: flags['tab-label'] || flags.label,
           maxCols: MAX_TAB_COLS,
           kind: 'tab',
-        });
-      }
-      if (flags['workspace-label']) {
-        workspaceLabel = formatVisualLabel({
-          issue: lane.issue,
-          label: flags['workspace-label'],
-          maxCols: MAX_WORKSPACE_COLS,
-          kind: 'workspace',
         });
       }
     }
@@ -493,12 +519,13 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
       if (lane.cleanup?.tree && fs.realpathSync(pane.cwd) !== lane.cleanup.tree.path) {
         throw new Error('pane 启动目录与任务工作树不符');
       }
+      lane.workspace = lane.workspace || pane.workspace_id || null;
+      if (lane.workspace) {
+        lane.epic = assertEpicWorkspace(ledger, { workspace: lane.workspace, epic: flags.epic || lane.issue, self: lane });
+      }
       lane.terminal_id = pane.terminal_id;
       lane.pane_label = paneLabel;
       const syncRes = recordIssueSync(lane, issueSyncFn(lane.issue, 'started'));
-      if (workspaceLabel && pane.workspace_id) {
-        runner(session, ['workspace', 'rename', pane.workspace_id, workspaceLabel]);
-      }
       if (tabLabel) {
         runner(session, ['tab', 'rename', pane.tab_id, tabLabel]);
       }

@@ -375,19 +375,20 @@ test('S11 预览文案不合规时报告位置', (t) => {
   assert.equal(result.stdout, '');
   const stderr = result.stderr.trimEnd().split('\n');
   assert.match(stderr[0], /^CopyLint\t/);
-  assert.match(stderr[1], /pages\[0\]\.root\.children\[0\]\.label/);
+  assert.match(stderr[1], /pages\[0\]\.root\.children\[0\]\.label.*中英文之间缺空格/);
   assert.match(stderr[2], /flows\[0\]\.steps\[0\]\.text.*QuuxTerm/);
-  assert.match(stderr[3], /backend\[0\]\.items\[0\]\.name/);
+  assert.match(stderr[3], /backend\[0\]\.items\[0\]\.name.*中英文之间缺空格/);
   const html = join(directory, 'preview.html');
   assert.equal(existsSync(html), false);
   assert.equal(existsSync(join(directory, 'spec-v1.json')), false);
 
   spec.pages[0].root.children[0].label = '确认 Spec 预览';
-  spec.flows[0].steps[0].text = '打开 Spec 预览';
-  spec.backend[0].items[0].name = '读取 Spec';
+  spec.flows[0].steps[0].text = '通过 to-spec 打开 Linear Issue，按 R11 构建 HTML 预览';
+  spec.backend[0].items[0].name = '构建失败时报告 MissingEvidence，成功时读取 previewHtml 路径';
   writeFileSync(source, JSON.stringify(spec));
   assert.equal(stdoutOf(run('build')), html);
   assert.ok(readFileSync(html).includes('确认 Spec 预览'));
+  assert.ok(readFileSync(html).includes(spec.flows[0].steps[0].text));
 });
 test('S12 小需求生成带双侧证据的变更预览', (t) => {
   const { directory, run } = previewSession(t);

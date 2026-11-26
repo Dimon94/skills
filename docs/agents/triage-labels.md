@@ -13,3 +13,13 @@ Skills 使用五个 canonical triage 角色。本表映射到本仓 issue tracke
 当 skill 提到某个角色（如 "apply the AFK-ready triage label"），使用右列对应的 label 字符串。
 
 右列应随本仓 tracker 实际词汇调整。
+
+## 规模分流
+
+规模标签与五个 triage 角色独立使用。判定、改线和读回见 [dimon-mode 的「判定规模」](../../skills/dimon-mode/SKILL.md#判定规模)。
+
+| Label | 含义 |
+| --- | --- |
+| `scope:bug` | 修复已承诺行为的偏差 |
+| `scope:small` | 单票小需求 |
+| `scope:mmf` | 进入 MMF 规划 |

@@ -59,6 +59,9 @@ node scripts/autopilot.js poll
 | 已有 Spec 待拆票 | `tickets` | `/to-tickets <Spec 坐标>` |
 | 已有票或既有 map | `pipeline` | `/delivery-pipeline-herdr <map 或 Epic 坐标>` |
 | Bug 修复 | `bugfix` | `/dimon-mode 按 playbooks/bug-fix.md 复现并修复：<现象与坐标>` |
+| `small` | `bugfix` | `/dimon-mode 按「判定规模」一节确认 scope:small，再按 playbooks/small-change.md 实现：<现象与坐标>` |
+
+规模判定见 [`dimon-mode` 的「判定规模」](../dimon-mode/SKILL.md#判定规模)。
 
 入队动作：
 

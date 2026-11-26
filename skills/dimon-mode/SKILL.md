@@ -104,6 +104,7 @@ disable-model-invocation: true
 | 任务 | owner skill |
 | --- | --- |
 | 复述用户真正要什么 | `in-your-own-words`（用户调用） |
+| 任务进来判规模 | 按本文件[判定规模](#判定规模)分流 |
 | 说不清要做什么、先命名专业术语并借用相邻领域词汇重写描述 | `reframe`（用户调用） |
 | 保留专业术语把请求改得更深而不更大、以专家方式重写并补齐完成条件与证据 | `sharpen`（用户调用） |
 | 用决策地图澄清 Epic 或 MMF 的阻塞问题 | `wayfinder`（用户调用） |
@@ -133,6 +134,20 @@ disable-model-invocation: true
 | 应用改过，项目 `verify-*` 的 feature map 可能过期 | `maintain-verification-skill`（用户调用） |
 | 并发、重试、状态机、解析器等承诺，测试够不着出错的情况 | `create-formal-verification-skill`（用户调用） |
 | 已验证代码经合并、重构改过，却没重跑检查 | `maintain-formal-verification-skill`（用户调用） |
+
+### 判定规模
+
+按 ①→②→③ 判定，先中先停。
+
+- ① 已有行为偏离已承诺的预期（Spec、文档、测试或用户确认过的行为），且能写出复现步骤。写入 `scope:bug`，走 [`playbooks/bug-fix.md`](playbooks/bug-fix.md)。
+- ② 新需求只有一个可检查结果（谁 · 入口 · 做什么 · 看到什么），不新增跨 Module Interface 或共享状态，也不需要业务决定。写入 `scope:small`，走 [`playbooks/small-change.md`](playbooks/small-change.md)。
+- ③ 其余任务。写入 `scope:mmf`，走 [`to-spec`](../to-spec/SKILL.md)。能拆成多个可单独上线的部分时，改走 [`to-epic`](../to-epic/SKILL.md)。
+
+写入 Issue 的规模标签并读回，确认只保留命中的 `scope:*` 标签，再沿命中的路线推进。回复写出命中的条目（①、②或③）。判不准时给出推荐和理由，再问用户。用户改标签时，按新标签改线。
+
+实现中，`scope:small` 或 `scope:bug` 一旦出现第二个可检查结果、新的跨 Module Interface 或需要业务决定，或修 bug 必须改变已承诺的预期，立即停止实现。将规模标签改为 `scope:mmf` 并读回。下一步给出 `/to-spec <Issue>`，该分支不走变更预览。
+
+### 需求链路
 
 意图还模糊或未定名时，按前置提示词链把需求打磨后再交给实现：
 

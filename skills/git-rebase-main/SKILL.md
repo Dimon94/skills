@@ -58,8 +58,8 @@ description: 将已完成的任务分支合回本地 main，并关闭对应 Issu
 
 ## 6. 验证并收尾
 
-在 `main` 上运行最小 post-merge check。通过后执行 [收尾合同](references/closeout.md)
-的全部步骤：关闭直接 Issue，回收任务工作树，删除源分支，逐项读回。
+在 `main` 上运行最小 post-merge check。通过后按[预览门](references/closeout.md#预览门)核验附件并清理缓存。
+随后按[收尾合同](references/closeout.md)关闭直接 Issue，回收任务工作树，删除源分支并逐项读回。
 
 完成标准：`main` 验证通过，收尾合同返回 `COMPLETE`。
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -9,13 +9,14 @@ import { fileURLToPath } from 'node:url';
 
 const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const cli = fileURLToPath(new URL('../spec-preview.mjs', import.meta.url));
+const closeout = join(repo, 'skills/git-rebase-main/scripts/closeout-preview.mjs');
 const fixture = readFileSync(new URL('fixtures/spec.json', import.meta.url));
 const deltaFixture = readFileSync(new URL('fixtures/delta-items.json', import.meta.url), 'utf8');
 const smywFixture = fileURLToPath(new URL('fixtures/smyw/', import.meta.url));
 const ref = ['my-skills', 'DD-654'];
 const feedback = name => fileURLToPath(new URL(`fixtures/feedback-${name}.md`, import.meta.url));
 
-function previewSession(t) {
+function previewSession(t, cwd = repo) {
   const home = mkdtempSync(join(tmpdir(), 'spec-preview-'));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const smywDir = resolve(process.env.SMYW_DIR || smywFixture);
@@ -24,10 +25,12 @@ function previewSession(t) {
   const cache = join(home, 'cache');
   const env = { ...testEnv, HOME: home, XDG_CACHE_HOME: cache, SMYW_DIR: smywDir };
   const directory = join(cache, 'dverity', 'spec-preview', ...ref);
-  const run = (command, overrides, ...args) => spawnSync(process.execPath, [cli, command, ...ref, ...args], {
-    cwd: repo, env: { ...env, ...overrides }, encoding: 'utf8', timeout: 15_000,
+  const invoke = (args, overrides) => spawnSync(process.execPath, args, {
+    cwd, env: { ...env, ...overrides }, encoding: 'utf8', timeout: 15_000,
   });
-  return { env, renderer, home, directory, run };
+  const run = (command, overrides, ...args) => invoke([cli, command, ...ref, ...args], overrides);
+  const archive = files => invoke([closeout, ...ref, JSON.stringify(files)]);
+  return { env, renderer, home, directory, run, archive };
 }
 
 function stdoutOf(result) {
@@ -50,6 +53,16 @@ function buildV1({ directory, run }) {
 }
 
 // DD-654 / Testing Decisions。行为票以同名场景的公开入口替换占位断言。
+test('R7 公开 CLI 只列出 Spec 声明的九个命令', (t) => {
+  const { run } = previewSession(t);
+  for (const command of ['unknown', 'archive']) {
+    const result = run(command);
+    rejectsWith(result, 'BLOCKED');
+    assert.equal(result.stderr.trimEnd(),
+      'BLOCKED\t可用命令：init、build、apply、confirm、changes、compare、delta、rekey、restore');
+  }
+});
+
 test('S1 缓存目录生成预览并拒绝仓库内目标', (t) => {
   const { env, renderer, home, directory, run } = previewSession(t);
   const gitStatus = () => execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' });
@@ -74,6 +87,41 @@ test('S1 缓存目录生成预览并拒绝仓库内目标', (t) => {
   }
   assert.equal(existsSync(repoCache), false);
   assert.equal(gitStatus(), before);
+});
+test('R1 build 在调用渲染器前拒绝无效版本', (t) => {
+  const { directory, home, run } = previewSession(t);
+  stdoutOf(run('init'));
+  const smyw = join(home, 'smyw');
+  mkdirSync(join(smyw, 'scripts'), { recursive: true });
+  const called = join(home, 'renderer-called');
+  // 渲染探针不读取版本，也不把输入拼进任何路径。
+  writeFileSync(join(smyw, 'scripts', 'build.mjs'), [
+    "import { writeFileSync } from 'node:fs';",
+    "import { dirname, join } from 'node:path';",
+    "writeFileSync(process.env.RENDER_PROBE, 'called');",
+    "writeFileSync(join(dirname(process.argv[2]), 'preview.html'), 'probe');",
+  ].join('\n'));
+  const spec = JSON.parse(fixture);
+  for (const version of ['/../escaped-outside', '1', 0, 1.5, Number.MAX_SAFE_INTEGER + 1, undefined]) {
+    writeFileSync(join(directory, 'spec.json'), JSON.stringify({ ...spec, version }));
+    const result = run('build', { SMYW_DIR: smyw, RENDER_PROBE: called });
+    rejectsWith(result, 'BLOCKED');
+    assert.match(result.stderr, /正整数版本/);
+    assert.equal(existsSync(called), false);
+    assert.equal(existsSync(join(directory, 'preview.html')), false);
+  }
+});
+
+test('R1 build 拒绝读取缓存目录外的 spec.json', (t) => {
+  const { directory, home, run } = previewSession(t);
+  stdoutOf(run('init'));
+  const spec = join(home, 'external.json');
+  writeFileSync(spec, fixture);
+  symlinkSync(spec, join(directory, 'spec.json'));
+  const result = run('build');
+  rejectsWith(result, 'BLOCKED');
+  assert.match(result.stderr, /指向缓存目录之外/);
+  assert.equal(existsSync(join(directory, 'preview.html')), false);
 });
 test('S2 修改与确认后返回新版本和锁', (t) => {
   const session = previewSession(t);
@@ -103,9 +151,9 @@ test('S2 修改与确认后返回新版本和锁', (t) => {
   assert.deepEqual(readFileSync(join(published, 'spec-v2.json')), frozen);
   rejectsWith(run('rekey', {}, 'my-skills', 'DD-655'), 'MissingEvidence');
 });
-test('S3 存在未处理的必须改时拒绝确认', (t) => {
+test('S3 拒绝未处理的必须改与未绑定当前版本的确认', (t) => {
   const session = previewSession(t);
-  const { directory, run } = session;
+  const { directory, home, run } = session;
   buildV1(session);
   const files = readdirSync(directory).sort();
   rejectsWith(run('confirm', {}, feedback('must-fix')), 'NotConfirmed');
@@ -114,7 +162,18 @@ test('S3 存在未处理的必须改时拒绝确认', (t) => {
   assert.deepEqual(readFileSync(join(directory, 'spec.json')), fixture);
   stdoutOf(run('apply', {}, feedback('structure')));
   stdoutOf(run('build'));
-  assert.match(stdoutOf(run('confirm', {}, feedback('must-fix'))), /^Preview: v2 sha256:[a-f0-9]{64}$/);
+  rejectsWith(run('confirm', {}, feedback('must-fix')), 'NotConfirmed');
+  const confirmation = readFileSync(feedback('confirm'), 'utf8');
+  const mustFix = readFileSync(feedback('must-fix'), 'utf8');
+  for (const content of [
+    confirmation.replace(/^> 基于方案 .*\n/m, ''),
+    confirmation.replace('方案 v2', '方案 v1'),
+    mustFix.replace('方案 v1', '方案 v2'),
+  ]) {
+    const path = join(home, 'feedback.md');
+    writeFileSync(path, content);
+    rejectsWith(run('confirm', {}, path), 'NotConfirmed');
+  }
 });
 function checkPreviewTickets({ home, env }, source, lock, claims) {
   const specPath = join(home, 'spec.md');
@@ -282,28 +341,35 @@ test('S7 对比页使用锁定版并要求逐项证据', (t) => {
   assert.equal(existsSync(repoCache), false);
   assert.equal(status(), before);
 });
-function compareAttachments(t) {
-  const { directory, home, run } = previewSession(t);
+function compareAttachments(t, previousCompare = false) {
+  const { directory, home, run, archive } = previewSession(t);
   assert.equal(stdoutOf(run('init')), directory);
-  const frozen = JSON.stringify({ ...JSON.parse(fixture), version: 2, versionNote: '确认版' });
-  writeFileSync(join(directory, 'spec-v2.json'), frozen);
-  const sha256 = createHash('sha256').update(frozen).digest('hex');
   const asBuilt = fileURLToPath(new URL('fixtures/compare-as-built.json', import.meta.url));
   const verdicts = readFileSync(new URL('fixtures/compare-verdicts.json', import.meta.url), 'utf8');
+  if (previousCompare) {
+    writeFileSync(join(directory, 'spec-v1.json'), fixture);
+    const hash = createHash('sha256').update(fixture).digest('hex');
+    stdoutOf(run('compare', {}, '1', hash, asBuilt, verdicts));
+  }
+  const frozen = JSON.stringify({ ...JSON.parse(fixture), version: 2, versionNote: '确认版' });
+  writeFileSync(join(directory, 'spec-v2.json'), frozen);
+  writeFileSync(join(directory, 'spec.json'), frozen);
+  const lock = stdoutOf(run('confirm', {}, feedback('confirm')));
+  const sha256 = createHash('sha256').update(frozen).digest('hex');
+  assert.equal(lock, `Preview: v2 sha256:${sha256}`);
   const html = stdoutOf(run('compare', {}, '2', sha256, asBuilt, verdicts));
   const files = ['下载的实现版.json', '下载的确认版.json'].map(name => join(home, name));
   writeFileSync(files[0], readFileSync(join(directory, 'compare', 'spec.json')));
   writeFileSync(files[1], readFileSync(join(directory, 'compare', 'spec-v2.json')));
-  return { directory, run, html, files };
+  return { directory, run, html, files, archive };
 }
 
 test('S8 附件读回后才删除本地预览', (t) => {
-  const { directory, run, files } = compareAttachments(t);
+  const { directory, files, archive } = compareAttachments(t, true);
   const gitStatus = () => execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' });
   const before = gitStatus();
   const entries = () => readdirSync(directory, { recursive: true }).sort();
   const originals = entries();
-  const archive = attachments => run('archive', {}, JSON.stringify(attachments));
   const built = readFileSync(files[0]);
   writeFileSync(files[0], Buffer.concat([built, Buffer.from('\n')]));
   for (const attachments of [files, files.slice(0, 1), [...files, files[0]]]) {
@@ -317,9 +383,9 @@ test('S8 附件读回后才删除本地预览', (t) => {
 });
 
 test('S9 归档附件重建相同的预览', (t) => {
-  const { directory, run, html, files } = compareAttachments(t);
+  const { directory, run, html, files, archive } = compareAttachments(t);
   const original = readFileSync(html);
-  assert.equal(stdoutOf(run('archive', {}, JSON.stringify(files))), directory);
+  assert.equal(stdoutOf(archive(files)), directory);
   assert.equal(existsSync(directory), false);
 
   const built = readFileSync(files[0]);
@@ -389,6 +455,71 @@ test('S11 预览文案不合规时报告位置', (t) => {
   assert.equal(stdoutOf(run('build')), html);
   assert.ok(readFileSync(html).includes('确认 Spec 预览'));
   assert.ok(readFileSync(html).includes(spec.flows[0].steps[0].text));
+});
+
+test('R9 在所有可见文案检查术语，允许词汇表正文使用过的多义词', (t) => {
+  const { directory, run } = previewSession(t);
+  stdoutOf(run('init'));
+  const source = join(directory, 'spec.json');
+  const spec = JSON.parse(fixture);
+  Object.assign(spec, {
+    title: '确认Spec 预览',
+    summary: '核对史诗',
+    changes: [{ text: '新增史诗' }],
+    questions: [{ q: '史诗是什么？' }],
+    versionNote: '补充史诗',
+  });
+  spec.flows[0].name = '新增 plugin 与 MVP';
+  spec.flows[0].steps[0].text = '由 Coordinator 用 oracle 核对 Increment';
+  writeFileSync(source, JSON.stringify(spec));
+  const result = run('build');
+  rejectsWith(result, 'CopyLint');
+  assert.match(result.stderr, /^title .*缺空格/m);
+  for (const path of ['summary', 'changes[0].text', 'questions[0].q', 'versionNote']) {
+    assert.match(result.stderr.split('\n').find(line => line.startsWith(path + ' ')) ?? '', /史诗.*Epic/);
+  }
+  assert.match(result.stderr, /^flows\[0\]\.name .*plugin.*Skill/m);
+  assert.match(result.stderr, /^flows\[0\]\.name .*MVP.*MMF/m);
+  assert.match(result.stderr, /^flows\[0\]\.steps\[0\]\.text .*oracle.*独立预期/m);
+  assert.match(result.stderr, /^flows\[0\]\.steps\[0\]\.text .*Increment.*MMF/m);
+  assert.doesNotMatch(result.stderr, /禁用术语 Coordinator/);
+  assert.equal(existsSync(join(directory, 'preview.html')), false);
+
+  const valid = JSON.parse(fixture);
+  valid.summary = '确认当前阶段';
+  valid.questions = [{ q: '是否确认 v6？' }];
+  writeFileSync(source, JSON.stringify(valid));
+  assert.equal(stdoutOf(run('build')), join(directory, 'preview.html'));
+});
+
+test('R9 词汇只取目标项目，不读取 Skill 仓的被跟踪文本', (t) => {
+  const target = mkdtempSync(join(tmpdir(), 'copy-target-'));
+  t.after(() => rmSync(target, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q', target]);
+  const { directory, run } = previewSession(t, target);
+  stdoutOf(run('init'));
+  const spec = JSON.parse(fixture);
+  spec.flows[0].name = '打开 blast-radius 预览';
+  writeFileSync(join(directory, 'spec.json'), JSON.stringify(spec));
+  const result = run('build');
+  rejectsWith(result, 'CopyLint');
+  assert.match(result.stderr, /^flows\[0\]\.name .*未识别术语 blast-radius/m);
+});
+
+test('R9 词汇查找忽略外部 Git 环境并处理大于 1 MiB 的匹配', (t) => {
+  const target = mkdtempSync(join(tmpdir(), 'copy-target-'));
+  t.after(() => rmSync(target, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q', target]);
+  writeFileSync(join(target, 'terms.txt'), 'RepoLexeme\n'.repeat(110_000));
+  execFileSync('git', ['-C', target, 'add', 'terms.txt']);
+  const { directory, run } = previewSession(t, target);
+  stdoutOf(run('init'));
+  const spec = JSON.parse(fixture);
+  spec.flows[0].name = '打开 RepoLexeme 预览';
+  writeFileSync(join(directory, 'spec.json'), JSON.stringify(spec));
+  for (const env of [{}, { GIT_DIR: join(target, 'missing-git-dir') }]) {
+    assert.equal(stdoutOf(run('build', env)), join(directory, 'preview.html'));
+  }
 });
 test('S12 小需求生成带双侧证据的变更预览', (t) => {
   const { directory, run } = previewSession(t);

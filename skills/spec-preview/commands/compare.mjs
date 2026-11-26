@@ -1,11 +1,11 @@
 // ==========================================================================
 // L4: 只写 compare/。锁定版按字节复制，审查结论保留原意并跳过 CopyLint。
 // L5: 页面和节点需截图，步骤和后端需代码坐标。计划外项至少提供一种证据。
-// L6: 核验锁和逐项证据后，在隔离目录渲染，仅让 smyw 读取本次对比的两个版本。
-// TEST: skills/spec-preview/tests/scenarios.test.mjs 的 S7
+// L6: 核验锁和逐项证据后隔离渲染，发布新对比后清理旧确认版。
+// TEST: skills/spec-preview/tests/scenarios.test.mjs 的 S7、S8、S9
 // ==========================================================================
 import { createHash } from 'node:crypto';
-import { lstatSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readEvidence } from '../feedback.mjs';
 import { changeItems } from '../lib/change-items.cjs';
@@ -109,6 +109,16 @@ function verdictText({ id, verdict, evidence, accepted }) {
   return lines.join('\n');
 }
 
+function staleArchives(directory, archive) {
+  const stale = readdirSync(directory, { withFileTypes: true })
+    .filter(({ name }) => name !== archive && /^spec-v.*\.json$/.test(name));
+  return stale.map(entry => {
+    const path = join(directory, entry.name);
+    if (!entry.isFile()) throw new PreviewError('BLOCKED', `${path} 不是普通文件。请检查并移走该路径后重试。`);
+    return path;
+  });
+}
+
 export function renderCompare(parent, archive, frozen, spec) {
   const directory = join(parent, 'compare');
   const files = [archive, 'spec.json', 'preview.html'];
@@ -121,6 +131,7 @@ export function renderCompare(parent, archive, frozen, spec) {
   };
   verifyTargets();
   mkdirSync(directory, { recursive: true });
+  const stale = staleArchives(directory, archive);
   const staging = mkdtempSync(join(directory, '.render-'));
   try {
     const source = join(staging, 'spec.json');
@@ -128,6 +139,7 @@ export function renderCompare(parent, archive, frozen, spec) {
     writeFileSync(source, JSON.stringify(spec, null, 2));
     renderPreview(source, join(staging, 'preview.html'));
     for (const file of files) renameSync(join(staging, file), join(directory, file));
+    for (const path of stale) rmSync(path);
     verifyTargets();
     return join(directory, 'preview.html');
   } finally {

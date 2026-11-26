@@ -95,10 +95,11 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 落地需要用户明确要求合并该 PR，目标分支以 Packet 为准；已有授权继续有效。
 仅 Review 的请求在第 4 步报告后停止。
 
-1. 重读 head SHA；变化则回到第 1 步。
-2. 使用用户指定的策略执行 `gh pr merge <n> --match-head-commit <reviewed-head>`；未指定时
+1. 执行[预览门](../git-rebase-main/references/closeout.md#预览门)。按有无 `Preview:` 锁定行选择对比页或变更预览，等用户明确确认已审 head 对应的当前预览。
+2. 重读 head SHA。变化则回到第 1 节。
+3. 使用用户指定的策略执行 `gh pr merge <n> --match-head-commit <reviewed-head>`；未指定时
    使用 `--merge`。分支与工作树统一在第 7 步清理，此处不加 `--delete-branch`。
-3. branch protection 或 merge queue 拒绝时保持 `BLOCKED`；只有用户明确授权才可使用
+4. branch protection 或 merge queue 拒绝时保持 `BLOCKED`；只有用户明确授权才可使用
    `--admin` 绕过保护。
 
 完成标准：Provider 读回 `MERGED` 与 merge SHA；进入 merge queue 或启用 auto-merge 仍为

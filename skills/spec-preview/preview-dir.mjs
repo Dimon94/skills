@@ -1,5 +1,5 @@
 // ==========================================================================
-// L3: init、build 共用同一套预览写入路径。
+// L3: Spec 预览的所有命令和合入收尾共用缓存路径规则。
 // L4: 检查真实目标，包括经由链接落入 Git 仓库的目标。
 // L5: 绝对 XDG_CACHE_HOME 优先。缺省使用 ~/.cache。
 // ==========================================================================
@@ -49,6 +49,11 @@ export function assertPreviewTarget(target, base) {
 }
 
 export function previewDirectory({ repo, issue }) {
+  const validSegment = value => typeof value === 'string' && value.trim() &&
+    !/[\\/]/.test(value) && value !== '.' && value !== '..';
+  if (![repo, issue].every(validSegment)) {
+    throw new PreviewError('BLOCKED', 'repo 与 issue 必须是单个路径段。');
+  }
   const xdgCache = process.env.XDG_CACHE_HOME || '';
   const cache = isAbsolute(xdgCache) ? xdgCache : join(homedir(), '.cache');
   const directory = resolve(cache, 'dverity', 'spec-preview', repo, issue);

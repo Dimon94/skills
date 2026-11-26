@@ -18,9 +18,8 @@ checks below read-only and report what would happen.
   仅更新待发 PR 的分支时不调用它。
 - The smallest verification for the diff has run. Unverified work does not
   get pushed.
-- If the linked Spec has a `Preview:` lock, follow the
-  [preview gate](../git-rebase-main/references/closeout.md#预览门) and wait for
-  the user's explicit confirmation of the current comparison before pushing.
+- 推送前执行[预览门](../git-rebase-main/references/closeout.md#预览门)。
+  按有无 `Preview:` 锁定行选择对比页或变更预览，等用户明确确认当前预览后再推送。
 
 ## 2. Check existing PRs
 

@@ -1,11 +1,12 @@
 # 合入收尾合同
 
-`git-rebase-main` 与 `gh-merge-pr` 绑定任务时读取第 1 节，合入及最小验证成功后执行第 2–5 节。
-本文件拥有直接 Issue、源分支和本次临时工作树的收尾规则；调用方提供落地证据。
+`git-push-pr`、`git-rebase-main` 与 `gh-merge-pr` 在推进前执行预览门。
+`git-rebase-main` 与 `gh-merge-pr` 绑定任务时读取第 1 节，合入及最小验证成功后核验预览附件，再执行第 2–5 节。
+本文件拥有预览附件、直接 Issue、源分支和本次临时工作树的收尾规则。调用方提供落地证据。
 
 ## 预览门
 
-- 关联 Spec 有 `Preview:` 锁定行时，在推送 PR 分支或快进本地 `main` 前调用
+- 关联 Spec 有 `Preview:` 锁定行时，在推送 PR 分支、合并 PR 或快进本地 `main` 前调用
   [`spec-preview`](../../spec-preview/SKILL.md) 的
   `compare <repo> <issue> <version> <sha256> <as-built-file> <verdicts-json>`。
   版本与 SHA-256 取自锁定行，逐项结论取自 code-review 的 Spec 轴。
@@ -14,15 +15,16 @@
   由需求作者在页面上明确接受偏差、缺失或计划外改动，或退回。等用户明确确认当前对比页后再推送或合入。
   用户退回时继续实现，重新生成对比页并交回确认。
   合入后，在第 2 步关闭直接 Issue 前，通过 Linear MCP 把 `compare/spec-v<N>.json`（确认版）和
-  `compare/spec.json`（实现版）附到 Spec Issue。下载两份附件后调用
-  `archive <repo> <issue> <files-json>`，让脚本核对字节并删除已归档的本地预览目录。
-  上传、读回或 `archive` 失败时记 `BLOCKED`，保留本地目录。
+  `compare/spec.json`（实现版）附到 Spec Issue。下载两份附件后，运行
+  `node <git-rebase-main>/scripts/closeout-preview.mjs <repo> <issue> <files-json>`。
+  [收尾脚本](../scripts/closeout-preview.mjs)核对附件字节后删除本地预览目录。
+  `files-json` 是两个下载路径组成的 JSON 数组，顺序任意。上传、读回或核验失败时记 `BLOCKED`，保留本地目录。
   需要追溯时，从 Spec Issue 下载两份附件，调用 `restore <repo> <issue> <files-json>` 重建对比页。
-- 无 `Preview:` 锁定行时，在合入前调用 [`spec-preview`](../../spec-preview/SKILL.md)
+- 无 `Preview:` 锁定行时，在推送 PR 分支、合并 PR 或快进本地 `main` 前调用 [`spec-preview`](../../spec-preview/SKILL.md)
   的 `delta <repo> <issue> <items-json>`。页面和节点附改前、改后截图。流程和后端附
   两侧的代码坐标。bug 修复另附改前失败、改后通过的检查输出。
   收到 `MissingEvidence` 时补齐证据，暂停合入。生成后把 `preview.html` 的路径交给用户。
-  等用户明确确认当前预览后再合入。用户退回时继续实现，更新预览并重新提交确认。
+  等用户明确确认当前预览后再合入或推送。用户退回时继续实现，更新预览并重新提交确认。
   合入后在第 2 步关闭直接 Issue 前，把 `spec-v1.json` 附到该 Issue，下载附件并核对
   字节一致，再删除本地预览目录。附件上传或读回失败时记 `BLOCKED`，保留本地预览目录。
 

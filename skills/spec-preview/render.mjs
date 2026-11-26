@@ -1,5 +1,5 @@
 // ==========================================================================
-// L4: build 与 delta 共用 smyw 渲染。成功后返回 preview.html 绝对路径。
+// L4: build、delta、compare 和 restore 共用 smyw 渲染。成功后返回 preview.html 绝对路径。
 // L5: source 为已核验的 spec.json 路径，html 为其同目录的 preview.html。
 //     smyw 最多运行 10 秒。超时、构建失败或未产出 HTML 均报 BLOCKED。
 // ==========================================================================

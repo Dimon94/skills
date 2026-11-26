@@ -447,5 +447,17 @@ test('S13 bug 变更预览要求改前和改后检查输出', (t) => {
   assert.match(output, /FAIL: list is stale/);
   assert.match(output, /PASS: list refreshed/);
 });
-test('S14 任务按固定顺序判定规模并读回标签', () => assert.fail('待验证规模分流'));
-test('S15 小需求出现跨 Module 接口时停止并升级', () => assert.fail('待验证任务升级'));
+function checkScaleTriage(id) {
+  // 清除父测试的运行标记，让子进程执行用例。
+  const { NODE_TEST_CONTEXT, FORCE_COLOR, COLORTERM, ...env } = process.env;
+  const result = spawnSync(process.execPath, [
+    '--test', '--test-reporter=tap', `--test-name-pattern=^${id}[ -]`,
+    join(repo, 'skills/dimon-mode/tests/scale-triage.test.mjs'),
+  ], { env, encoding: 'utf8' });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /^# pass [1-9]\d*$/m, result.stdout);
+}
+
+test('S14 任务按固定顺序判定规模并读回标签', () => checkScaleTriage('S14'));
+test('S15 小需求出现跨 Module 接口时停止并升级', () => checkScaleTriage('S15'));

@@ -67,7 +67,9 @@ spec 用代码写了 Interface 时，每条 `Ensures:` 也是一条验收，实�
 
 再逐条核对：每条验收对应哪项检查、结果是什么。对不上的先补实现或检查；确实做不到的列为缺口，不改写验收去迁就实现。
 
-完成条件：每条验收都有检查与结果，或列为缺口。
+票面有 `Preview:` 字段时，按改动项 id 逐项记录 `match`、`deviation`、`missing` 或 `extra` 与证据，口径见 [code-review 的 Spec 轴](../code-review/SKILL.md#4-spawn-the-sub-agents-in-parallel)。整体验收取各票 `Preview:` 的并集，覆盖锁定版全部改动项。页面改动附运行中应用的截图，流程与后端改动附代码坐标。页面无法运行时，把该项及截图缺口记为 Unknown。对不上的项先修，修不了按 Spec 缺口交回。
+
+完成条件：每条验收都有检查与结果，或列为缺口。有 `Preview:` 时，每个改动项都有结论和证据。Unknown 项按缺口交回。
 
 ## 5. 审查
 

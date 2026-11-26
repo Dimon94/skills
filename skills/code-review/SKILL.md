@@ -76,7 +76,11 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 Spec brief 再追加一句：spec 某行的措辞容许两种可观察行为不同的实现时，不判实现对错；引该行、写出两种读法，列为 Spec 缺口。
 
+原 Spec 的 Dependencies 节有 `Preview: v<N> sha256:<hex>` 锁定行时，调用方先从目标项目根目录运行 `node <spec-preview Skill 目录>/spec-preview.mjs changes <repo> <issue> <version> <sha256>`。把 [changes](../spec-preview/spec-preview.mjs) 返回的锁定版改动项清单交给 Spec 子代理。子代理只返回 `ItemVerdict[]`，逐项填写 `id`、`verdict` 和 `evidence`。结论取 `match`、`deviation`、`missing` 或 `extra`。页面改动把运行中应用的截图填入 `evidence.screenshot`，流程与后端改动把代码坐标填入 `evidence.code`。计划外的可观察改动使用 `extra:<短名>`。对 `deviation`、`missing` 和 `extra`，用改动项 id、预览描述与实际截图或输出组成 P1 反例。
+
 ### 5. Aggregate
+
+有锁定行时，调用 `node <本 Skill>/scripts/item-verdicts.js <锁定版 spec.json> <verdicts.json>`。第一个参数传锁定行对应的 `spec-v<N>.json` 归档，第二个参数传 Spec 子代理返回的数组文件。将脚本的 `verdict` 和 `findings` 写入 Spec 轴报告。退出 2 时按审查未完成处理，修正输入并重跑同一轮。用户在对比页或对话中明确接受某项时，将原话填入该项的 `accepted` 后重跑。其余未接受的 `deviation`、`missing` 或 `extra` 仍为 P1。将输出中的 `verdicts` 原样交给 [spec-preview 的 compare](../spec-preview/spec-preview.mjs) 展示。无锁定行时沿用常规 Spec 审查。
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 

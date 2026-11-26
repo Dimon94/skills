@@ -183,7 +183,55 @@ test('S5 已确认预览变更后旧锁失效', (t) => {
   assert.equal(errors.length, 1, errors.join('\n'));
   assert.match(errors[0], /^error\tpreview-lock\t/);
 });
-test('S6 Spec 轴逐项判定并阻塞未接受的偏差', () => assert.fail('待验证审查结论'));
+test('S6 Spec 轴逐项判定并阻塞未接受的偏差', async (t) => {
+  const { changeItems } = await import('../lib/change-items.cjs');
+  const script = fileURLToPath(new URL('../../code-review/scripts/item-verdicts.js', import.meta.url));
+  const specPath = fileURLToPath(new URL('fixtures/spec.json', import.meta.url));
+  const directory = mkdtempSync(join(tmpdir(), 'item-verdicts-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const verdictsPath = join(directory, 'verdicts.json');
+  const run = (verdicts, status) => {
+    writeFileSync(verdictsPath, JSON.stringify(verdicts));
+    const result = spawnSync(process.execPath, [script, specPath, verdictsPath], { encoding: 'utf8', timeout: 15_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, status, result.stderr);
+    return result;
+  };
+  const page = { id: 'task-note', verdict: 'match', evidence: { screenshot: '任务备注.png' } };
+  const step = { id: 'submit-note', verdict: 'match', evidence: { code: ['src/note.mjs:42'] } };
+  const backend = { id: 'persist-note', verdict: 'missing' };
+  const extra = { id: 'extra:按钮', verdict: 'extra' };
+  const pending = [page, step, backend, extra];
+  assert.deepEqual(new Set(changeItems(JSON.parse(fixture)).map(({ id }) => id)),
+    new Set(pending.filter(({ verdict }) => verdict !== 'extra').map(({ id }) => id)));
+
+  const missing = { id: 'persist-note', severity: 'P1', verdict: 'missing', rule: 'unaccepted' };
+  const added = { id: 'extra:按钮', severity: 'P1', verdict: 'extra', rule: 'unaccepted' };
+  assert.deepEqual(JSON.parse(run(pending, 1).stdout), {
+    verdict: 'BLOCK', findings: [missing, added], verdicts: pending,
+  });
+
+  const acceptedExtra = { ...extra, accepted: '保留新按钮。' };
+  const partial = [page, step, backend, acceptedExtra];
+  assert.deepEqual(JSON.parse(run(partial, 1).stdout), {
+    verdict: 'BLOCK', findings: [missing], verdicts: partial,
+  });
+
+  const accepted = [
+    { ...page, verdict: 'deviation', accepted: '接受页面偏差。' },
+    step,
+    { ...backend, accepted: '本次可以不持久化。' },
+    acceptedExtra,
+  ];
+  assert.deepEqual(JSON.parse(run(accepted, 0).stdout), { verdict: 'PASS', findings: [], verdicts: accepted });
+
+  const incomplete = run([page, backend, extra], 2);
+  assert.match(incomplete.stderr, /^verdict-missing\t.*submit-note/);
+  assert.equal(incomplete.stdout, '');
+  const unknown = run([...pending, { id: 'unknown-note', verdict: 'match' }], 2);
+  assert.match(unknown.stderr, /^verdict-unknown\t.*unknown-note/);
+  assert.equal(unknown.stdout, '');
+});
 test('S7 对比页使用锁定版并要求逐项证据', (t) => {
   const { directory, run } = previewSession(t);
   stdoutOf(run('init'));

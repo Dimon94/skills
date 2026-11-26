@@ -117,11 +117,8 @@ node scripts/autopilot.js poll
   ```bash
   node scripts/autopilot.js set-stage --id <lane_id> --stage awaiting_merge
   ```
-- **流水线内子票状态同步**：
-  巡检 `pipeline` lane 时，若观察到某张子票（如 `JB-546`）已开始实施或已验收合入集成分支，但未单独登记为独立 lane，立即运行确定性同步命令更新该子票状态并回读：
-  ```bash
-  node scripts/autopilot.js sync-issue --issue <ticket_key_or_url> --target <started|review|done>
-  ```
+- **流水线内子票状态**：
+  `pipeline` lane 里 Spec 与各票的 Linear 状态由 delivery-pipeline Driver 自动推进，总控不手工同步。Driver 报同步失败时按 escalate 处理；修复后补一次 `node scripts/autopilot.js sync-issue --issue <key> --target <started|review|done>`。
 - **用户答复已升级项后**：
   将用户的拍板原文转发给对应 `agent_name`，并调用 `node scripts/autopilot.js resolve --id <lane_id>` 恢复自动巡检。
 

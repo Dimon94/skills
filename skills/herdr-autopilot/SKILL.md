@@ -47,6 +47,7 @@ node scripts/autopilot.js poll
 - 脚本只对 `idle` / `done` / `blocked` 且状态有变的已登记 lane 抓尾部输出，保持主上下文精简。
 - 收到 `[herdr-autopilot WAKE]` 消息时不跑 `poll`：消息正文就是这次巡检结果，直接进入第 3 步。
 - `unwatched` 非空表示这些 lane 的哨兵已经不在了：对每条重新执行 `watch`。
+- `unreleased` 非空表示 lane 已是 `done` 却没经 `set-stage done` 收口，pane 还开着：对每条重跑它给出的 `set-stage` 命令。
 
 ### 2. 新需求或 Bug 入队（仅当用户给出新任务时）
 
@@ -130,7 +131,7 @@ node scripts/autopilot.js poll
 node scripts/autopilot.js set-stage --id <lane_id> --stage done
 ```
 
-脚本核对已登记的 pane 和 agent、任务工作树归属、工作树洁净状态和 Git 祖先关系，依次回收工作树、本地任务分支、pane，随后把直接 issue 置为 `Done` 并回读确认，全部通过才写入 `done`（父项 Epic/Spec 保持只读不自动关闭）。只读任务（`--pane-only`）只关闭 pane，默认不关闭 issue。若该 issue 因外部部署或线上验收门暂不能关闭，显式传 `--keep-issue-open --reason "<原因>"`（脚本保持其为 `In Review` 并记录原因）。任一步失败即进入 `escalated`，排除原因后重试同一命令即可幂等续跑。旧账本缺少所有权、squash/rebase 后无法证明祖先关系时保留现场并上报。
+脚本核对已登记的 pane 和 agent、任务工作树归属、工作树洁净状态和 Git 祖先关系，依次回收工作树、本地任务分支、pane，随后把直接 issue 置为 `Done` 并回读确认，全部通过才写入 `done`（父项 Epic/Spec 保持只读不自动关闭）。只读任务（`--pane-only`）只关闭 pane，默认不关闭 issue。若该 issue 因外部部署或线上验收门暂不能关闭，显式传 `--keep-issue-open --reason "<原因>"`（脚本保持其为 `In Review` 并记录原因）。工作树要留作证据，或 squash 后证明不了已合入时，传 `--keep-tree --reason "<原因>"`：脚本保留树和分支，照常关 pane。不手改账本把 lane 写成 `done`。任一步失败即进入 `escalated`，排除原因后重试同一命令即可幂等续跑。旧账本缺少所有权、squash/rebase 后无法证明祖先关系时保留现场并上报。
 
 ### 5. 汇报收口
 

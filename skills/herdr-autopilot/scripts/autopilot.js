@@ -14,7 +14,8 @@
 // - poll --thread 是哨兵的一拍：只看该线程订阅的 active lane，只报订阅后新出现的状态；读不到 state_change_seq 即失败。
 // - poll 把订阅了但哨兵已死的 lane 报进 unwatched。
 // - set-stage --stage awaiting_merge 推进 issue 至 In Review（或保持进行中）并回读校验。
-// - set-stage --stage done 在登记的工作树和本地分支回收、pane 关闭后，同步关闭直接 issue 至 Done 并回读校验（写任务除非显式 --keep-issue-open --reason），再写入 done 并清理 watcher。
+// - set-stage --stage done 在登记的工作树和本地分支回收、pane 关闭后，同步关闭直接 issue 至 Done 并回读校验（写任务除非显式 --keep-issue-open --reason），再写入 done 并清理 watcher。--keep-tree --reason 只跳过树回收，pane 照关。
+// - poll 的 unreleased：status=done 但无 closed_at 且 pane 仍在，即绕过了 set-stage done。
 // - sync-issue 供协调方同步子票状态（started | review | done）并回读校验，不持账本锁。
 // - Defaults to "default" Herdr session; never reads or mutates unmanaged agents.
 // - Stdout: strict JSON; errors: structured stderr + non-zero exit code.
@@ -376,9 +377,19 @@ function sentinelPoll(ledger, session, threadId, opts, runner = defaultHerdrRunn
 function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
   const observe = observer(session, opts, runner);
   const alive = opts.alive || (() => true);
-  const buckets = { working: [], needs_attention: [], escalated: [], awaiting_merge: [], missing: [], unchanged: [], unwatched: [] };
+  let panes = null;
+  const livePane = (id) => {
+    if (!id) return false;
+    panes ||= new Set(JSON.parse(runner(session, ['pane', 'list'])).result.panes.map((p) => p.pane_id));
+    return panes.has(id);
+  };
+  const buckets = { working: [], needs_attention: [], escalated: [], awaiting_merge: [], missing: [], unchanged: [], unwatched: [], unreleased: [] };
 
   for (const lane of Object.values(ledger.lanes)) {
+    // done 只能经 set-stage done 写入，它在 done 前关 pane 并盖 closed_at；没盖却 pane 还在，就是绕过了它。
+    if (lane.status === 'done' && !lane.closed_at && livePane(lane.pane)) {
+      buckets.unreleased.push(view(lane, { fix: `set-stage --id ${lane.id} --stage done（树要保留加 --keep-tree --reason）` }));
+    }
     if (lane.status === 'done') continue;
     const { bucket, sig, detail } = observe(lane);
     // 订阅了却没有哨兵在看：这条 lane 的变化没人会来叫，每次都报，直到重新 watch。
@@ -391,7 +402,7 @@ function pollLanes(ledger, session, opts, runner = defaultHerdrRunner) {
     else buckets[bucket].push(view(lane, detail()));
   }
 
-  const hasActionable = ['needs_attention', 'escalated', 'awaiting_merge', 'missing', 'unwatched']
+  const hasActionable = ['needs_attention', 'escalated', 'awaiting_merge', 'missing', 'unwatched', 'unreleased']
     .some((key) => buckets[key].length > 0);
   return { session, status: hasActionable ? 'attention' : 'quiet', ...buckets };
 }
@@ -626,14 +637,15 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
 
   if (command === 'set-stage') {
     if (flags.stage === 'done') {
-      if (flags['keep-issue-open'] && !String(flags.reason || '').trim()) {
-        throw new Error('--keep-issue-open requires --reason "<保留原因>"');
+      const reason = String(flags.reason || '').trim();
+      for (const flag of ['keep-issue-open', 'keep-tree']) {
+        if (flags[flag] && !reason) throw new Error(`--${flag} requires --reason "<保留原因>"`);
       }
       const current = requireLane(ledger, flags.id);
       const checkpoint = () => saveLedger(ledgerPath, ledger);
       let issueSync = null;
       try {
-        closeout(current, session, runner, checkpoint);
+        closeout(current, session, runner, checkpoint, flags['keep-tree'] ? reason : null);
         issueSync = syncLaneIssueOnDone(current, flags, issueSyncFn);
       } catch (error) {
         escalateLane(ledger, flags.id, error.message);

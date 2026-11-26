@@ -74,11 +74,13 @@ function closablePane(lane, session, runner) {
   return true;
 }
 
-function closeout(lane, session, runner, checkpoint) {
+// keepTree：树要留作证据或无法证明已合入时，只释放 pane，原因记进账本；pane 永远在 done 前关闭。
+function closeout(lane, session, runner, checkpoint, keepTree = null) {
   if (lane.closed_at) return;
   if (!lane.cleanup) throw new Error('缺少登记时的资源归属，保留现场');
   closablePane(lane, session, runner);
-  if (lane.cleanup.tree) retireTree(lane.cleanup.tree, checkpoint);
+  if (keepTree) lane.tree_kept_reason = keepTree;
+  else if (lane.cleanup.tree) retireTree(lane.cleanup.tree, checkpoint);
   if (closablePane(lane, session, runner)) {
     lane.closing_pane = true;
     checkpoint();

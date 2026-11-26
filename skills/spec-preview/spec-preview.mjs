@@ -7,11 +7,13 @@
 // L4
 //   OUT: 成功退出 0，路径用绝对路径，版本用十进制，改动项用 JSON 数组。
 //   FAIL: PreviewError 输出 <错误码>\t<说明> 到 stderr，退出 1。
-//   INVARIANT: 合同票阶段全部命令报 BLOCKED，无文件写入。
+//   INVARIANT: 写入目标限于用户缓存。归档和恢复在校验失败时保留原状。
+//              只有 archive 删除预览目录，且先核验附件读回字节一致。
 // L5
 //   PARAM: ref = <repo> <issue>；repo 是目录名，issue 是 Issue 标识或草稿 id。
 //   PARAM: lock = <version> <sha256>；版本为正整数，SHA-256 为 64 位小写十六进制。
-//   PARAM: feedback、as-built 为文件路径；verdicts、items、files 为 JSON 数组。
+//   PARAM: feedback、as-built 为文件路径；verdicts、items 为 JSON 数组。
+//   PARAM: archive 和 restore 的 files 为两份已下载附件的路径数组。
 //   PARAM: SMYW_DIR 指向 smyw Skill 目录，缺省 ~/.agents/skills/smyw。
 //   PARAM: Preview: v<N> sha256:<hex> 为 Spec 锁定行；票头 Preview: 列改动项 id。
 //   PARAM: Issue 规模标签为 scope:bug、scope:small、scope:mmf。
@@ -26,6 +28,7 @@ import { changes } from './commands/changes.mjs';
 import { compare } from './commands/compare.mjs';
 import { delta } from './commands/delta.mjs';
 import { rekey } from './commands/rekey.mjs';
+import { archive } from './commands/archive.mjs';
 import { restore } from './commands/restore.mjs';
 import { PreviewError } from './preview-error.mjs';
 
@@ -45,6 +48,7 @@ const signatures = {
   compare:    { run: compare, args: ['ref', 'lock', 'as-built', 'verdicts'], format: String },
   delta:      { run: delta,   args: ['ref', 'items'],                     format: String },
   rekey:      { run: rekey,   args: ['ref', 'ref'] },
+  archive:    { run: archive, args: ['ref', 'files'],                     format: String },
   restore:    { run: restore, args: ['ref', 'files'],                     format: String },
 };
 

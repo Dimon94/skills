@@ -10,7 +10,7 @@ assert.equal(skeleton.status, 0, skeleton.stdout + skeleton.stderr);
 
 const failedIds = [];
 const expectedIds = Array.from({ length: 15 }, (_, index) => `S${index + 1}`)
-  .filter(id => !['S1', 'S2', 'S3', 'S6', 'S7', 'S10', 'S11', 'S12', 'S13'].includes(id))
+  .filter(id => !['S1', 'S2', 'S3', 'S6', 'S7', 'S8', 'S9', 'S10', 'S11', 'S12', 'S13'].includes(id))
   .filter(id => id !== 'S4' && id !== 'S5');
 const scenarios = run({
   files: [testFile('scenarios.test.mjs')],

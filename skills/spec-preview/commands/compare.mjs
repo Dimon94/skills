@@ -109,7 +109,7 @@ function verdictText({ id, verdict, evidence, accepted }) {
   return lines.join('\n');
 }
 
-function renderCompare(parent, archive, frozen, spec) {
+export function renderCompare(parent, archive, frozen, spec) {
   const directory = join(parent, 'compare');
   const files = [archive, 'spec.json', 'preview.html'];
   const verifyTargets = () => {

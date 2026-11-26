@@ -282,8 +282,55 @@ test('S7 对比页使用锁定版并要求逐项证据', (t) => {
   assert.equal(existsSync(repoCache), false);
   assert.equal(status(), before);
 });
-test('S8 附件读回后才删除本地预览', () => assert.fail('待验证合入归档'));
-test('S9 归档附件重建相同的预览', () => assert.fail('待验证恢复预览'));
+function compareAttachments(t) {
+  const { directory, home, run } = previewSession(t);
+  assert.equal(stdoutOf(run('init')), directory);
+  const frozen = JSON.stringify({ ...JSON.parse(fixture), version: 2, versionNote: '确认版' });
+  writeFileSync(join(directory, 'spec-v2.json'), frozen);
+  const sha256 = createHash('sha256').update(frozen).digest('hex');
+  const asBuilt = fileURLToPath(new URL('fixtures/compare-as-built.json', import.meta.url));
+  const verdicts = readFileSync(new URL('fixtures/compare-verdicts.json', import.meta.url), 'utf8');
+  const html = stdoutOf(run('compare', {}, '2', sha256, asBuilt, verdicts));
+  const files = ['下载的实现版.json', '下载的确认版.json'].map(name => join(home, name));
+  writeFileSync(files[0], readFileSync(join(directory, 'compare', 'spec.json')));
+  writeFileSync(files[1], readFileSync(join(directory, 'compare', 'spec-v2.json')));
+  return { directory, run, html, files };
+}
+
+test('S8 附件读回后才删除本地预览', (t) => {
+  const { directory, run, files } = compareAttachments(t);
+  const gitStatus = () => execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: repo, encoding: 'utf8' });
+  const before = gitStatus();
+  const entries = () => readdirSync(directory, { recursive: true }).sort();
+  const originals = entries();
+  const archive = attachments => run('archive', {}, JSON.stringify(attachments));
+  const built = readFileSync(files[0]);
+  writeFileSync(files[0], Buffer.concat([built, Buffer.from('\n')]));
+  for (const attachments of [files, files.slice(0, 1), [...files, files[0]]]) {
+    rejectsWith(archive(attachments), 'BLOCKED');
+    assert.deepEqual(entries(), originals);
+  }
+  writeFileSync(files[0], built);
+  assert.equal(stdoutOf(archive(files)), directory);
+  assert.equal(existsSync(directory), false);
+  assert.equal(gitStatus(), before);
+});
+
+test('S9 归档附件重建相同的预览', (t) => {
+  const { directory, run, html, files } = compareAttachments(t);
+  const original = readFileSync(html);
+  assert.equal(stdoutOf(run('archive', {}, JSON.stringify(files))), directory);
+  assert.equal(existsSync(directory), false);
+
+  const built = readFileSync(files[0]);
+  writeFileSync(files[0], JSON.stringify({ ...JSON.parse(built), version: 4 }));
+  rejectsWith(run('restore', {}, JSON.stringify(files)), 'BLOCKED');
+  assert.equal(existsSync(directory), false);
+  writeFileSync(files[0], built);
+  const restored = stdoutOf(run('restore', {}, JSON.stringify(files)));
+  assert.equal(restored, join(directory, 'compare', 'preview.html'));
+  assert.deepEqual(readFileSync(restored), original);
+});
 test('S10 构建产物与 smyw 一致且保留交互', (t) => {
   const session = previewSession(t);
   const { directory, env, home, renderer, run } = session;

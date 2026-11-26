@@ -13,6 +13,11 @@
   两种情况均暂停推进。生成后把 `compare/preview.html` 的路径交给需求作者，
   由需求作者在页面上明确接受偏差、缺失或计划外改动，或退回。等用户明确确认当前对比页后再推送或合入。
   用户退回时继续实现，重新生成对比页并交回确认。
+  合入后，在第 2 步关闭直接 Issue 前，通过 Linear MCP 把 `compare/spec-v<N>.json`（确认版）和
+  `compare/spec.json`（实现版）附到 Spec Issue。下载两份附件后调用
+  `archive <repo> <issue> <files-json>`，让脚本核对字节并删除已归档的本地预览目录。
+  上传、读回或 `archive` 失败时记 `BLOCKED`，保留本地目录。
+  需要追溯时，从 Spec Issue 下载两份附件，调用 `restore <repo> <issue> <files-json>` 重建对比页。
 - 无 `Preview:` 锁定行时，在合入前调用 [`spec-preview`](../../spec-preview/SKILL.md)
   的 `delta <repo> <issue> <items-json>`。页面和节点附改前、改后截图。流程和后端附
   两侧的代码坐标。bug 修复另附改前失败、改后通过的检查输出。

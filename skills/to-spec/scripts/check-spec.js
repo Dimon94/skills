@@ -5,7 +5,7 @@
 //   INPUT: 一份 Spec 草稿（Markdown 文件路径；缺省读 stdin）
 //   OUTPUT: 每个问题一行 "error\t<规则>\t<说明>"，有问题退出 1；无问题打印 ok 退出 0
 //   POS: to-spec 第 6 步发布前的确定性核对；只读，不改文件、不访问 tracker
-//   EXPORT: checkSpec、splitSections、ids、readScenarios；to-tickets 复用后三者读取同一份 Spec
+//   EXPORT: checkSpec、splitSections、ids、readScenarios、readPreviewLock；to-tickets 复用解析函数读取同一份 Spec
 //   INPUT: 新建 Spec 用 --require-scenarios；缺省仍可读历史正文
 //   INPUT: 写入锁定行后的发布检查用 --require-preview
 //   INPUT: 发布后读回用 --parent <读回的原生父项>，父项为空传 ''；缺省不查父项
@@ -44,7 +44,7 @@ const SECTIONS = [
   "Further Notes",
 ];
 const EDGE_LINE = /^[\s>*-]*`?\**(Blocked by|Blocks)\**`?\s*[:：]/;
-const PREVIEW_LINE = /^[ \t]*(?:[-*][ \t]+)?[`*]*Preview[`*]*:[`*]*[ \t]+[`*]*v([1-9]\d*)[ \t]+sha256:[a-f0-9]{64}[`*]*[ \t]*$/;
+const PREVIEW_LINE = /^[ \t]*(?:[-*][ \t]+)?[`*]*Preview[`*]*:[`*]*[ \t]+[`*]*v([1-9]\d*)[ \t]+sha256:([a-f0-9]{64})[`*]*[ \t]*$/;
 const ID = /\b([TR])(\d+)\b/g;
 const RANGE = /\b([TR])(\d+)\s*[–-]\s*\1?(\d+)\b/g;
 const OWNER_LINE = /^[\s>*-]*\**(Owns|Owner|拥有)\**\s*[:：]\**(.*)$/;
@@ -144,10 +144,17 @@ function checkDependencies(sections) {
     .map((label) => ["dependencies", `Dependencies 缺少 ${label}: 行；没有边写“无”和依据`]);
 }
 
-function checkPreview(sections) {
+function readPreviewLock(sections) {
   const lines = (sections.get("Dependencies") || "").split(/\r?\n/);
-  const valid = lines.some((line) => Number.isSafeInteger(Number(PREVIEW_LINE.exec(line)?.[1])));
-  return valid ? [] : [["preview", "请在 Dependencies 节写入 confirm 输出的 Preview: v<N> sha256:<64 位小写十六进制> 行"]];
+  for (const line of lines) {
+    const match = PREVIEW_LINE.exec(line);
+    const version = Number(match?.[1]);
+    if (Number.isSafeInteger(version)) return { version, sha256: match[2] };
+  }
+}
+
+function checkPreview(sections) {
+  return readPreviewLock(sections) ? [] : [["preview", "请在 Dependencies 节写入 confirm 输出的 Preview: v<N> sha256:<64 位小写十六进制> 行"]];
 }
 
 function states(flow) {
@@ -237,4 +244,4 @@ if (require.main === module) {
   process.exitCode = errors.length ? 1 : 0;
 }
 
-module.exports = { checkSpec, splitSections, ids, readScenarios };
+module.exports = { checkSpec, splitSections, ids, readScenarios, readPreviewLock };

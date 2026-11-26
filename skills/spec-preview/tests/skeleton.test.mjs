@@ -19,7 +19,6 @@ test('未实现的子命令接收冻结的位置参数并报错，预览目录�
   const ref = ['my-skills', 'DD-654'];
   const lock = ['1', 'a'.repeat(64)];
   const argumentsByCommand = {
-    changes: [...ref, ...lock],
     compare: [...ref, ...lock, 'as-built.json', '[]'],
     restore: [...ref, '["spec.json"]'],
   };

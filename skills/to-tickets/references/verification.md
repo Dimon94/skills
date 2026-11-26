@@ -2,6 +2,14 @@
 
 给独立会话 SKILL.md 路径与下列输入，不给预期答案；按检查项判定实际输出。没有 tracker 与发布授权，输出应是未发布的切片表。确定性部分另有 `node --test skills/to-tickets/tests/check-tickets.test.js`，其中 DD-455 回放夹具记录了旧切法（7 波）与合同先行（6 波、同波重叠 8→1）的对照。
 
+## 三份票草稿认领锁定预览
+
+使用 [Spec 预览夹具](../../spec-preview/tests/fixtures/spec.json)，通过 `build`、`apply` 和 `confirm` 取得 v2 锁，将锁写入 Spec 的 Dependencies 节。准备三份票草稿，分别认领 `task-note`、`submit-note` 和 `persist-note`。随后应用 [v2 反馈夹具](../../spec-preview/tests/fixtures/feedback-reopen.md) 生成 v3，保留旧锁再尝试拆票。
+
+- v2 的三份草稿各认领一项，`check-tickets --preview` 返回零 `error`。删去一项、让两票认领同一项、填入不存在的 id，分别报告 `preview-uncovered`、`preview-duplicate` 和 `preview-unknown`。
+- v3 生成后，v2 的 `changes` 报 `PreviewLockMismatch` 并停止拆票。把当前 `spec.json` 交给 `check-tickets --preview` 核对 v2 锁，只报告 `preview-lock`。
+- 可复跑检查为 `node --test --test-name-pattern='^S(4|5) ' skills/spec-preview/tests/scenarios.test.mjs`。
+
 ## 同一票号的两份停止回合票
 
 读 [S1](stop-turn/spec.md)，分别对[完整票](stop-turn/ticket.md)和[错票](stop-turn/ticket-missing-result.md)运行 `check-tickets.js --require-scenarios`。两份正文的编号、归属、接口位置与波次相同。逐项对账，记录票号、原结果、票面可验收的结果、结论。

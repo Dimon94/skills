@@ -23,14 +23,21 @@ disable-model-invocation: true
 先判输入。输入切成两半、每半都能单独上线且单独有人用，它不止一个 MMF：停下，以 `NEXT: to-epic <理由>` 交回调用方（独立调用时请用户运行 `/to-epic`），列出 MMF 候选。只切出一张票也走完全部步骤，切片表只有一行。
 
 1. **读 Spec。** 参数是 Issue 时读全文与评论。列出全部 T、R、User Story 编号和场景 id。读每个场景的前提、动作、全部预期与公开入口，并定位 owner Module 的 `Owns:`、Interface 和 Ensures。按目标项目词汇读相关代码，找到每个 Interface 与共享写入目标的真实坐标。完成条件：每个编号、Module、Interface 都有坐标或标 Unknown。
+
+   从 Spec 的 Dependencies 节取 `Preview: v<N> sha256:<hex>`。缺锁时请需求作者确认预览再继续。在目标项目根目录运行 [spec-preview](../spec-preview/SKILL.md) 的 `changes`，`version` 传数字，`sha256` 传十六进制值。收到 `PreviewLockMismatch` 时停止拆票，请需求作者重新确认。将返回的每个改动项分给一张票。
+
+   ```bash
+   node <spec-preview Skill 目录>/spec-preview.mjs changes <repo> <Spec 标识> <version> <sha256>
+   ```
+
 2. **切合同票。** 把后续票共同依赖的 Interface、共享写入目标、场景索引与最小夹具放进合同票，具体业务断言由负责该结果的行为票承接。验收是：编译通过、桩可调用、夹具能跑且对未实现的行为报红。没有跨票共享形状时直接切行为票。Interface 形状或技术可行性答不上来时，先切 spike。完成条件：后续每张行为票要用的 Interface 与共享目标都在合同票里，或写明它为什么不进合同票。
 3. **切行为票。** 把 T 按可检查结果分组，每组一张票；每条 R 分给实现其机制的票，其他票写 `Respects`；每条 User Story 至少落到一张票。拆法见 [拆法库](references/splitting-patterns.md)，先做强制规则和价值最大的路径。某票需要先加深一个 Module 才能把改动变小时，在它前面放结构票；被替换的是没有外部调用方的内部 Interface 时，按运行时目录完整读取 `principle-migrate-callers-then-delete-legacy-apis/SKILL.md`，迁移与删除都放进本 MMF。不设「集成」「联调」「回归」票：整体验收是 MR 的 code-review Spec 轴。需要人工签核的 R 由一张行为票负责。完成条件：每张行为票通过下方切片检查。
 4. **连依赖边。** 只连两种边：依赖合同票；或本票的验收必须先有另一张票交付的行为（例如没有会话就无法验证回合）。调用 Interface 不连边，签名已在合同票冻结；同 Module、同文件不连边。同一波两张票仍要写同一个共享目标时，先把该部分前移到合同票；单一写者是真不变量时，按运行时目录完整读取 `principle-separate-before-serializing-shared-state/SKILL.md` 再决定连边或合票，并写明不变量。完成条件：每条边写明它依赖的行为或合同。
 5. **定粒度。** 调用 `ticket-sizing`，取每票拆分信号与本 MMF 的票数、合计；超过拆分线的票按它的拆分步骤沿独立验收边界切开。一张行为票不负责任何 T/R，就并入相邻票。拆分信号只留在规划侧。完成条件：每票有拆分信号；没有空的行为票。
-6. **核对。** 按下方票面格式写票草稿，保存到执行 agent 读不到的规划位置（目标项目仓库之外，或约定的规划产物位置且不被票引用），运行：
+6. **核对。** 按下方票面格式写票草稿，保存到执行 agent 读不到的规划位置（目标项目仓库之外，或约定的规划产物位置且不被票引用）。重跑第 1 步的 `changes` 核对当前锁，再传入同一缓存目录中的锁定版归档。
 
    ```bash
-   node <本 Skill 目录>/scripts/check-tickets.js --require-scenarios <spec.md> <tickets.md>
+   node <本 Skill 目录>/scripts/check-tickets.js --require-scenarios --preview <spec-vN.json> <spec.md> <tickets.md>
    ```
 
    `error` 全部修完再继续。`overlap` 警告逐条处理：把共享部分前移到合同票，或写明为何接受合并冲突风险。接着逐场景做语义对账。并排读 Spec 的 Given / When / Then、相关 Ensures 和本票验收句，逐项指出票中哪句话能拒绝丢失该结果的实现。漏项或弱化的票按原票号退回；改变期望交需求作者裁决。完成条件是零 `error`、每项原结果在责任票可验收，且已记录 `waves` 与 `critical-path`。
@@ -58,6 +65,8 @@ disable-model-invocation: true
 
 `Blocked by` 无依赖写 `None` 或 `无`；依赖票尚未创建时写 `Unknown（原因）`。后者产生警告，本票及下游不可派发，不计入波次与关键路径；创建依赖票后填入票 id，再运行核对。
 
+`Preview` 写本票认领的改动项 id，用逗号、顿号或空白分隔。没有认领时可省略该行。
+
 ```markdown
 ## 03: 用户停止正在运行的回合并保留部分结果
 - Parent: <Spec Issue>
@@ -67,6 +76,7 @@ disable-model-invocation: true
 - Respects: R11
 - Stories: 12, 13
 - Modules: PiTurnRunner
+- Preview: <改动项 id 列表>
 - Blocked by: 02
 
 ### What to build

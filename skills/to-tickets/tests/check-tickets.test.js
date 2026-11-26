@@ -5,7 +5,10 @@
  */
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
+const { tmpdir } = require("node:os");
 const path = require("node:path");
 const { checkTickets } = require("../scripts/check-tickets.js");
 
@@ -168,4 +171,73 @@ test("DD-609 加粗：字段名或字段名连冒号加粗都按普通字段解�
     assert.deepEqual(rules(text), []);
     assert.equal(info(text, "waves"), "1:C  2:01,02");
   }
+});
+
+// ---- 锁定预览 -----------------------------------------------------------
+const preview = Buffer.from(JSON.stringify({
+  version: 2,
+  pages: [{ id: 'page', change: 'added' }],
+  flows: [{ id: 'flow', steps: [{ id: 'step', change: 'modified' }] }],
+  backend: [{ id: 'module', items: [{ id: 'field', change: 'added' }, { id: 'api', change: 'removed' }] }],
+}));
+const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+const lock = `* **Preview:** v2 sha256:${hash(preview)}`;
+const lockedSpec = `${SPEC}\n## Dependencies\n${lock}\n`;
+const previewErrors = (spec, text, bytes) => checkTickets(spec, text, false, bytes).filter(([level]) => level === 'error');
+
+test('Preview 只在启用时读取票头。不同分隔符均可用，同一张票内重复 id 只算一票', () => {
+  const full = draft({ '01': { ...GOOD['01'], '**Preview**': 'page, step、field api page' } });
+  const text = `${full}### What to build\n- Preview: unrelated-prose\n`;
+  assert.deepEqual(previewErrors(lockedSpec, text, preview), []);
+  const repeated = `${draft()}- Preview: unknown-id\n- Preview: other-id\n`;
+  assert.deepEqual(checkTickets(SPEC, repeated), checkTickets(SPEC, draft()));
+});
+
+test('Preview 定位漏认领、跨票重复和未知 id', () => {
+  const text = draft({
+    '01': { ...GOOD['01'], Preview: 'page, step' },
+    '02': { ...GOOD['02'], Preview: 'page、api extra' },
+  });
+  const errors = previewErrors(lockedSpec, text, preview);
+  const items = errors.map(([, rule, message]) => `${rule} ${message.split(' ')[0]}`).sort();
+  assert.deepEqual(items, ['preview-duplicate page', 'preview-uncovered field', 'preview-unknown extra']);
+  assert.match(errors.find(([, rule]) => rule === 'preview-duplicate')[2], /01.*02/);
+  assert.match(errors.find(([, rule]) => rule === 'preview-unknown')[2], /02/);
+});
+
+test('锁缺失、放错章节、版本不符或原始字节变更时只报 preview-lock', () => {
+  const text = draft({ '01': { ...GOOD['01'], Preview: 'extra' } });
+  const cases = [
+    [SPEC, preview],
+    [`${SPEC}\n${lock}`, preview],
+    [lockedSpec.replace('v2 sha256:', 'v3 sha256:'), preview],
+    [lockedSpec, Buffer.concat([preview, Buffer.from('\n')])],
+  ];
+  for (const [spec, bytes] of cases) {
+    assert.deepEqual(previewErrors(spec, text, bytes).map(([, rule]) => rule), ['preview-lock']);
+  }
+});
+
+test('CLI 两种选项顺序都执行场景与预览检查', (t) => {
+  const directory = fs.mkdtempSync(path.join(tmpdir(), 'check-tickets-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, 'spec-v2.json');
+  const specPath = path.join(directory, 'spec.md');
+  const ticketsPath = path.join(directory, 'tickets.md');
+  fs.writeFileSync(source, preview);
+  fs.writeFileSync(specPath, stopTurn('spec.md').replace('## Dependencies\n', `## Dependencies\n${lock}\n`));
+  fs.writeFileSync(ticketsPath, stopTurn('ticket.md').replace('### What to build', '- Preview: page step field api\n\n### What to build'));
+  const cli = require.resolve('../scripts/check-tickets.js');
+  const run = options => spawnSync(process.execPath, [cli, ...options, specPath, ticketsPath], { encoding: 'utf8' });
+  const scopes = [['--require-scenarios', '--preview', source], ['--preview', source, '--require-scenarios']];
+  for (const options of scopes) {
+    const result = run(options);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /^info\twaves\t1:TURN-1$/m);
+  }
+  fs.writeFileSync(ticketsPath, stopTurn('ticket.md').replace('- Scenarios: S1\n', ''));
+  const result = run(scopes[1]);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /^error\tscenario\t/m);
+  assert.match(result.stdout, /^error\tpreview-uncovered\tpage /m);
 });

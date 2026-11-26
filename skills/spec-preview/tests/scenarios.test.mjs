@@ -116,8 +116,73 @@ test('S3 存在未处理的必须改时拒绝确认', (t) => {
   stdoutOf(run('build'));
   assert.match(stdoutOf(run('confirm', {}, feedback('must-fix'))), /^Preview: v2 sha256:[a-f0-9]{64}$/);
 });
-test('S4 拆票拒绝漏认领与重复认领', () => assert.fail('待验证改动项归属'));
-test('S5 已确认预览变更后旧锁失效', () => assert.fail('待验证旧锁失效'));
+function checkPreviewTickets({ home, env }, source, lock, claims) {
+  const specPath = join(home, 'spec.md');
+  const ticketsPath = join(home, 'tickets.md');
+  const transitions = claims.map((_, index) => `T${index + 1}`);
+  writeFileSync(specPath, `## Business Flow\n${transitions.join('\n')}\n## Dependencies\n- ${lock}\n`);
+  writeFileSync(ticketsPath, claims.map((claim, index) =>
+    `## DD-${index + 1}: 草稿\n- Owns: ${transitions[index]}\n- Blocked by: None\n- Preview: ${claim}\n`).join('\n'));
+  const checker = join(repo, 'skills/to-tickets/scripts/check-tickets.js');
+  return spawnSync(process.execPath, [checker, '--preview', source, specPath, ticketsPath], {
+    cwd: repo, env, encoding: 'utf8', timeout: 15_000,
+  });
+}
+
+function ticketErrors(result, status) {
+  assert.ifError(result.error);
+  assert.equal(result.status, status, result.stdout + result.stderr);
+  assert.equal(result.stderr, '');
+  return result.stdout.split('\n').filter(line => line.startsWith('error\t'));
+}
+
+test('S4 拆票拒绝漏认领、重复认领与未知改动项', (t) => {
+  const session = previewSession(t);
+  const source = join(session.home, 'spec-v1.json');
+  writeFileSync(source, fixture);
+  const lock = `Preview: v1 sha256:${createHash('sha256').update(fixture).digest('hex')}`;
+  const check = claims => checkPreviewTickets(session, source, lock, claims);
+  assert.deepEqual(ticketErrors(check(['task-note', 'submit-note', 'persist-note']), 0), []);
+
+  const cases = [
+    [['task-note', 'submit-note', ''], /^error\tpreview-uncovered\t.*persist-note/],
+    [['task-note', 'submit-note, task-note', 'persist-note'], /^error\tpreview-duplicate\t.*task-note.*DD-1.*DD-2/],
+    [['task-note', 'submit-note', 'persist-note', 'extra-note'], /^error\tpreview-unknown\t.*extra-note.*DD-4/],
+  ];
+  for (const [claims, expected] of cases) {
+    const errors = ticketErrors(check(claims), 1);
+    assert.equal(errors.length, 1, errors.join('\n'));
+    assert.match(errors[0], expected);
+  }
+});
+
+test('S5 已确认预览变更后旧锁失效', (t) => {
+  const session = previewSession(t);
+  const { directory, run } = session;
+  buildV1(session);
+  assert.equal(stdoutOf(run('apply', {}, feedback('structure'))), '2');
+  stdoutOf(run('build'));
+  const lock = stdoutOf(run('confirm', {}, feedback('confirm')));
+  assert.match(lock, /^Preview: v2 sha256:[a-f0-9]{64}$/);
+  const sha256 = lock.split('sha256:')[1];
+  const frozen = join(directory, 'spec-v2.json');
+  const frozenBytes = readFileSync(frozen);
+  assert.deepEqual(JSON.parse(stdoutOf(run('changes', {}, '2', sha256))), [
+    { id: 'task-note', kind: 'page', change: 'added' },
+    { id: 'submit-note', kind: 'step', change: 'added' },
+    { id: 'persist-note', kind: 'backend', change: 'added' },
+  ]);
+  const wrongSha = (sha256[0] === '0' ? '1' : '0') + sha256.slice(1);
+  rejectsWith(run('changes', {}, '2', wrongSha), 'PreviewLockMismatch');
+
+  assert.equal(stdoutOf(run('apply', {}, feedback('reopen'))), '3');
+  assert.deepEqual(readFileSync(frozen), frozenBytes);
+  rejectsWith(run('changes', {}, '2', sha256), 'PreviewLockMismatch');
+  const check = checkPreviewTickets(session, join(directory, 'spec.json'), lock, ['extra-note']);
+  const errors = ticketErrors(check, 1);
+  assert.equal(errors.length, 1, errors.join('\n'));
+  assert.match(errors[0], /^error\tpreview-lock\t/);
+});
 test('S6 Spec 轴逐项判定并阻塞未接受的偏差', () => assert.fail('待验证审查结论'));
 test('S7 对比页使用锁定版并要求逐项证据', () => assert.fail('待验证对比页'));
 test('S8 附件读回后才删除本地预览', () => assert.fail('待验证合入归档'));

@@ -2,13 +2,15 @@
 // ==========================================================================
 // L3
 //   COORD: skills/to-tickets/scripts/check-tickets.js
-//   INPUT: argv[2] = Spec（Markdown），argv[3] = 票草稿（Markdown，每票一个 "## <id>: <标题>" 块）
+//   INPUT: [--require-scenarios] [--preview <锁定版 JSON>] <Spec Markdown> <票草稿 Markdown>
 //   OUTPUT: 每行 "<error|warn|info>\t<规则>\t<说明>"；有 error 退出 1，否则退出 0
 //   POS: to-tickets 发布前的确定性核对；只读，不改文件、不访问 tracker
-//   DEPS: ../../to-spec/scripts/check-spec.js 的 splitSections、ids、readScenarios
-//   EXPORT: checkTickets(specText, ticketText, requireScenarios?) -> [level, rule, message][]
+//   DEPS: check-spec.js 的 splitSections、ids、readScenarios、readPreviewLock；spec-preview 的 changeItems
+//   EXPORT: checkTickets(specText, ticketText, requireScenarios?, previewBytes?) -> [level, rule, message][]
 //   EXPORT: parseTicket、ticketFindings、readScenarioContract、isUnknownDependency 供派发入口读回同一份票面合同
 //   TEST: node --test skills/to-tickets/tests/check-tickets.test.js
+// L4
+//   INVARIANT: 核对预览时，每个改动项恰好由一张已列出的票认领。
 // L5
 //   PARAM: 票字段 = 每个块首个 ### 小节之前，以 Kind/Owns/Respects/Stories/Modules/Blocked by 加冒号开头的行，字段名忽略大小写
 //   PARAM: 字段名或字段名连冒号可用 Markdown 加粗；正文同名行不作字段，仍检查 token 数字
@@ -19,6 +21,9 @@
 //   FAIL: Owns/Respects 引用 Spec 未定义的 T/R → undefined
 //   FAIL: 场景表、What to build 的场景或接口字段、验收小节的场景与 T/R 覆盖有缺口 → scenario
 //   PARAM: 没有场景表与场景字段的历史输入沿原规则读回；新草稿用 --require-scenarios
+//   PARAM: --preview 启用票头 Preview 字段，改动项 id 用逗号、顿号或空白分隔。
+//   FAIL: 锁缺失或 JSON 字节哈希、版本不符 → preview-lock
+//   FAIL: 漏认领、跨票重复或认领未知改动项 → preview-uncovered、preview-duplicate、preview-unknown
 //   FAIL: Spec 的 User Story 没有任何票的 Stories 指向 → stories
 //   FAIL: Kind 不在取值范围 → kind；同一字段行出现多次 → field
 //   FAIL: behavior 票 Owns 为空 → empty
@@ -28,11 +33,16 @@
 //   WARN: Blocked by 为 Unknown（原因）→ edges；本票及下游不可派发，不参与波次与关键路径
 //   WARN: 同一波次两张非合同票声明同一 Module → overlap
 //   INFO: waves（每波的票）、critical-path（最长依赖链）
+// L6
+//   CHAIN: 先核验 Spec 的锁与 JSON，再检查票面及改动项归属。锁不符时停止核对。
 // ==========================================================================
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
-const { splitSections, ids, readScenarios } = require("../../to-spec/scripts/check-spec.js");
+const { splitSections, ids, readScenarios, readPreviewLock } = require("../../to-spec/scripts/check-spec.js");
+const { changeItems } = require("../../spec-preview/lib/change-items.cjs");
 
 const fieldNames = ['Kind', 'Owns', 'Respects', 'Stories', 'Modules', 'Blocked by'];
+const previewFields = [...fieldNames, 'Preview'];
 const FIELD = /^[\s>*-]*\**([a-z ]+?)\**\s*[:：]\**\s*(.*)$/i;
 const TOKEN = /\b\d+(?:\.\d+)?\s*[kK]\b|\b\d[\d,]*\s*tokens?\b/;
 const NONE = /^(none|无)$/i;
@@ -40,13 +50,14 @@ const isUnknownDependency = value => /^Unknown（[^）]+）$/i.test(value);
 const KINDS = new Set(["contract", "behavior", "structure", "spike"]);
 
 // ---- 解析 ---------------------------------------------------------------
-function parseTicket(id, title, body) {
+function parseTicket(id, title, body, includePreview = false) {
   const ticket = { id, title, body, kind: "behavior", owns: new Set(), respects: new Set(), stories: [], modules: [], blockedBy: null, seen: new Set(), repeated: [] };
+  const fields = includePreview ? previewFields : fieldNames;
   for (const line of body.split("\n")) {
     if (/^###(?:\s|$)/.test(line)) break;
     const match = FIELD.exec(line);
     if (!match) continue;
-    const name = fieldNames.find(field => field.toLowerCase() === match[1].toLowerCase());
+    const name = fields.find(field => field.toLowerCase() === match[1].toLowerCase());
     if (!name) continue;
     if (ticket.seen.has(name)) ticket.repeated.push(name);
     ticket.seen.add(name);
@@ -62,20 +73,20 @@ function applyField(ticket, name, value) {
   if (name === "Respects") ticket.respects = ids(value);
   if (name === "Stories") ticket.stories = list().map(Number).filter(Number.isInteger);
   if (name === "Modules") ticket.modules = list();
+  if (name === "Preview") ticket.preview = new Set(list());
   if (name === "Blocked by") ticket.blockedBy = NONE.test(value) ? [] : isUnknownDependency(value) ? [value] : value ? list() : null;
 }
 
-function parseTickets(text) {
+function parseTickets(text, includePreview) {
   const tickets = [];
   for (const [heading, body] of splitSections(text)) {
     const match = /^(\S+?)[:：]\s*(.*)$/.exec(heading);
-    if (match) tickets.push(parseTicket(match[1], match[2], body));
+    if (match) tickets.push(parseTicket(match[1], match[2], body, includePreview));
   }
   return tickets;
 }
 
-function specItems(text, required) {
-  const sections = splitSections(text);
+function specItems(sections, required) {
   const stories = [...(sections.get("User Stories") || "").matchAll(/^\s*(\d+)\./gm)].map((m) => Number(m[1]));
   return { flow: ids(sections.get("Business Flow") || ""), stories, ...readScenarios(sections, required) };
 }
@@ -92,6 +103,35 @@ function checkCoverage(spec, tickets) {
       if (!spec.flow.has(id)) errors.push(["error", "undefined", `${t.id} 引用了 Spec 未定义的 ${id}`]);
   const told = new Set(tickets.flatMap((t) => t.stories));
   for (const n of spec.stories) if (!told.has(n)) errors.push(["error", "stories", `User Story ${n} 没有票指向`]);
+  return errors;
+}
+
+function lockedPreview(bytes, lock) {
+  if (!lock || createHash('sha256').update(bytes).digest('hex') !== lock.sha256) return;
+  let spec;
+  try {
+    spec = JSON.parse(bytes);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return;
+  }
+  if (spec?.version === lock.version) return spec;
+}
+
+function checkPreviewCoverage(preview, tickets) {
+  const owners = new Map(changeItems(preview).map(({ id }) => [id, new Set()]));
+  const errors = [];
+  for (const ticket of tickets) {
+    for (const id of ticket.preview ?? []) {
+      const holders = owners.get(id);
+      if (holders) holders.add(ticket.id);
+      else errors.push(['error', 'preview-unknown', `${id} 不在锁定预览中。请修正 ${ticket.id} 的 Preview 字段。`]);
+    }
+  }
+  for (const [id, holders] of owners) {
+    if (!holders.size) errors.push(['error', 'preview-uncovered', `${id} 无票认领。请分配给一张票。`]);
+    if (holders.size > 1) errors.push(['error', 'preview-duplicate', `${id} 被 ${[...holders].join(', ')} 认领。请只保留一张责任票。`]);
+  }
   return errors;
 }
 
@@ -258,25 +298,47 @@ function overlaps(tickets, waves) {
 }
 
 // ---- 入口 ---------------------------------------------------------------
-function checkTickets(specText, ticketText, requireScenarios = false) {
-  const spec = specItems(specText, requireScenarios);
-  const tickets = parseTickets(ticketText);
+function checkTickets(specText, ticketText, requireScenarios = false, previewBytes) {
+  const sections = splitSections(specText);
+  const preview = previewBytes === undefined ? undefined : lockedPreview(previewBytes, readPreviewLock(sections));
+  if (previewBytes !== undefined && !preview) {
+    return [['error', 'preview-lock', 'Spec Dependencies 缺少有效锁定行，或 JSON 的版本、SHA-256 与锁定行不一致。请核对锁定版。']];
+  }
+  const spec = specItems(sections, requireScenarios);
+  const tickets = parseTickets(ticketText, Boolean(preview));
   if (tickets.length === 0) return [["error", "edges", "票草稿里没有 \"## <id>: <标题>\" 块"]];
   const errors = [...checkCoverage(spec, tickets), ...checkScenarioContracts(spec, tickets, requireScenarios), ...checkKinds(tickets), ...checkTokens(tickets), ...checkEdges(tickets)];
+  if (preview) errors.push(...checkPreviewCoverage(preview, tickets));
   return [...errors, ...report(tickets)];
 }
 
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  const required = args[0] === '--require-scenarios';
-  const [specPath, ticketPath] = required ? args.slice(1) : args;
-  if (!specPath || !ticketPath) {
-    console.error("usage: check-tickets.js [--require-scenarios] <spec.md> <tickets.md>");
-    process.exit(2);
+function main(args) {
+  let required = false;
+  let previewPath;
+  while (args[0] === '--require-scenarios' || args[0] === '--preview') {
+    if (args.shift() === '--require-scenarios') required = true;
+    else previewPath = args.shift() ?? '';
   }
-  const lines = checkTickets(fs.readFileSync(specPath, "utf8"), fs.readFileSync(ticketPath, "utf8"), required);
+  const [specPath, ticketPath] = args;
+  if (!specPath || !ticketPath || previewPath === '' || previewPath?.startsWith('--')) {
+    console.error("usage: check-tickets.js [--require-scenarios] [--preview <spec-vN.json>] <spec.md> <tickets.md>");
+    return 2;
+  }
+  let previewBytes;
+  if (previewPath) {
+    try {
+      previewBytes = fs.readFileSync(previewPath);
+    } catch (error) {
+      if (!error.code) throw error;
+      console.log(`error\tpreview-lock\t无法读取 ${previewPath}（${error.code}）。请传入锁定版 JSON 路径。`);
+      return 1;
+    }
+  }
+  const lines = checkTickets(fs.readFileSync(specPath, "utf8"), fs.readFileSync(ticketPath, "utf8"), required, previewBytes);
   for (const line of lines) console.log(line.join("\t"));
-  process.exitCode = lines.some(([level]) => level === "error") ? 1 : 0;
+  return lines.some(([level]) => level === "error") ? 1 : 0;
 }
+
+if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
 module.exports = { checkTickets, parseTicket, ticketFindings, readScenarioContract, isUnknownDependency };

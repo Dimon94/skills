@@ -9,12 +9,17 @@ assert.ifError(skeleton.error);
 assert.equal(skeleton.status, 0, skeleton.stdout + skeleton.stderr);
 
 const failedIds = [];
-const expectedIds = Array.from({ length: 15 }, (_, index) => `S${index + 1}`);
-const scenarios = run({ files: [testFile('scenarios.test.mjs')] });
+const expectedIds = Array.from({ length: 15 }, (_, index) => `S${index + 1}`)
+  .filter(id => id !== 'S1' && id !== 'S11');
+const scenarios = run({
+  files: [testFile('scenarios.test.mjs')],
+  testNamePatterns: [new RegExp(`^(${expectedIds.join('|')}) `)],
+});
 for await (const event of scenarios) {
   if (event.type === 'test:pass') assert.fail(`场景应报红：${event.data.name}`);
   if (event.type !== 'test:fail') continue;
-  const { name, details, todo } = event.data;
+  const { name, details, skip, todo } = event.data;
+  assert.equal(skip, undefined, name);
   assert.equal(todo, undefined, name);
   assert.equal(details.error.failureType, 'testCodeFailure', name);
   assert.equal(details.error.cause?.code, 'ERR_ASSERTION', name);

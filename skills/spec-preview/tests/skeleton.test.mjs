@@ -11,7 +11,7 @@ const cli = fileURLToPath(new URL('../spec-preview.mjs', import.meta.url));
 const spec = new URL('fixtures/spec.json', import.meta.url);
 const frozenErrors = /^(InsideRepo|NotConfirmed|PreviewLockMismatch|MissingEvidence|CopyLint|BLOCKED)\t/;
 
-test('九个子命令接收冻结的位置参数并报错，预览目录没有新增文件', (t) => {
+test('未实现的子命令接收冻结的位置参数并报错，预览目录没有新增文件', (t) => {
   const directory = mkdtempSync(join(tmpdir(), 'spec-preview-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   copyFileSync(spec, join(directory, 'spec.json'));
@@ -19,8 +19,6 @@ test('九个子命令接收冻结的位置参数并报错，预览目录没有�
   const ref = ['my-skills', 'DD-654'];
   const lock = ['1', 'a'.repeat(64)];
   const argumentsByCommand = {
-    init: ref,
-    build: ref,
     apply: [...ref, 'feedback.md'],
     confirm: [...ref, 'feedback.md'],
     changes: [...ref, ...lock],

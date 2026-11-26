@@ -27,13 +27,12 @@ disable-model-invocation: true
 
 ## 推送远程
 
-用户说“推送远程”，即授权推送当前任务及其目标分支，并充当本次远程写的确认口令；不含合并 PR、强推和部署。按项目合回方式选一条路线，先中先停：
+用户说“推送远程”，即授权推送当前任务及其目标分支，并充当本次远程写的确认口令；不含合并 PR、强推和部署。默认主分支开发，PR 只在明确要求时走：
 
-1. 项目 AGENTS.md 写明 `main` 只经 PR/MR 前进：走 `git-push-pr`。
-2. 项目 AGENTS.md 写明本地集成（如用 `git-rebase-main` 合回 `main`）：任务未合回时走 `git-rebase-main`；随后在主工作区 `git push origin main`，读回 `git rev-parse origin/main` 等于本地 `main`。
-3. 规则没写：远端 `main` 有要求 PR 的分支保护，或近期提交经 PR 合入，按 1；否则按 2。判不出时给推荐和理由，再问。
+1. 用户本次要求提交 PR，或项目 AGENTS.md 写明 `main` 只经 PR/MR 前进：走 `git-push-pr`。
+2. 其余情况：任务未合回时走 `git-rebase-main`；随后在主工作区 `git push origin main`，读回 `git rev-parse origin/main` 等于本地 `main`。
 
-推送被拒（non-fast-forward）时停下报告，不 force push。回复写明命中第几条和推送后的 HEAD。
+推送被拒（non-fast-forward）时停下报告，不 force push。回复写明走了哪条路线和推送后的 HEAD。
 
 ## 原则
 

@@ -1,6 +1,7 @@
 ---
 name: git-rebase-main
 description: 将已完成的任务分支合回本地 main，并关闭对应 Issue、删除任务分支、回收临时工作树。用于本地 rebase、合回主分支与收尾；不推送目标分支。仅更新待发 PR 的分支时直接 rebase。
+disable-model-invocation: false
 ---
 
 # Git Rebase Main

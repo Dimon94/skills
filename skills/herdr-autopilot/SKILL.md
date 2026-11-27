@@ -10,6 +10,7 @@ disable-model-invocation: true
 
 ## 边界
 
+- **总控只调度**：总控只写账本、调度 lane。不改代码，不解冲突，不代入任何确认门（含 spec-preview confirm 与“用户已确认”类口令）。发现工具链 bug 时开 bugfix lane 去修。
 - **默认主窗口合一**：默认使用 `default` Herdr session（所有 `herdr` 命令直接执行，无需额外适配远程连接）；除非用户显式指定其他 `--session`，否则不为任务拆独立 session。
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
 - **模型按配置**：lane 的 harness、model、effort 只经 `launch` 从 delivery-pipeline 模型配置解析；`register` 拒绝未经 `launch` 启动的 pane。
@@ -33,7 +34,7 @@ disable-model-invocation: true
 
 ## 主循环
 
-每次手动触发或定时巡检，按顺序执行 5 步：
+每次收到 WAKE 或用户发话，按顺序执行 5 步：
 
 ### 1. 巡检快照
 
@@ -46,6 +47,7 @@ node scripts/autopilot.js poll
 - 用户发话的回合、新会话或上下文接力后的第一次巡检用 `poll --full`，重报全量。
 - 脚本只对 `idle` / `done` / `blocked` 且状态有变的已登记 lane 抓尾部输出，保持主上下文精简。
 - 收到 `[herdr-autopilot WAKE]` 消息时不跑 `poll`：消息正文就是这次巡检结果，直接进入第 3 步。
+- WAKE 正文与 herdr 实际状态不符、上下文接力后，或收到哨兵的系统通知时，不信 WAKE 正文，改跑 `poll --full`。
 - `unwatched` 非空表示这些 lane 的哨兵已经不在了：对每条重新执行 `watch`。
 - `unreleased` 非空表示 lane 已是 `done` 却没经 `set-stage done` 收口，pane 还开着：对每条重跑它给出的 `set-stage` 命令。
 
@@ -142,10 +144,18 @@ node scripts/autopilot.js set-stage --id <lane_id> --stage done
 - `awaiting_merge` 队列：PR/MR 坐标与验收状态。
 - 用户在任意终端直接运行 `herdr` 即可查看并随时接管所有会话。
 
+Milestone 收口后接着派下一个 Milestone，不等用户催。若总控上下文已很大，先交接到新总控线程：交接摘要写账本位置、活跃 lane 和待办，新线程首轮跑 `poll --full`。不在同一线程无限续跑。
+
+## 上下文预算
+
+- 总控不读源码和完整 diff，只读 lane 的交付摘要与账本。
+- `herdr agent read` 只读有限尾部行。不 `ls` / `cat` 账本 lanes 目录或大日志。
+- 不整份打印工具清单。
+
 ## 事件唤醒
 
-`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 T3 注入的 `$T3CODE_CLI_PATH thread send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。订阅的 lane 全部 `done` 后哨兵自己退出。
+`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 T3 注入的 `$T3CODE_CLI_PATH thread send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。同一状态只唤醒一次；lane 进入 `done` 或 `awaiting_merge` 后退订。订阅的 lane 全部退订后哨兵自己退出。
 
-- 不给巡检建 `schedule_task` 定时任务。
+- 不给巡检建 `schedule_task`、cron 或任何定时巡检。
 - 哨兵叫不醒线程时发一条 macOS 系统通知，并写进 `watch` 输出里的日志路径；看到通知就回总控线程跑 `poll --full`。
-- `watch` 报缺少 T3 环境时，本线程没有唤醒通道：告诉用户，改由用户发话驱动巡检。
+- 唤醒通道断了（`watch` 报缺少 T3 环境、收到系统通知、lane 在动却长时间没有 WAKE）：告诉用户，改由用户发话驱动巡检。仍不建定时巡检。

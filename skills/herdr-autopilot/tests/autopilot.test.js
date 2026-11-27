@@ -609,7 +609,7 @@ test('sentinel poll reports only changes after subscription, only for its thread
   agents = () => [];
   assert.deepEqual(tick('t1').missing.map((l) => l.id), ['a']);
 
-  // 等人的 lane 不归哨兵报，但哨兵要留着等它恢复；全部 done 才没有可看的。
+  // escalated 不唤醒，但哨兵仍要等它恢复。
   runCli(['escalate', ...base, '--id', 'a', '--reason', 'needs human']);
   const parked = tick('t1');
   assert.equal(parked.status, 'quiet');
@@ -624,10 +624,14 @@ test('sentinel poll reports only changes after subscription, only for its thread
 
 test('sentinel loop stays silent on unchanged ticks, wakes with the poll result inline, and exits when nothing is watched', () => {
   const lane = { id: 'a', issue: 'JB-1', agent: 'auto-a', stage: 'pipeline', state: 'idle', tail: 'Merged. What next?' };
+  const missing = { id: 'b', issue: 'JB-2', agent: 'auto-b', stage: 'pipeline' };
+  const changed = { ...lane, state: 'blocked', tail: 'Needs access' };
   const ticks = [
-    { status: 'quiet', watching: 1, needs_attention: [], missing: [] },
-    { status: 'quiet', watching: 1, needs_attention: [], missing: [] },
-    { status: 'attention', watching: 1, needs_attention: [lane], missing: [] },
+    { status: 'quiet', watching: 2, needs_attention: [], missing: [] },
+    { status: 'attention', watching: 2, needs_attention: [lane], missing: [] },
+    { status: 'attention', watching: 2, needs_attention: [{ ...lane }], missing: [missing] },
+    { status: 'attention', watching: 2, needs_attention: [{ ...lane }], missing: [{ ...missing }] },
+    { status: 'attention', watching: 2, needs_attention: [changed], missing: [{ ...missing }] },
     { status: 'quiet', watching: 0, needs_attention: [], missing: [] },
   ];
   const wakes = [];
@@ -641,8 +645,13 @@ test('sentinel loop stays silent on unchanged ticks, wakes with the poll result 
   });
 
   assert.deepEqual(result, { exit: 0, reason: 'nothing_watched' });
-  assert.equal(sleeps, 3);
-  assert.equal(wakes.length, 1, 'two unchanged ticks reach no model');
+  assert.equal(sleeps, 5);
+  const delivered = wakes.map(({ message }) => JSON.parse(message.slice(message.indexOf('\n') + 1)));
+  assert.deepEqual(delivered, [
+    { needs_attention: [lane], missing: [] },
+    { needs_attention: [], missing: [missing] },
+    { needs_attention: [changed], missing: [] },
+  ]);
   assert.equal(wakes[0].threadId, 't1');
   assert.ok(wakes[0].message.startsWith('[herdr-autopilot WAKE]'), 'orchestration_metrics 靠这个前缀认事件唤醒');
   assert.match(wakes[0].message, /Merged\. What next\?/);
@@ -1171,4 +1180,50 @@ test('default waker sends the wake message through the t3 CLI on stdin', () => {
 
   fs.writeFileSync(cli, '#!/bin/sh\necho "thread not found" >&2\nexit 1\n', { mode: 0o755 });
   assert.throws(() => defaultT3Waker({ threadId: 'x', message: 'm' }, { T3CODE_CLI_PATH: cli }), /thread not found/);
+});
+
+test('done and awaiting_merge lanes unsubscribe and the sentinel exits after the last subscription', () => {
+  const ledgerPath = makeTempLedger();
+  const base = ['--ledger', ledgerPath];
+  const pane = { pane_id: 'p1', tab_id: 'tab', terminal_id: 'terminal', agent_status: 'idle' };
+  const agents = [
+    { name: 'auto-a', pane_id: 'p1', agent_status: 'working', state_change_seq: 5 },
+    { name: 'auto-b', agent_status: 'working', state_change_seq: 7 },
+  ];
+  const runner = () => JSON.stringify({ result: { pane, panes: [pane], agents } });
+  const spawner = () => ({ pid: process.pid });
+  launched(ledgerPath, 'p1', 'auto-a');
+  runCli(['register', ...base, '--id', 'a', '--issue', 'JB-1', '--agent', 'auto-a', '--stage', 'pipeline',
+    '--pane', 'p1', '--pane-only', '--label', '验收'], runner);
+  runCli(['register', ...base, '--id', 'b', '--issue', 'JB-2', '--agent', 'auto-b', '--stage', 'pipeline']);
+  for (const id of ['a', 'b']) {
+    runCli(['watch', ...base, '--id', id, '--thread', 't1'], runner, { spawner });
+  }
+  const setStage = (id, stage) => runCli(['set-stage', ...base, '--id', id, '--stage', stage], runner);
+  const poll = () => runCli(['poll', ...base, '--thread', 't1'], runner).output;
+  const changes = [];
+  const result = runSentinel({
+    threadId: 't1',
+    poll: () => {
+      const snapshot = poll();
+      changes.push(snapshot.watching);
+      return snapshot;
+    },
+    wake: () => assert.fail('terminal lanes must not wake the thread'),
+    notify: () => assert.fail('terminal lanes must not trigger an error'),
+    sleep: () => {
+      if (changes.length === 1) setStage('a', 'done');
+      else if (changes.length === 2) setStage('b', 'awaiting_merge');
+      else assert.fail('sentinel kept running after both lanes reached terminal stages');
+      agents.shift();
+    },
+  });
+
+  assert.equal(result.exit, 0);
+  assert.deepEqual(changes, [2, 1, 0]);
+  const manual = runCli(['poll', ...base, '--full'], runner, { sentinelAlive: () => false }).output;
+  assert.deepEqual(manual.awaiting_merge.map(({ id }) => id), ['b']);
+  assert.deepEqual(manual.unwatched, []);
+  setStage('b', 'pipeline');
+  assert.equal(poll().watching, 0, 'resuming a lane requires a new watch');
 });

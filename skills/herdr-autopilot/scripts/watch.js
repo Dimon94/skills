@@ -5,7 +5,7 @@
 // - Owns: 每个 (session, T3 线程) 一个常驻进程的 pid 去重、定时巡检循环、
 //   `t3 thread send` 唤醒、叫不醒时的系统通知。
 // - 不读写账本：每拍经 autopilot.js `poll --thread` 拿结果，那条命令持账本锁。
-// - 没有变化不发任何消息；该线程没有未完成的订阅 lane 即退出 0。
+// - 同一 lane 在连续巡检里重复出现的状态只唤醒一次；没有订阅 lane 即退出 0。
 // - 唤醒消息是纯文本，自带巡检结果，不带 skill 调用。
 // - Fail-close: 缺 T3 唤醒环境在订阅时失败；巡检连续失败 3 次通知人并退出 1；唤醒失败通知人并写日志。
 // ============================================================================
@@ -13,6 +13,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync, spawn } = require('node:child_process');
+const { isDeepStrictEqual } = require('node:util');
 
 const TICK_MS = 15000;
 const MAX_POLL_FAILURES = 3;
@@ -122,8 +123,20 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-function wakeMessage(snapshot) {
-  const changed = { needs_attention: snapshot.needs_attention, missing: snapshot.missing };
+function wakeChanges(snapshot, previous) {
+  const current = new Map();
+  const changed = {};
+  for (const bucket of ['needs_attention', 'missing']) {
+    changed[bucket] = snapshot[bucket].filter((lane) => {
+      const state = { bucket, lane };
+      current.set(lane.id, state);
+      return !isDeepStrictEqual(previous.get(lane.id), state);
+    });
+  }
+  return { current, changed };
+}
+
+function wakeMessage(changed) {
   const count = changed.needs_attention.length + changed.missing.length;
   return [
     `[herdr-autopilot WAKE] ${count} 条 lane 状态变了。下面就是这次巡检结果，不用再跑 poll；按暂停分诊处理。`,
@@ -133,6 +146,7 @@ function wakeMessage(snapshot) {
 
 // 一拍 = 一次持锁巡检。只有巡检报出变化才碰模型。
 function runSentinel({ threadId, poll, wake = defaultT3Waker, notify = notifyHuman, sleep = () => sleepSync(TICK_MS) }) {
+  let previous = new Map();
   for (let failures = 0; ; sleep()) {
     let snapshot;
     try {
@@ -145,9 +159,15 @@ function runSentinel({ threadId, poll, wake = defaultT3Waker, notify = notifyHum
       return { exit: 1, reason: 'poll_failed' };
     }
     if (snapshot.watching === 0) return { exit: 0, reason: 'nothing_watched' };
-    if (snapshot.status !== 'attention') continue;
+    if (snapshot.status !== 'attention') {
+      previous.clear();
+      continue;
+    }
+    const { current, changed } = wakeChanges(snapshot, previous);
+    previous = current;
+    if (!changed.needs_attention.length && !changed.missing.length) continue;
     try {
-      wake({ threadId, message: wakeMessage(snapshot) });
+      wake({ threadId, message: wakeMessage(changed) });
     } catch (err) {
       notify(`lane 状态变了但叫不醒线程 ${threadId}：${err.message}。回到总控线程跑 poll --full。`);
     }

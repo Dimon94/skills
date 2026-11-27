@@ -241,6 +241,13 @@ function recordReply(ledger, id, note) {
   };
 }
 
+function clearTerminalWatch(lane) {
+  if (lane.status !== 'done' && lane.status !== 'awaiting_merge') return false;
+  delete lane.wake_thread;
+  delete lane.woken_sig;
+  return true;
+}
+
 function setStage(ledger, id, stage) {
   if (!VALID_STAGES.has(stage)) {
     throw new Error(`invalid stage "${stage}"; allowed: ${[...VALID_STAGES].join(', ')}`);
@@ -255,6 +262,7 @@ function setStage(ledger, id, stage) {
   } else if (lane.status !== 'escalated') {
     lane.status = 'active';
   }
+  clearTerminalWatch(lane);
   lane.updated_at = new Date().toISOString();
   return lane;
 }
@@ -353,9 +361,12 @@ function noSeqError(lane) {
 
 // 哨兵的一拍。记忆用 woken_sig，不和手动 poll 的 reported_sig 共用：
 // 多个总控共用账本时，别人的 poll 不能吃掉这条 lane 的变化。
-// 等人的 lane（escalated、awaiting_merge）只由总控自己的命令产生，不归哨兵报，但算在 watching 里等它恢复。
+// escalated 仍算在 watching 里等恢复；清理旧账本里残留的终态订阅。
 function sentinelPoll(ledger, session, threadId, opts, runner = defaultHerdrRunner) {
-  const mine = Object.values(ledger.lanes).filter((lane) => lane.wake_thread === threadId && lane.status !== 'done');
+  const mine = [];
+  for (const lane of Object.values(ledger.lanes)) {
+    if (lane.wake_thread === threadId && !clearTerminalWatch(lane)) mine.push(lane);
+  }
   const out = { session, thread: threadId, status: 'quiet', watching: mine.length, needs_attention: [], missing: [] };
   const active = mine.filter((lane) => lane.status === 'active');
   if (active.length === 0) return out;

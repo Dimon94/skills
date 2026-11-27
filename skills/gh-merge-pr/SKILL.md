@@ -5,9 +5,10 @@ description: 审查并合并单个 GitHub PR，读回落地结果、关闭对应
 
 # GH Merge PR
 
-负责一个 GitHub PR 从 current-head Review 到完整收尾。Review 只允许读取远端、
+负责单个 GitHub PR 从 current-head Review 到完整收尾。Review 只允许读取远端、
 准备隔离 checkout 和生成报告。用户明确要求合并该 PR 时，执行落地及收尾；沿用会话中
 已有授权，范围与完成条件归 [收尾合同](../git-rebase-main/references/closeout.md)。
+多 PR 与栈式 PR 落地按 [`shipping.md`](../dimon-mode/playbooks/shipping.md) 编排，单 PR 的冲突/讨论/CI 迭代清理按 [`babysit.md`](../dimon-mode/playbooks/babysit.md)。
 
 ## 1. 绑定 Review Packet
 
@@ -20,7 +21,8 @@ gh pr view <n> --json number,title,body,url,headRefOid,headRefName,headRepositor
 
 Fetch base 与 PR head，在隔离 checkout 中记录固定的三点 diff 命令和 commit list。
 所有 Review SubAgent 必须收到同一个 Review Packet；缺失 PR 身份、不可解析的 base/head
-或空 diff 立即阻断。head SHA 变化时重建 Packet，Review 结论不直接沿用。记录主工作区、
+或空 diff 立即阻断。head SHA 变化时默认重建 Packet；仅 rebase 或测试/文档/lint 改动下的
+`patch-id` 与构建等价 verdict 延续规则以 [`shipping.md`](../dimon-mode/playbooks/shipping.md) 第 3 步为准。记录主工作区、
 源分支与远端、本次创建的 Review 工作树和任务工作树，供收尾定位。
 
 完成标准：Packet 能唯一标识 repo、PR、base、head、diff、Spec 与标准来源，收尾对象可定位。
@@ -76,7 +78,7 @@ PR 若来自 `productionize-app-with-services`，把它的计划、Quality Bar�
 保留主 Review 的 Standards/Spec 分离结果，并把每个专项报告放在独立小节。不要让专项
 结论覆盖主 Review，也不要把不同轴重新排序成一个分数。
 
-Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解决讨论必须分别读取。
+Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解决讨论必须分别读取。绿 CI 和自动化 bot 批准不替代独立验证 Verdict（见 [`shipping.md`](../dimon-mode/playbooks/shipping.md) 第 1 步）。
 以下条件全部成立才得到 `REVIEWED`：
 
 - 主 Review 完成，每条 blocker 的反例已变绿；
@@ -98,7 +100,8 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 1. 执行[预览门](../git-rebase-main/references/closeout.md#预览门)。按有无 `Preview:` 锁定行选择对比页或变更预览，等用户明确确认已审 head 对应的当前预览。
 2. 重读 head SHA。变化则回到第 1 节。
 3. 使用用户指定的策略执行 `gh pr merge <n> --match-head-commit <reviewed-head>`；未指定时
-   使用 `--merge`。分支与工作树统一在第 7 步清理，此处不加 `--delete-branch`。
+   使用 `--merge`。分支与工作树统一在第 7 步清理，此处不加 `--delete-branch`。仅在
+   Verdict 覆盖当前 head 且获授权时按 [`shipping.md`](../dimon-mode/playbooks/shipping.md) 第 4 步启用 `--auto`。
 4. branch protection 或 merge queue 拒绝时保持 `BLOCKED`；只有用户明确授权才可使用
    `--admin` 绕过保护。
 
@@ -138,4 +141,4 @@ Provider 状态只作证据：`reviewDecision`、检查、mergeability 和未解
 分别报告；已合并但收尾未完成仍报告 `BLOCKED` 和恢复动作。
 
 Review finding 中的已确认产品缺陷转调试流程；需求或产品意图缺口转新 issue。本 Skill
-不修复产品代码。发生真实 merge/rebase conflict 时调用 `resolving-merge-conflicts`。
+不修复产品代码：清理 PR 讨论与 CI 走 [`babysit.md`](../dimon-mode/playbooks/babysit.md)，多 PR 或栈式落地走 [`shipping.md`](../dimon-mode/playbooks/shipping.md)。发生真实 merge/rebase conflict 时调用 `resolving-merge-conflicts`。

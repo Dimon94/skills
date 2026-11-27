@@ -67,6 +67,6 @@ wip 正文和提交历史是权威输入，不从头重做已完成的部分。�
 
 `gc` 只删同时满足这四条的树和分支：没有未提交改动（软链不算）、有过提交、已并入集成基准、没有进程把工作目录放在树里。已并入包括 squash 合入和逐个 rebase 合入：补丁已在基准里就算。其余写明原因保留：`dirty`、`empty`、`unmerged`、`in-use:N`。它从不 `--force`。`prunable` 行是目录已不在的旧记录，只报告；清理它们要单独决定。
 
-废弃的任务不会被自动回收：确认不要后，按用户授权删除树和分支。
+废弃任务树、非 `worktree.sh` 托管的外部工作树（如 T3 / IDE 树）以及模拟器与本机缓存的批量磁盘回收，走 [`worktree-cleanup.md`](../dimon-mode/playbooks/worktree-cleanup.md)。
 
 完成条件：`gc --apply` 已在主工作树运行，输出里本次合入的树是 `remove` 行，或是带原因的 `keep` 行。

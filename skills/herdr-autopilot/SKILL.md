@@ -6,18 +6,17 @@ disable-model-invocation: true
 
 # Herdr Autopilot
 
-从外部宿主（如 T3 Code）直接调度默认 Herdr session（用户敲 `herdr` 打开的主窗口；也支持显式 `--session <name>`），在其中并发推进多个需求与缺陷，并在子 Agent 暂停时按 `dimon-mode` 原则自动分诊回复或升级给用户。
+从外部宿主（如 T3 Code）调度默认 Herdr session（也支持 `--session <name>`），作为多 PR 无人值守交付的 Herdr 运行期适配层。多 PR 无人值守的验证、合入前主干判定、门禁复签、按副作用判卡死与停机零写入合同以 [`autopilot-full.md`](../dimon-mode/playbooks/autopilot-full.md) 为主（只验证不合并或有依赖栈时以 [`autopilot-stack.md`](../dimon-mode/playbooks/autopilot-stack.md) 为主）；本 Skill 只承载 Herdr 侧的账本白名单、布局命名、模型启动、事件唤醒、Issue 同步与资源回收。
 
-## 边界
+## Herdr 运行期边界
 
-- **总控只调度**：总控只写账本、调度 lane。不改代码，不解冲突，不代入任何确认门（含 spec-preview confirm 与“用户已确认”类口令）。发现工具链 bug 时开 bugfix lane 去修。
-- **默认主窗口合一**：默认使用 `default` Herdr session（所有 `herdr` 命令直接执行，无需额外适配远程连接）；除非用户显式指定其他 `--session`，否则不为任务拆独立 session。
+- **总控只写账本与调度**：不改产品代码、不解冲突、不代输确认门（含 spec-preview confirm），发现工具链 bug 开 bugfix lane 去修；其余多 PR 门禁与复签规则按 [`autopilot-full.md`](../dimon-mode/playbooks/autopilot-full.md) 第 1、5、6 步执行。
+- **默认主窗口合一**：默认使用 `default` Herdr session；除非用户显式指定 `--session`，不为任务拆独立 session。
 - **账本白名单隔离**：只读取、回复、操作账本里已登记的 `agent` / `pane_id`；用户手工开的未登记 pane/agent 一律忽略。
 - **模型按配置**：lane 的 harness、model、effort 只经 `launch` 从 delivery-pipeline 模型配置解析；`register` 拒绝未经 `launch` 启动的 pane。
 - **零抢焦点**：所有 workspace / tab / pane 操作携带 `--no-focus`，不依赖 `--current` 或 focused pane。
 - **一个 Epic 一个 workspace**：每个 Epic 独占一个 workspace，它的 Spec、ticket、bugfix lane 都落在这里；`place` 按 `--epic` 复用该 Epic 的 workspace，没有就新建；`register` 拒绝跨 Epic 共用或同 Epic 分散。
 - **2×2 四格与可视化命名**：每张 worker tab 最多 4 个 pane，按左上 → 右上 → 左下 → 右下均分，满 4 自动开 `-2`；workspace、tab、pane 统一采用 `<Issue号> <中文简写>[ <英文>]` 短命名，由脚本校验汉字与显示宽度上限。
-- **不可逆硬拦截**：合并 PR/MR、强推共享分支、删除数据、生产部署、对外发消息只升级给用户，绝不代输确认口令。
 - **Issue 状态强同步**：`register`、`set-stage --stage awaiting_merge`、`set-stage --stage done` 由脚本自动调用 tracker 同步状态并回读校验，回读不符即 fail-close；严禁口头汇报进展而把 Issue 留在 `Backlog`。
 
 ## 布局与可视化命名

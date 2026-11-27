@@ -127,15 +127,24 @@ disable-model-invocation: true
 | 把 Spec 切成 ticket 并发到 tracker | `to-tickets`（用户调用） |
 | 多阶段交付编排 | `delivery-pipeline`（用户调用） |
 | 外部宿主操控默认 Herdr 窗口自动推进多需求与缺陷 | `herdr-autopilot`（用户调用） |
+| 多 PR 无人值守到合并 | 按 `playbooks/autopilot-full.md`；经 Herdr 调度走 `herdr-autopilot` |
+| 多 PR 无人值守到已验证（不合并或含依赖栈） | 按 `playbooks/autopilot-stack.md` |
+| 盯单个 PR 到可合（冲突、讨论、CI） | 按 `playbooks/babysit.md` |
+| 批量或栈式 PR 自底向上落地 | 按 `playbooks/shipping.md`；单 PR 审查合入走 `gh-merge-pr` |
 | 排下周 Cycle、同步本周工作集合 | `delivery-cycle` |
 | 按 Spec 或票实现 | `implement` 按 `bdd` 实施；按票委派用 `delegate-ticket` |
-| 修缺陷、性能回归 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
+| 修缺陷 | 按本文件同目录的 `playbooks/bug-fix.md`；复现与排假设走 `mattpocock-skills:diagnosing-bugs` |
+| 修性能问题（含判为 `scope:bug` 的性能回归） | 按 `playbooks/perf-issue.md` |
+| 对着一个指标持续优化到目标 | 按 `playbooks/hillclimb.md` |
+| 活进程性能或故障取证（只诊断不修） | 按 `playbooks/runtime-forensics.md` |
+| 已有 profile、堆快照或 trace 取证（只诊断不修） | 按 `playbooks/trace-forensics.md` |
 | 写代码前定类型、签名和 Module 边界 | `architect` |
 | 检查状态流转规则、画状态图、把 bug 显示成状态路径 | `statechart`（用户调用） |
 | 对标或复刻参考产品 | 按 `playbooks/replicate-reference.md` |
 | 用户说暂停 | 按 `playbooks/pause-safely.md` |
 | 接手上一段会话（含压缩后） | 按 `playbooks/session-pickup.md` |
-| 建树、看在做清单、回收工作树 | `git-worktree` |
+| 建树、看在做清单、单任务回收 | `git-worktree` |
+| 批量清理废弃工作树、模拟器与缓存释放磁盘 | 按 `playbooks/worktree-cleanup.md` |
 | 解决进行中的 merge 或 rebase 冲突 | `resolving-merge-conflicts` |
 | 写或改 Skill | 按 `playbooks/authoring-a-skill.md` |
 | 创建或迭代个人工作方式 Skill | `automate-me`（用户调用） |

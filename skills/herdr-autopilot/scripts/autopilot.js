@@ -438,6 +438,12 @@ function parseArgs(argv) {
   return { command, flags };
 }
 
+function launchRetryCommand(argv) {
+  return ['node', __filename, ...argv].map((arg) => (
+    /^[\w./:-]+$/.test(arg) ? arg : `'${arg.replace(/'/g, "'\\''")}'`
+  )).join(' ');
+}
+
 function recordIssueSync(lane, syncResult) {
   lane.issue_state = syncResult.state;
   lane.issue_status_type = syncResult.status_type;
@@ -521,8 +527,15 @@ function runCli(argv, runner = defaultHerdrRunner, deps = {}) {
   }
 
   if (command === 'launch') {
-    const output = launchAgent(ledger, { stage: flags.stage, task: flags.task, agent: flags.agent, pane: flags.pane },
-      { session, runner, planner: deps.planner });
+    let output;
+    try {
+      output = launchAgent(ledger, { stage: flags.stage, task: flags.task, agent: flags.agent, pane: flags.pane }, {
+        session, runner, planner: deps.planner, checkpoint: () => saveLedger(ledgerPath, ledger),
+      });
+    } catch (error) {
+      if (error.code !== 'agent_not_ready') throw error;
+      throw new Error(`${error.message}。处理 pane 内的启动提示后重跑 ${launchRetryCommand(argv)}`, { cause: error });
+    }
     saveLedger(ledgerPath, ledger);
     return { exitCode: 0, output };
   }

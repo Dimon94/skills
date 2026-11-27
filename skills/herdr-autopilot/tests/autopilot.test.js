@@ -1051,6 +1051,73 @@ test('launch requires an explicit task type for bugfix and rejects non-start pla
     () => '', { planner: () => ({ argv: ['herdr', 'pane', 'close', 'p1'] }) }), /不是 herdr agent start/);
 });
 
+function launchScenario() {
+  const ledger = path.join(path.dirname(makeTempLedger()), 'lane ledger.json');
+  const argv = ['launch', '--session', 'retry-test', '--ledger', ledger, '--pane', 'w1:p1', '--agent', 'retry', '--stage', 'spec'];
+  const agent = { name: 'retry', pane_id: 'w1:p1', terminal_id: 'term-1', agent: 'claude', agent_status: 'blocked' };
+  let live = null;
+  let starts = 0;
+  const error = (code) => Object.assign(new Error(`Command failed: ${code}`), {
+    stderr: JSON.stringify({ id: 'cli:agent', error: { code, message: code } }),
+  });
+  const reply = (key, value) => JSON.stringify({ result: { [key]: value } });
+  const runner = (session, [entity, action]) => {
+    assert.equal(session, 'retry-test');
+    if (entity === 'pane' && action === 'get') {
+      return reply('pane', { pane_id: 'w1:p1', terminal_id: 'term-1', tab_id: 'w1:t1' });
+    }
+    if (entity === 'pane' && action === 'rename') return '';
+    if (entity === 'agent' && action === 'get') {
+      if (!live) throw error('agent_not_found');
+      return reply('agent', live);
+    }
+    if (entity === 'agent' && action === 'wait' && live?.agent_status === 'unknown') {
+      live = { ...live, agent_status: 'idle', interactive_ready: true };
+      return reply('agent', live);
+    }
+    assert.equal(`${entity} ${action}`, 'agent start');
+    starts += 1;
+    if (live) throw error('agent_name_taken');
+    live = agent;
+    throw error('agent_not_ready');
+  };
+  return {
+    ledger, runner,
+    launch: () => runCli(argv, runner, { planner: fakePlanner }),
+    setLive: (fields) => { live = { ...agent, ...fields }; },
+    starts: () => starts,
+  };
+}
+
+test('launch retry waits for its existing agent and preserves the original launch for register', () => {
+  const { ledger, runner, launch, setLive, starts } = launchScenario();
+  let firstError;
+  assert.throws(launch, (err) => { firstError = err.message; return /agent_not_ready/.test(firstError); });
+  const register = () => runCli(['register', '--session', 'retry-test', '--ledger', ledger, '--id', 'retry',
+    '--issue', 'JB-574', '--agent', 'retry', '--stage', 'spec', '--pane', 'w1:p1', '--pane-label', '重试'], runner);
+  assert.throws(register, /launch/);
+
+  setLive({ agent_status: 'unknown' });
+  const resumed = launch().output;
+  assert.equal(resumed.agent_name, 'retry');
+  assert.equal(resumed.pane, 'w1:p1');
+  assert.deepEqual(launch().output, resumed);
+  assert.equal(starts(), 1);
+  assert.equal(register().output.launch.model, 'claude-opus-5-5');
+  assert.ok(firstError.includes(`launch --session retry-test --ledger '${ledger}' --pane w1:p1 --agent retry --stage spec`));
+});
+
+test('launch retry rejects its name on another pane without adopting that agent', () => {
+  const { ledger, launch, setLive, starts } = launchScenario();
+  assert.throws(launch, /agent_not_ready/);
+  const pending = fs.existsSync(ledger) ? fs.readFileSync(ledger, 'utf8') : null;
+  setLive({ pane_id: 'w2:p1', terminal_id: 'term-2', agent_status: 'idle', interactive_ready: true });
+
+  assert.throws(launch, /agent_name_taken/);
+  assert.equal(starts(), 1);
+  assert.equal(fs.readFileSync(ledger, 'utf8'), pending);
+});
+
 // 期望值来源：setup 合同（delivery-pipeline-setup SKILL.md 第 2 步）——probe 的 stdin 必须是网关清单原始来源。
 // 旧错误：launch 传 '{}'，pi 经网关的模型全被丢弃，backend/testing lane 报 "pi model is absent from capability evidence"。
 test('default planner hands the gateway catalog to probe, or status unknown when unreachable', () => {

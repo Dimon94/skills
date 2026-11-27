@@ -933,6 +933,7 @@ test('keep-issue-open requires reason, pane-only skips auto-close, terminal issu
 
 // 期望值来源：用户纠正 Herdr 调度未按 2x2 四格落位、未按“中文简写+英文+issue号”命名 workspace/tab/pane。
 test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, and validates CJK display width', () => {
+  const ledger = makeTempLedger();
   assert.equal(displayWidth('JB-512 零停机 M3'), 16);
   assert.throws(
     () => formatVisualLabel({ issue: 'JB-512', label: '生产分层零停机发布体系全量方案', maxCols: 20, kind: 'workspace' }),
@@ -976,7 +977,7 @@ test('place enforces 2x2 four-quadrant grid, overflows to -2 tab on 5th pane, an
   };
 
   const placeOne = (issue, paneLabel, extra = []) => runCli([
-    'place', '--epic', 'JB-512', '--cwd', '/tmp/wt', '--issue', issue,
+    'place', '--ledger', ledger, '--epic', 'JB-512', '--cwd', '/tmp/wt', '--issue', issue,
     '--tab-prefix', 'JB-512 实施', '--pane-label', paneLabel, '--exclude-tab', 'w1:t0', ...extra,
   ], runner).output;
 

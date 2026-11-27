@@ -154,7 +154,7 @@ Milestone 收口后接着派下一个 Milestone，不等用户催。若总控上
 
 ## 事件唤醒
 
-`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 T3 注入的 `$T3CODE_CLI_PATH thread send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。同一状态只唤醒一次；lane 进入 `done` 或 `awaiting_merge` 后退订。订阅的 lane 全部退订后哨兵自己退出。
+`watch` 先于首条 `herdr agent prompt` 执行，一条 lane 只订阅一次。它把 lane 当前状态记成基线，并保证当前 T3 线程有一个哨兵进程在跑。哨兵每 15 秒在本机巡检一次本线程订阅的 lane：状态没变不发消息，变了才经 T3 注入的 `$T3CODE_CLI_PATH thread send` 发一条 `[herdr-autopilot WAKE]`，正文带巡检结果。同一状态只唤醒一次；lane 进入 `done` 或 `awaiting_merge` 后退订。订阅的 lane 全部退订后哨兵自己退出。lane 退订后又恢复执行（例如 `awaiting_merge` 收到修改意见），重新执行 `watch`。
 
 - 不给巡检建 `schedule_task`、cron 或任何定时巡检。
 - 哨兵叫不醒线程时发一条 macOS 系统通知，并写进 `watch` 输出里的日志路径；看到通知就回总控线程跑 `poll --full`。
